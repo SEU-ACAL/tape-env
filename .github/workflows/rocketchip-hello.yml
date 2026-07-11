@@ -76,18 +76,8 @@ jobs:
           path: ${{ env.CI_RESULT_DIR }}
           if-no-files-found: warn
 
-  summary:
-    name: Rocket Chip Hello Summary
-    needs: run-hello
-    if: always() && needs.run-hello.result != 'skipped'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: rocketchip-hello-${{ github.run_id }}
-          path: result
-
-      - name: Write summary
+      - name: Write hello summary
+        if: always()
         run: |
           echo "## Rocket Chip hello" >> "$GITHUB_STEP_SUMMARY"
-          cat result/result.json >> "$GITHUB_STEP_SUMMARY"
+          cat "${CI_RESULT_DIR}/result.json" >> "$GITHUB_STEP_SUMMARY"
