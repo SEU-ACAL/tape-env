@@ -11,6 +11,11 @@ require_rocketchip_profile
 rm -rf "${CI_STAGE_DIR}"
 mkdir -p "${CI_STAGE_DIR}/soc-generator/sims"
 
+# The self-hosted workspace survives canceled jobs. Deinitialize any partial
+# worktrees so init-submodules can recreate them from the retained git cache.
+git -C "${REPO_ROOT}" submodule deinit --force --all
+git -C "${REPO_ROOT}" submodule sync --recursive
+
 run_in_nix '
   dependencies/scripts/init-submodules.sh
   make -C soc-generator CONFIG=RocketConfig emu
