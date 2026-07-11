@@ -55,7 +55,7 @@ jobs:
     outputs:
       run-ci: ${{ steps.filter.outputs.all_count != steps.filter.outputs.non-ci-files_count }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Nix
         uses: cachix/install-nix-action@v31
         with:
@@ -98,7 +98,7 @@ jobs:
         run: |
             rm -rf ${{ github.workspace }}/* || true
             rm -rf ${{ github.workspace }}/.* || true
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Nix
         uses: cachix/install-nix-action@v31
         with:
@@ -153,9 +153,9 @@ jobs:
       GH_ORG: firesim
       GH_REPO: firesim-public-bitstreams
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Create temporary clone of repo to store built bitstreams into
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ env.GH_ORG }}/${{ env.GH_REPO }}
           ssh-key: ${{ secrets.BARTENDER_PRIVATE_SSH_KEY }}
