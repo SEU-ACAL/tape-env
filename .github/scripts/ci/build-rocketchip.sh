@@ -16,6 +16,10 @@ mkdir -p "${CI_STAGE_DIR}/soc-generator/sims"
 git -C "${REPO_ROOT}" submodule deinit --force --all
 git -C "${REPO_ROOT}" submodule sync --recursive
 
+# chipyard aggregates Gemmini even for RocketConfig. Only its root submodule is
+# needed for Scala compilation; its software submodules remain unnecessary.
+git -C "${REPO_ROOT}" submodule update --init soc-generator/generator/gemmini
+
 # SBT creates a Unix socket below JAVA_TMP_DIR. Keep this path short because
 # the persistent GitHub Actions workspace exceeds the Unix socket length limit.
 JAVA_TMP_DIR="${CI_SHARED_ROOT}/java/${GITHUB_RUN_ID:?GITHUB_RUN_ID must be set}"
