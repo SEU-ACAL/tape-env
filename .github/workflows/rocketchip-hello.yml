@@ -29,8 +29,6 @@ jobs:
       artifact_dir: ${{ steps.publish.outputs.artifact_dir }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Prepare artifact paths
         run: |
@@ -51,8 +49,6 @@ jobs:
     runs-on: [self-hosted, linux, runner]
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Prepare result paths
         run: |

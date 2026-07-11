@@ -12,7 +12,7 @@ rm -rf "${CI_STAGE_DIR}"
 mkdir -p "${CI_STAGE_DIR}/soc-generator/sims"
 
 run_in_nix '
-  dependencies/scripts/init-submodules.sh --full
+  dependencies/scripts/init-submodules.sh
   make -C soc-generator CONFIG=RocketConfig emu
 '
 
