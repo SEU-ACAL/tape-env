@@ -15,8 +15,8 @@ concurrency:
 
 env:
   CI_SHARED_ROOT: /data2/ci-runner
-  CI_PROFILE: rocketchip
   CI_BUILD_JOBS: 32
+  CI_PR_NUMBER: ${{ github.event.pull_request.number || '' }}
   HTTP_PROXY: http://127.0.0.1:12000
   HTTPS_PROXY: http://127.0.0.1:12000
   NO_PROXY: localhost,127.0.0.1
@@ -35,9 +35,9 @@ jobs:
 
       - name: Prepare artifact paths
         run: |
-          run_key="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          echo "CI_STAGE_DIR=${CI_SHARED_ROOT}/artifacts/.staging/${run_key}/${GITHUB_SHA}/${CI_PROFILE}" >> "$GITHUB_ENV"
-          echo "CI_ARTIFACT_DIR=${CI_SHARED_ROOT}/artifacts/${run_key}/${GITHUB_SHA}/${CI_PROFILE}" >> "$GITHUB_ENV"
+          run_dir="${CI_SHARED_ROOT}/rocketchip/run-${GITHUB_RUN_NUMBER}-${GITHUB_SHA:0:12}"
+          echo "CI_RUN_DIR=${run_dir}" >> "$GITHUB_ENV"
+          echo "CI_ARTIFACT_DIR=${run_dir}/emu" >> "$GITHUB_ENV"
 
       - name: Build Rocket Chip emulator
         run: .github/scripts/ci/build-rocketchip.sh
@@ -55,10 +55,12 @@ jobs:
 
       - name: Prepare result paths
         run: |
-          run_stamp="$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_SHA:0:12}"
-          echo "CI_ARTIFACT_DIR=${{ needs.build.outputs.artifact_dir }}" >> "$GITHUB_ENV"
-          echo "CI_RESULT_DIR=${CI_SHARED_ROOT}/logs/${run_stamp}/${CI_PROFILE}/hello" >> "$GITHUB_ENV"
-          mkdir -p "${CI_SHARED_ROOT}/logs/${run_stamp}/${CI_PROFILE}/hello"
+          artifact_dir="${{ needs.build.outputs.artifact_dir }}"
+          run_dir="$(dirname "${artifact_dir}")"
+          echo "CI_RUN_DIR=${run_dir}" >> "$GITHUB_ENV"
+          echo "CI_ARTIFACT_DIR=${artifact_dir}" >> "$GITHUB_ENV"
+          echo "CI_RESULT_DIR=${run_dir}/hello" >> "$GITHUB_ENV"
+          mkdir -p "${run_dir}/hello"
 
       - name: Restore Rocket Chip emulator
         run: .github/scripts/ci/restore-artifact.sh
@@ -68,6 +70,11 @@ jobs:
         run: |
           set -o pipefail
           .github/scripts/ci/run-hello.sh 2>&1 | tee "${CI_RESULT_DIR}/workflow.log"
+
+      - name: Delete temporary binaries
+        if: always()
+        run: |
+          rm -rf "${CI_RESULT_DIR}/tests-build"
 
       - name: Write hello summary
         if: always()
