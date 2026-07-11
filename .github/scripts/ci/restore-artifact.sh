@@ -23,5 +23,6 @@ if [[ ! -d "${artifact_sim}" ]]; then
   exit 1
 fi
 
-rm -rf "${REPO_ROOT}/soc-generator/sims/verilator"
-cp -a "${artifact_sim}" "${REPO_ROOT}/soc-generator/sims/verilator"
+runner_sim="${REPO_ROOT}/soc-generator/sims/verilator"
+rm -rf "${runner_sim}"
+ln -s "${artifact_sim}" "${runner_sim}"
