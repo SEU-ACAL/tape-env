@@ -1,0 +1,95 @@
+name: Rocket Chip Hello
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rocketchip-hello-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI_SHARED_ROOT: /data2/ci-runner
+  CI_PROFILE: rocketchip
+
+jobs:
+  build:
+    name: Build Rocket Chip
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, builder]
+    outputs:
+      artifact_dir: ${{ steps.publish.outputs.artifact_dir }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Prepare artifact paths
+        run: |
+          run_key="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "CI_STAGE_DIR=${CI_SHARED_ROOT}/artifacts/.staging/${run_key}/${GITHUB_SHA}/${CI_PROFILE}" >> "$GITHUB_ENV"
+          echo "CI_ARTIFACT_DIR=${CI_SHARED_ROOT}/artifacts/${run_key}/${GITHUB_SHA}/${CI_PROFILE}" >> "$GITHUB_ENV"
+
+      - name: Build Rocket Chip emulator
+        run: .github/scripts/ci/build-rocketchip.sh
+
+      - name: Publish emulator artifact
+        id: publish
+        run: .github/scripts/ci/publish-artifact.sh
+
+  run-hello:
+    name: Run Rocket Chip Hello
+    needs: build
+    runs-on: [self-hosted, linux, runner]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Prepare result paths
+        run: |
+          run_key="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "CI_ARTIFACT_DIR=${{ needs.build.outputs.artifact_dir }}" >> "$GITHUB_ENV"
+          echo "CI_RESULT_DIR=${CI_SHARED_ROOT}/logs/${run_key}/${GITHUB_SHA}/${CI_PROFILE}/hello" >> "$GITHUB_ENV"
+          mkdir -p "${CI_SHARED_ROOT}/logs/${run_key}/${GITHUB_SHA}/${CI_PROFILE}/hello"
+
+      - name: Restore Rocket Chip emulator
+        run: .github/scripts/ci/restore-artifact.sh
+
+      - name: Run hello
+        id: hello
+        run: |
+          set -o pipefail
+          .github/scripts/ci/run-hello.sh 2>&1 | tee "${CI_RESULT_DIR}/workflow.log"
+
+      - name: Upload hello result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rocketchip-hello-${{ github.run_id }}
+          path: ${{ env.CI_RESULT_DIR }}
+          if-no-files-found: warn
+
+  summary:
+    name: Rocket Chip Hello Summary
+    needs: run-hello
+    if: always() && needs.run-hello.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: rocketchip-hello-${{ github.run_id }}
+          path: result
+
+      - name: Write summary
+        run: |
+          echo "## Rocket Chip hello" >> "$GITHUB_STEP_SUMMARY"
+          cat result/result.json >> "$GITHUB_STEP_SUMMARY"
