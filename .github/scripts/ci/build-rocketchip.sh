@@ -16,6 +16,12 @@ mkdir -p "${CI_STAGE_DIR}/soc-generator/sims"
 git -C "${REPO_ROOT}" submodule deinit --force --all
 git -C "${REPO_ROOT}" submodule sync --recursive
 
+# SBT creates a Unix socket below JAVA_TMP_DIR. Keep this path short because
+# the persistent GitHub Actions workspace exceeds the Unix socket length limit.
+JAVA_TMP_DIR="/tmp/cy-${GITHUB_RUN_ID:?GITHUB_RUN_ID must be set}"
+export JAVA_TMP_DIR
+mkdir -p "${JAVA_TMP_DIR}"
+
 run_in_nix '
   dependencies/scripts/init-submodules.sh
   make -C soc-generator CONFIG=RocketConfig emu
