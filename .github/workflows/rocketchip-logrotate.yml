@@ -25,6 +25,12 @@ jobs:
     runs-on: [self-hosted, linux, runner]
     timeout-minutes: 30
     steps:
+      - name: Remove obsolete generated sources
+        run: |
+          set -euo pipefail
+          test -d "${CI_RESULTS_ROOT}" || exit 0
+          find "${CI_RESULTS_ROOT}" -type d -path '*/emu/generated-src' -prune -exec rm -rf {} +
+
       - name: Archive results older than 30 days
         run: |
           set -euo pipefail

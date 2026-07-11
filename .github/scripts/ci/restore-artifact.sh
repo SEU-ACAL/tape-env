@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib.sh"
 
 : "${CI_ARTIFACT_DIR:?CI_ARTIFACT_DIR must be set}"
+: "${CI_SIMULATOR_NAME:?CI_SIMULATOR_NAME must be set}"
 
 artifact_sim="${CI_ARTIFACT_DIR}"
 if [[ ! -d "${artifact_sim}" ]]; then
@@ -24,19 +25,15 @@ if [[ ! -f "${runner_sim}/Makefile" ]]; then
   exit 1
 fi
 
+# The run target has no simulator prerequisite when BREAK_SIM_PREREQ=1, so
+# generated Verilator sources are unnecessary after the executable is built.
 rm -rf "${runner_sim}/generated-src"
-ln -s "${artifact_sim}/generated-src" "${runner_sim}/generated-src"
 
-shopt -s nullglob
-simulator_count=0
-for artifact_simulator in "${artifact_sim}"/simulator-*; do
-  simulator_name="$(basename "${artifact_simulator}")"
-  rm -f "${runner_sim}/${simulator_name}"
-  ln -s "${artifact_simulator}" "${runner_sim}/${simulator_name}"
-  ((simulator_count += 1))
-done
-
-if [[ ${simulator_count} -eq 0 ]]; then
-  echo "Artifact has no Verilator simulator binary: ${artifact_sim}" >&2
+artifact_simulator="${artifact_sim}/${CI_SIMULATOR_NAME}"
+if [[ ! -f "${artifact_simulator}" ]]; then
+  echo "Artifact is missing the Verilator simulator binary: ${artifact_simulator}" >&2
   exit 1
 fi
+
+rm -f "${runner_sim}/${CI_SIMULATOR_NAME}"
+ln -s "${artifact_simulator}" "${runner_sim}/${CI_SIMULATOR_NAME}"
