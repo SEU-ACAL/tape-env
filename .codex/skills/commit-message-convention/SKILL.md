@@ -1,13 +1,13 @@
 ---
 name: commit-message-convention
-description: Draft and review commit messages for this repository using the required Conventional Commits-style type list. Use when Codex creates a commit, suggests a commit message, reviews commit text, writes changelog-ready summaries, or checks whether a proposed commit message is acceptable.
+description: Draft and review commit messages, branch names, and pull request descriptions for this repository. Use when Codex creates a commit, suggests or reviews a commit message, proposes a branch name, writes a pull request description, writes changelog-ready summaries, or checks whether any of those are acceptable.
 ---
 
-# Commit Message Convention
+# Change Convention
 
 ## Overview
 
-Use this skill whenever preparing or validating a commit message for this repository. A valid commit message must use one of the approved types and the format `type(scope): subject`.
+Use this skill whenever preparing or validating a commit message, branch name, or pull request description for this repository. A valid commit message must use one approved type and the format `type(scope): subject`.
 
 ## Required Format
 
@@ -36,11 +36,36 @@ Requirements:
 - `docs`: 修改文档，例如 README、API 文档、设计说明或注释性文档。
 - `style`: 修改代码样式，例如缩进、空格、空行、格式化，不改变逻辑。
 - `refactor`: 重构代码，例如修改结构、变量名、函数名或拆分代码，不改变功能逻辑。
-- `perf`: 优化性能，例如提升运行速度、吞吐、仿真效率或减少内存占用。
+- `perf`: 有限的性能参数调优。性能功能应使用 `feat`，性能 bug 修复应使用 `fix`。
 - `test`: 修改测试用例，例如添加、删除、修正或重构测试。
 - `power`: 功耗优化。
 - `area`: 面积优化。
 - `timing`: 时序优化。
+- `submodule`: 更新 Git submodule 引用。
+
+## Body and Footers
+
+Use a body when the motivation, expected effect, risk, or verification does not fit in the subject. Separate the header, body, and footer section with blank lines.
+
+Add only the footers that apply. Do not invent an issue, author, URL, AI tool, or model name.
+
+- For an issue-related change, add `Fixes #<issue-number>` on its own line. A pull request related to an issue must include this line so GitHub can link and close the issue.
+- When AI materially assists in generating commit or pull request content, add `Assisted-by: <agent>:<model-version>` as required by the project AI Use policy.
+- When another person co-authors the change, add `Co-authored-by: <name> <email>`.
+- When relevant external discussions, reports, or papers exist, add `Link: <url>` as the final footer.
+- Preserve other valid trailers, such as `Signed-off-by`, when supplied.
+
+## Branch Names
+
+When proposing or creating a branch, use `type-scope-description`.
+
+- Use an approved type and keep it consistent with the planned commit type.
+- Use a narrow, lowercase, hyphen-separated scope and description.
+- Example: `fix-boom-recovery-priority`.
+
+## Pull Request Descriptions
+
+Describe the motivation and expected effect of the change. Include the applicable issue, AI-use, co-author, and link footers from the rules above. Keep `Fixes #<issue-number>` on a separate line.
 
 ## Workflow
 
@@ -50,7 +75,7 @@ When drafting a commit message:
 2. Select the most specific approved type. Prefer `power`, `area`, or `timing` over generic `perf` when the change is specifically about those hardware quality targets.
 3. Choose a narrow scope from the touched component, not a broad repository label unless the change is truly cross-cutting.
 4. Draft the header in the required format.
-5. Add a body only when it helps future readers understand why the change was made or how it was verified.
+5. Add a body and applicable footers using the rules above.
 
 When reviewing a proposed commit message:
 
@@ -58,6 +83,8 @@ When reviewing a proposed commit message:
 - Reject messages missing the `scope`.
 - Reject messages missing the `: ` separator.
 - Reject messages with an empty or vague subject.
+- Flag missing footers that are required by known issue, AI-use, co-author, or external-reference context.
+- Flag malformed footer tags or a `Link:` tag that is not last.
 - Suggest a corrected message instead of only pointing out the violation.
 
 ## Examples
@@ -76,17 +103,21 @@ power(rocket): gate multiplier clock when idle
 area(cache): reduce metadata array width
 
 timing(tilelink): pipeline manager response path
+
+submodule(rocket-chip): update rocket-chip revision
 ```
 
-## Body Guidance
-
-Use a blank line between the header and body:
+## Complete Example
 
 ```text
-fix(boom): preserve redirect priority on flush
+fix(some-module): fix some bug
 
-The old priority order allowed a later flush to hide an exception redirect.
-Keep the exception redirect visible until recovery state has been recorded.
+The original design has a bug that blabla.
 
-Verification: ran boom unit tests.
+This commit fixes that by doing blabla.
+
+Fixes #123456
+Assisted-by: Some-AI-Agent:Model-Version
+Co-authored-by: Another Author <another.author@example.com>
+Link: https://url.to.related.information
 ```
