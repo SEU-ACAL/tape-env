@@ -20,6 +20,14 @@ git -C "${REPO_ROOT}" submodule sync --recursive
 # needed for Scala compilation; its software submodules remain unnecessary.
 git -C "${REPO_ROOT}" submodule update --init soc-generator/generator/gemmini
 
+# Keep immutable dependency downloads outside the checkout because
+# actions/checkout removes untracked files from the persistent workspace.
+SBT_CACHE_ROOT="${CI_CACHE_ROOT}/sbt"
+export COURSIER_CACHE="${CI_CACHE_ROOT}/coursier"
+export SBT_OPTS="-Dsbt.ivy.home=${SBT_CACHE_ROOT}/ivy -Dsbt.global.base=${SBT_CACHE_ROOT}/global -Dsbt.boot.directory=${SBT_CACHE_ROOT}/boot -Dsbt.color=always -Dsbt.supershell=false -Dsbt.server.forcestart=true"
+mkdir -p "${COURSIER_CACHE}" "${SBT_CACHE_ROOT}/ivy" \
+  "${SBT_CACHE_ROOT}/global" "${SBT_CACHE_ROOT}/boot"
+
 # SBT creates a Unix socket below JAVA_TMP_DIR. Keep this path short because
 # the persistent GitHub Actions workspace exceeds the Unix socket length limit.
 JAVA_TMP_DIR="${CI_SHARED_ROOT}/java/${GITHUB_RUN_ID:?GITHUB_RUN_ID must be set}"
