@@ -24,5 +24,29 @@ if [[ ! -d "${artifact_sim}" ]]; then
 fi
 
 runner_sim="${REPO_ROOT}/soc-generator/sims/verilator"
-rm -rf "${runner_sim}"
-ln -s "${artifact_sim}" "${runner_sim}"
+if [[ -L "${runner_sim}" ]]; then
+  rm "${runner_sim}"
+  git -C "${REPO_ROOT}" checkout -- soc-generator/sims/verilator
+fi
+
+if [[ ! -f "${runner_sim}/Makefile" ]]; then
+  echo "Runner simulator Makefile is missing: ${runner_sim}/Makefile" >&2
+  exit 1
+fi
+
+rm -rf "${runner_sim}/generated-src"
+ln -s "${artifact_sim}/generated-src" "${runner_sim}/generated-src"
+
+shopt -s nullglob
+simulator_count=0
+for artifact_simulator in "${artifact_sim}"/simulator-*; do
+  simulator_name="$(basename "${artifact_simulator}")"
+  rm -f "${runner_sim}/${simulator_name}"
+  ln -s "${artifact_simulator}" "${runner_sim}/${simulator_name}"
+  ((simulator_count += 1))
+done
+
+if [[ ${simulator_count} -eq 0 ]]; then
+  echo "Artifact has no Verilator simulator binary: ${artifact_sim}" >&2
+  exit 1
+fi
