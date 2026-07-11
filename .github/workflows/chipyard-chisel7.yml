@@ -1,10 +1,6 @@
 name: chipyard-chisel7
 
 on:
-  pull_request:
-    branches:
-      - main
-      - '1.[0-9]*.x'
   workflow_dispatch:
 
 defaults:

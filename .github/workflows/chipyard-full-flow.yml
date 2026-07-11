@@ -1,14 +1,7 @@
 name: chipyard-ci-full-flow
 
 on:
-  # run ci on pull requests targeting following branches (runs on the merge commit)
-  pull_request:
-    branches:
-      - main
-      - '1.[0-9]*.x'
-  schedule:
-    # run at 00:00 on sunday
-    - cron: "0 0 * * 0"
+  workflow_dispatch:
 
 defaults:
   run:
