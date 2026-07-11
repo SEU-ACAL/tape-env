@@ -16,6 +16,7 @@ concurrency:
 env:
   CI_SHARED_ROOT: /data2/ci-runner
   CI_PROFILE: rocketchip
+  CI_BUILD_JOBS: 32
   HTTP_PROXY: http://127.0.0.1:12000
   HTTPS_PROXY: http://127.0.0.1:12000
   NO_PROXY: localhost,127.0.0.1

@@ -8,6 +8,15 @@ source "${SCRIPT_DIR}/lib.sh"
 : "${CI_STAGE_DIR:?CI_STAGE_DIR must be set}"
 require_rocketchip_profile
 
+CI_BUILD_JOBS="${CI_BUILD_JOBS:-32}"
+case "${CI_BUILD_JOBS}" in
+  ''|*[!0-9]*|0)
+    echo "CI_BUILD_JOBS must be a positive integer: ${CI_BUILD_JOBS}" >&2
+    exit 1
+    ;;
+esac
+export CI_BUILD_JOBS
+
 rm -rf "${CI_STAGE_DIR}"
 mkdir -p "${CI_STAGE_DIR}/soc-generator/sims"
 
@@ -40,7 +49,7 @@ run_in_nix '
   export COURSIER_CACHE="${CI_COURSIER_CACHE}"
   export SBT_OPTS="${CI_SBT_OPTS}"
   dependencies/scripts/init-submodules.sh
-  make -C soc-generator CONFIG=RocketConfig emu
+  make -j"${CI_BUILD_JOBS}" -C soc-generator CONFIG=RocketConfig emu
 '
 
 cp -a "${REPO_ROOT}/soc-generator/sims/verilator" \
