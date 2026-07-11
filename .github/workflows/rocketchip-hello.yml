@@ -55,10 +55,10 @@ jobs:
 
       - name: Prepare result paths
         run: |
-          run_key="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          run_stamp="$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_SHA:0:12}"
           echo "CI_ARTIFACT_DIR=${{ needs.build.outputs.artifact_dir }}" >> "$GITHUB_ENV"
-          echo "CI_RESULT_DIR=${CI_SHARED_ROOT}/logs/${run_key}/${GITHUB_SHA}/${CI_PROFILE}/hello" >> "$GITHUB_ENV"
-          mkdir -p "${CI_SHARED_ROOT}/logs/${run_key}/${GITHUB_SHA}/${CI_PROFILE}/hello"
+          echo "CI_RESULT_DIR=${CI_SHARED_ROOT}/logs/${run_stamp}/${CI_PROFILE}/hello" >> "$GITHUB_ENV"
+          mkdir -p "${CI_SHARED_ROOT}/logs/${run_stamp}/${CI_PROFILE}/hello"
 
       - name: Restore Rocket Chip emulator
         run: .github/scripts/ci/restore-artifact.sh
