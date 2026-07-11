@@ -23,9 +23,10 @@ git -C "${REPO_ROOT}" submodule update --init soc-generator/generator/gemmini
 # Keep immutable dependency downloads outside the checkout because
 # actions/checkout removes untracked files from the persistent workspace.
 SBT_CACHE_ROOT="${CI_CACHE_ROOT}/sbt"
-export COURSIER_CACHE="${CI_CACHE_ROOT}/coursier"
-export SBT_OPTS="-Dsbt.ivy.home=${SBT_CACHE_ROOT}/ivy -Dsbt.global.base=${SBT_CACHE_ROOT}/global -Dsbt.boot.directory=${SBT_CACHE_ROOT}/boot -Dsbt.color=always -Dsbt.supershell=false -Dsbt.server.forcestart=true"
-mkdir -p "${COURSIER_CACHE}" "${SBT_CACHE_ROOT}/ivy" \
+CI_COURSIER_CACHE="${CI_CACHE_ROOT}/coursier"
+CI_SBT_OPTS="-Dsbt.ivy.home=${SBT_CACHE_ROOT}/ivy -Dsbt.global.base=${SBT_CACHE_ROOT}/global -Dsbt.boot.directory=${SBT_CACHE_ROOT}/boot -Dsbt.color=always -Dsbt.supershell=false -Dsbt.server.forcestart=true"
+export CI_COURSIER_CACHE CI_SBT_OPTS
+mkdir -p "${CI_COURSIER_CACHE}" "${SBT_CACHE_ROOT}/ivy" \
   "${SBT_CACHE_ROOT}/global" "${SBT_CACHE_ROOT}/boot"
 
 # SBT creates a Unix socket below JAVA_TMP_DIR. Keep this path short because
@@ -36,6 +37,8 @@ mkdir -p "${JAVA_TMP_DIR}"
 trap 'rm -rf "${JAVA_TMP_DIR}"' EXIT
 
 run_in_nix '
+  export COURSIER_CACHE="${CI_COURSIER_CACHE}"
+  export SBT_OPTS="${CI_SBT_OPTS}"
   dependencies/scripts/init-submodules.sh
   make -C soc-generator CONFIG=RocketConfig emu
 '
