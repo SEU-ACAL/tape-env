@@ -69,14 +69,6 @@ jobs:
           set -o pipefail
           .github/scripts/ci/run-hello.sh 2>&1 | tee "${CI_RESULT_DIR}/workflow.log"
 
-      - name: Upload hello result
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: rocketchip-hello-${{ github.run_id }}
-          path: ${{ env.CI_RESULT_DIR }}
-          if-no-files-found: warn
-
       - name: Write hello summary
         if: always()
         run: |
