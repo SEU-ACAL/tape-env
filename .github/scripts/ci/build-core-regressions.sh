@@ -77,7 +77,16 @@ run_in_nix '
   make -C soc-generator/sims/verilator CONFIG="${first_config}" clean
   make -C soc-generator/sims/verilator launch-sbt \
     SBT_COMMAND=";project chipyard; clean"
-  make -C soc-generator/sims/verilator CONFIG="${first_config}" firrtl
+  for attempt in 1 2 3; do
+    if make -C soc-generator/sims/verilator CONFIG="${first_config}" firrtl; then
+      break
+    fi
+    if [[ "${attempt}" -eq 3 ]]; then
+      exit 1
+    fi
+    echo "Classpath prebuild failed; retrying after network backoff (${attempt}/3)" >&2
+    sleep 15
+  done
 
   read -r -a configs <<< "${CI_BUILD_CONFIGS}"
   pids=()
