@@ -49,8 +49,11 @@ git -C "${REPO_ROOT}" submodule sync --recursive
 # regressions do not exercise the accelerator. The root submodule is sufficient.
 git -C "${REPO_ROOT}" submodule update --init soc-generator/generator/gemmini
 
-SBT_CACHE_ROOT="${CI_CACHE_ROOT}/sbt"
-CI_COURSIER_CACHE="${CI_CACHE_ROOT}/coursier"
+# SBT and Coursier updates are not safe to share between independent builder
+# workspaces. Keep reusable caches local to one self-hosted runner.
+CI_CACHE_KEY="${RUNNER_NAME:-${HOSTNAME:-local}}"
+SBT_CACHE_ROOT="${CI_CACHE_ROOT}/sbt/${CI_CACHE_KEY}"
+CI_COURSIER_CACHE="${CI_CACHE_ROOT}/coursier/${CI_CACHE_KEY}"
 CI_SBT_OPTS="-Dsbt.ivy.home=${SBT_CACHE_ROOT}/ivy -Dsbt.global.base=${SBT_CACHE_ROOT}/global -Dsbt.boot.directory=${SBT_CACHE_ROOT}/boot -Dsbt.color=always -Dsbt.supershell=false -Dsbt.server.forcestart=true"
 export CI_COURSIER_CACHE CI_SBT_OPTS
 mkdir -p "${CI_COURSIER_CACHE}" "${SBT_CACHE_ROOT}/ivy" \
@@ -71,6 +74,7 @@ run_in_nix '
   # Prime the shared Chipyard classpath before launching independent Make
   # processes; otherwise all three builds race to create the same SBT output.
   first_config="${CI_BUILD_CONFIGS%% *}"
+  make -C soc-generator/sims/verilator CONFIG="${first_config}" clean
   make -C soc-generator/sims/verilator CONFIG="${first_config}" firrtl
 
   read -r -a configs <<< "${CI_BUILD_CONFIGS}"
