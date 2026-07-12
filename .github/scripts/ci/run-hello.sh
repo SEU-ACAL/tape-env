@@ -6,7 +6,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib.sh"
 
 : "${CI_RESULT_DIR:?CI_RESULT_DIR must be set}"
-require_rocketchip_profile
 
 mkdir -p "${CI_RESULT_DIR}"
 started_at="$(date +%s)"

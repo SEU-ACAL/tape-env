@@ -3,62 +3,73 @@ name: Rocket Chip Hello
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: rocketchip-hello-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  CI_SHARED_ROOT: /data2/ci-runner
-  CI_PROFILE: rocketchip
-
 jobs:
-  build:
-    name: Build Rocket Chip
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, linux, builder]
+  changes:
+    name: Detect relevant changes
+    runs-on: ubuntu-latest
     outputs:
-      artifact_dir: ${{ steps.publish.outputs.artifact_dir }}
+      needs_hello: ${{ steps.filter.outputs.all_count != steps.filter.outputs.skip_hello_count }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prepare artifact paths
-        run: |
-          run_key="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          echo "CI_STAGE_DIR=${CI_SHARED_ROOT}/artifacts/.staging/${run_key}/${GITHUB_SHA}/${CI_PROFILE}" >> "$GITHUB_ENV"
-          echo "CI_ARTIFACT_DIR=${CI_SHARED_ROOT}/artifacts/${run_key}/${GITHUB_SHA}/${CI_PROFILE}" >> "$GITHUB_ENV"
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            all:
+              - '**'
 
-      - name: Build Rocket Chip emulator
-        run: .github/scripts/ci/build-rocketchip.sh
+            # Skip the emulator build when every changed path is CI, documentation,
+            # or repository metadata. Source changes still run the hello flow.
+            skip_hello:
+              - '.github/**'
+              - 'docs/**'
+              - '**/*.md'
+              - '**/.gitignore'
+              - '.github/ISSUE_TEMPLATE/**'
+              - '.github/PULL_REQUEST_TEMPLATE.md'
+              - '.github/dependabot.yml'
+              - '.mergify.yml'
 
-      - name: Publish emulator artifact
-        id: publish
-        run: .github/scripts/ci/publish-artifact.sh
-
-  run-hello:
-    name: Run Rocket Chip Hello
-    needs: build
-    runs-on: [self-hosted, linux, runner]
+  hello:
+    name: Build and Run Rocket Chip Hello
+    needs: changes
+    if: >-
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository) &&
+      (github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.needs_hello == 'true')
+    runs-on: [self-hosted, linux, builder]
+    env:
+      CI_SHARED_ROOT: /data2/ci-runner
+      CI_BUILD_JOBS: 32
+      HTTP_PROXY: http://127.0.0.1:12000
+      HTTPS_PROXY: http://127.0.0.1:12000
+      NO_PROXY: localhost,127.0.0.1
     steps:
       - uses: actions/checkout@v4
 
       - name: Prepare result paths
         run: |
-          run_key="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          echo "CI_ARTIFACT_DIR=${{ needs.build.outputs.artifact_dir }}" >> "$GITHUB_ENV"
-          echo "CI_RESULT_DIR=${CI_SHARED_ROOT}/logs/${run_key}/${GITHUB_SHA}/${CI_PROFILE}/hello" >> "$GITHUB_ENV"
-          mkdir -p "${CI_SHARED_ROOT}/logs/${run_key}/${GITHUB_SHA}/${CI_PROFILE}/hello"
+          run_dir="${CI_SHARED_ROOT}/rocketchip/run-${GITHUB_RUN_NUMBER}-${GITHUB_SHA:0:12}"
+          echo "CI_RUN_DIR=${run_dir}" >> "$GITHUB_ENV"
+          echo "CI_RESULT_DIR=${run_dir}/hello" >> "$GITHUB_ENV"
+          mkdir -p "${run_dir}/hello"
 
-      - name: Restore Rocket Chip emulator
-        run: .github/scripts/ci/restore-artifact.sh
+      - name: Build Rocket Chip emulator
+        run: .github/scripts/ci/build-rocketchip.sh
 
       - name: Run hello
         id: hello
@@ -66,26 +77,13 @@ jobs:
           set -o pipefail
           .github/scripts/ci/run-hello.sh 2>&1 | tee "${CI_RESULT_DIR}/workflow.log"
 
-      - name: Upload hello result
+      - name: Delete temporary binaries
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: rocketchip-hello-${{ github.run_id }}
-          path: ${{ env.CI_RESULT_DIR }}
-          if-no-files-found: warn
+        run: |
+          rm -rf "${CI_RESULT_DIR}/tests-build"
 
-  summary:
-    name: Rocket Chip Hello Summary
-    needs: run-hello
-    if: always() && needs.run-hello.result != 'skipped'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: rocketchip-hello-${{ github.run_id }}
-          path: result
-
-      - name: Write summary
+      - name: Write hello summary
+        if: always()
         run: |
           echo "## Rocket Chip hello" >> "$GITHUB_STEP_SUMMARY"
-          cat result/result.json >> "$GITHUB_STEP_SUMMARY"
+          cat "${CI_RESULT_DIR}/result.json" >> "$GITHUB_STEP_SUMMARY"

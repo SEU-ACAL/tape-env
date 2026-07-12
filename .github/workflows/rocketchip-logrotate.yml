@@ -1,0 +1,65 @@
+name: Rocket Chip Logrotate
+
+on:
+  schedule:
+    - cron: '0 14 * * 0'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Print actions without changing files
+        type: boolean
+        required: false
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: rocketchip-logrotate
+  cancel-in-progress: true
+
+env:
+  CI_RESULTS_ROOT: /data2/ci-runner/rocketchip
+
+jobs:
+  logrotate:
+    runs-on: [self-hosted, linux, runner]
+    timeout-minutes: 30
+    steps:
+      - name: Remove obsolete generated sources
+        run: |
+          set -euo pipefail
+          test -d "${CI_RESULTS_ROOT}" || exit 0
+          find "${CI_RESULTS_ROOT}" -type d -path '*/emu/generated-src' -prune -exec rm -rf {} +
+
+      - name: Archive results older than 30 days
+        run: |
+          set -euo pipefail
+          dry_run="${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}"
+          test -d "${CI_RESULTS_ROOT}" || exit 0
+
+          find "${CI_RESULTS_ROOT}" -mindepth 1 -maxdepth 1 -type d -mtime +30 -print0 |
+            while IFS= read -r -d '' run_dir; do
+              archive="${run_dir}.tar.zst"
+              if [[ "${dry_run}" == "true" ]]; then
+                echo "Would archive ${run_dir} -> ${archive}"
+              else
+                tar -I 'zstd -19 -T0' -cf "${archive}.tmp" -C "$(dirname "${run_dir}")" "$(basename "${run_dir}")"
+                mv -f "${archive}.tmp" "${archive}"
+                rm -rf "${run_dir}"
+              fi
+            done
+
+      - name: Remove archives older than 90 days
+        run: |
+          set -euo pipefail
+          dry_run="${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}"
+          test -d "${CI_RESULTS_ROOT}" || exit 0
+
+          find "${CI_RESULTS_ROOT}" -mindepth 1 -maxdepth 1 -type f -name '*.tar.zst' -mtime +60 -print0 |
+            while IFS= read -r -d '' archive; do
+              if [[ "${dry_run}" == "true" ]]; then
+                echo "Would remove ${archive}"
+              else
+                rm -f "${archive}"
+              fi
+            done

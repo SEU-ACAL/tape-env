@@ -10,6 +10,8 @@ source $RDIR/dependencies/scripts/utils.sh
 
 common_setup
 
+submodule_name=""
+
 # Custom error handler function
 error_handler() {
     local exit_code=$?
