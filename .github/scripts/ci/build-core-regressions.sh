@@ -54,10 +54,12 @@ git -C "${REPO_ROOT}" submodule update --init soc-generator/generator/gemmini
 CI_CACHE_KEY="${RUNNER_NAME:-${HOSTNAME:-local}}"
 SBT_CACHE_ROOT="${CI_CACHE_ROOT}/sbt/${CI_CACHE_KEY}"
 CI_COURSIER_CACHE="${CI_CACHE_ROOT}/coursier/${CI_CACHE_KEY}"
+CI_SOURCE_REVISION="${GITHUB_SHA:-$(git -C "${REPO_ROOT}" rev-parse HEAD)}"
+CI_CLASSPATH_CACHE="${CI_CACHE_ROOT}/classpath/${CI_CACHE_KEY}/${CI_SOURCE_REVISION}"
 CI_SBT_OPTS="-Dsbt.ivy.home=${SBT_CACHE_ROOT}/ivy -Dsbt.global.base=${SBT_CACHE_ROOT}/global -Dsbt.boot.directory=${SBT_CACHE_ROOT}/boot -Dsbt.color=always -Dsbt.supershell=false -Dsbt.server.forcestart=true"
-export CI_COURSIER_CACHE CI_SBT_OPTS
-mkdir -p "${CI_COURSIER_CACHE}" "${SBT_CACHE_ROOT}/ivy" \
-  "${SBT_CACHE_ROOT}/global" "${SBT_CACHE_ROOT}/boot"
+export CI_COURSIER_CACHE CI_CLASSPATH_CACHE CI_SBT_OPTS
+mkdir -p "${CI_CLASSPATH_CACHE}" "${CI_COURSIER_CACHE}" \
+  "${SBT_CACHE_ROOT}/ivy" "${SBT_CACHE_ROOT}/global" "${SBT_CACHE_ROOT}/boot"
 
 # SBT creates a Unix socket below JAVA_TMP_DIR. Keep this path short because
 # the persistent GitHub Actions workspace exceeds the Unix socket length limit.
@@ -68,21 +70,36 @@ trap 'rm -rf "${JAVA_TMP_DIR}"' EXIT
 
 run_in_nix '
   export COURSIER_CACHE="${CI_COURSIER_CACHE}"
+  export CLASSPATH_CACHE="${CI_CLASSPATH_CACHE}"
   export SBT_OPTS="${CI_SBT_OPTS}"
   dependencies/scripts/init-submodules.sh
 
-  # Prime the shared Chipyard classpath before launching independent Make
-  # processes; otherwise all three builds race to create the same SBT output.
+  remove_invalid_jars() {
+    while IFS= read -r -d "" jar; do
+      if ! jar tf "${jar}" >/dev/null 2>&1; then
+        echo "Removing corrupt JAR from CI cache: ${jar}" >&2
+        rm -f "${jar}"
+      fi
+    done < <(find "${CI_COURSIER_CACHE}" "${SBT_CACHE_ROOT}/ivy" \
+      "${CI_CLASSPATH_CACHE}" -type f -name "*.jar" -print0)
+  }
+
+  # Prime both SBT assemblies before launching independent Make processes;
+  # otherwise emulator builds can race to create the shared classpath JARs.
   first_config="${CI_BUILD_CONFIGS%% *}"
-  make -C soc-generator/sims/verilator CONFIG="${first_config}" clean
+  make -C soc-generator/sims/verilator CONFIG="${first_config}" \
+    CLASSPATH_CACHE="${CI_SHARED_ROOT}/empty-classpath-cache/${GITHUB_RUN_ID}" clean
   for attempt in 1 2 3; do
-    if make -C soc-generator/sims/verilator CONFIG="${first_config}" firrtl; then
+    remove_invalid_jars
+    if make -C soc-generator/sims/verilator CONFIG="${first_config}" firrtl \
+      "${CI_CLASSPATH_CACHE}/tapeout.jar"; then
       break
     fi
+    rm -f "${CI_CLASSPATH_CACHE}"/*.jar
     if [[ "${attempt}" -eq 3 ]]; then
       exit 1
     fi
-    echo "Classpath prebuild failed; retrying after network backoff (${attempt}/3)" >&2
+    echo "Classpath prebuild failed; retrying after cache repair (${attempt}/3)" >&2
     sleep 15
   done
 
