@@ -3,6 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib.sh"
 
 : "${CI_ARTIFACT_ROOT:?CI_ARTIFACT_ROOT must be set}"
 : "${CI_RESULT_ROOT:?CI_RESULT_ROOT must be set}"
