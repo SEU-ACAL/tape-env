@@ -28,7 +28,9 @@ esac
 
 mkdir -p "${CI_RESULT_DIR}"
 started_at="$(date +%s)"
-sim_output="${REPO_ROOT}/soc-generator/sims/verilator/output"
+CI_SIM_OUTPUT_DIR="${CI_SIM_OUTPUT_DIR:-${REPO_ROOT}/soc-generator/sims/verilator/output/${CI_TESTCASE}}"
+export CI_SIM_OUTPUT_DIR
+sim_output="${CI_SIM_OUTPUT_DIR}"
 
 write_result() {
   local status="$1"
@@ -48,7 +50,7 @@ trap 'status=$?; if [[ ${status} -eq 0 ]]; then write_result passed; else write_
 rm -rf "${sim_output}"
 run_in_nix '
   sim_dir="soc-generator/sims/verilator"
-  common_args=(-j1 -C "${sim_dir}" CONFIG="${CI_CONFIG}" BREAK_SIM_PREREQ=1)
+  common_args=(-j1 -C "${sim_dir}" CONFIG="${CI_CONFIG}" BREAK_SIM_PREREQ=1 output_dir="${CI_SIM_OUTPUT_DIR}")
 
   case "${CI_TESTCASE}" in
     rocket-asm|boom-asm)

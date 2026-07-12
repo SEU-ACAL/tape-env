@@ -79,63 +79,38 @@ jobs:
         run: .github/scripts/ci/build-core-regressions.sh
 
   regression:
-    name: ${{ matrix.name }} regression
+    name: Run Rocket and BOOM regressions
     needs: build
     runs-on: [self-hosted, linux, runner]
-    timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      max-parallel: 4
-      matrix:
-        include:
-          - name: Rocket ISA
-            config: QuadChannelRocketConfig
-            testcase: rocket-asm
-          - name: Rocket benchmarks
-            config: QuadChannelRocketConfig
-            testcase: rocket-bmark
-          - name: Rocket hello with loadmem
-            config: QuadChannelRocketConfig
-            testcase: rocket-hello-loadmem
-          - name: Rocket hello
-            config: QuadChannelRocketConfig
-            testcase: rocket-hello
-          - name: BOOM v3 ISA
-            config: MediumBoomV3CosimConfig
-            testcase: boom-asm
-          - name: BOOM v3 benchmarks
-            config: MediumBoomV3CosimConfig
-            testcase: boom-bmark
-          - name: BOOM v4 ISA
-            config: MediumBoomV4CosimConfig
-            testcase: boom-asm
-          - name: BOOM v4 benchmarks
-            config: MediumBoomV4CosimConfig
-            testcase: boom-bmark
+    timeout-minutes: 180
     env:
       CI_SHARED_ROOT: /data2/ci-runner
-      CI_ARTIFACT_DIR: ${{ needs.build.outputs.artifact_root }}/${{ matrix.config }}
-      CI_SIMULATOR_NAME: simulator-chipyard.harness-${{ matrix.config }}
-      CI_CONFIG: ${{ matrix.config }}
-      CI_TESTCASE: ${{ matrix.testcase }}
-      CI_RESULT_DIR: ${{ needs.build.outputs.run_dir }}/results/${{ matrix.testcase }}
+      CI_ARTIFACT_ROOT: ${{ needs.build.outputs.artifact_root }}
+      CI_RESULT_ROOT: ${{ needs.build.outputs.run_dir }}/results
+      CI_TEST_JOBS: 8
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore emulator
-        run: .github/scripts/ci/restore-artifact.sh
-
-      - name: Run regression
+      - name: Restore emulators
         run: |
-          set -o pipefail
-          .github/scripts/ci/run-core-regression.sh 2>&1 | tee "${CI_RESULT_DIR}/workflow.log"
+          for config in QuadChannelRocketConfig MediumBoomV3CosimConfig MediumBoomV4CosimConfig; do
+            CI_ARTIFACT_DIR="${CI_ARTIFACT_ROOT}/${config}" \
+              CI_SIMULATOR_NAME="simulator-chipyard.harness-${config}" \
+              .github/scripts/ci/restore-artifact.sh
+          done
+
+      - name: Run regressions in parallel
+        run: .github/scripts/ci/run-core-regressions-parallel.sh
 
       - name: Write regression summary
         if: always()
         run: |
-          echo "## ${{ matrix.name }} regression" >> "$GITHUB_STEP_SUMMARY"
-          if [[ -f "${CI_RESULT_DIR}/result.json" ]]; then
-            cat "${CI_RESULT_DIR}/result.json" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "No test result was produced; the build or setup step failed." >> "$GITHUB_STEP_SUMMARY"
-          fi
+          echo "## Rocket and BOOM regressions" >> "$GITHUB_STEP_SUMMARY"
+          for testcase in rocket-asm rocket-bmark rocket-hello-loadmem rocket-hello boom-asm-v3 boom-bmark-v3 boom-asm-v4 boom-bmark-v4; do
+            result="${CI_RESULT_ROOT}/${testcase}/result.json"
+            if [[ -f "${result}" ]]; then
+              cat "${result}" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "No result was produced for ${testcase}." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
