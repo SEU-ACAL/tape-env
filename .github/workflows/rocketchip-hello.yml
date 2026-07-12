@@ -1,4 +1,4 @@
-name: Rocket Chip Hello
+name: Rocket and BOOM Regression
 
 on:
   pull_request:
@@ -11,7 +11,7 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: rocketchip-hello-${{ github.workflow }}-${{ github.ref }}
+  group: rocketchip-core-regression-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
     name: Detect relevant changes
     runs-on: ubuntu-latest
     outputs:
-      needs_hello: ${{ steps.filter.outputs.all_count != steps.filter.outputs.skip_hello_count }}
+      needs_regression: ${{ steps.filter.outputs.all_count != steps.filter.outputs.skip_regression_count }}
     steps:
       - uses: actions/checkout@v4
 
@@ -31,10 +31,9 @@ jobs:
             all:
               - '**'
 
-            # Skip the emulator build when every changed path is CI, documentation,
-            # or repository metadata. Source changes still run the hello flow.
-            skip_hello:
-              - '.github/**'
+            # Skip the emulator build when every changed path is documentation
+            # or repository metadata. CI changes run the regression they modify.
+            skip_regression:
               - 'docs/**'
               - '**/*.md'
               - '**/.gitignore'
@@ -43,47 +42,100 @@ jobs:
               - '.github/dependabot.yml'
               - '.mergify.yml'
 
-  hello:
-    name: Build and Run Rocket Chip Hello
+  build:
+    name: Build Rocket and BOOM emulators
     needs: changes
     if: >-
       (github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository) &&
       (github.event_name == 'workflow_dispatch' ||
-      needs.changes.outputs.needs_hello == 'true')
+      needs.changes.outputs.needs_regression == 'true')
     runs-on: [self-hosted, linux, builder]
+    timeout-minutes: 180
+    outputs:
+      run_dir: ${{ steps.paths.outputs.run_dir }}
+      artifact_root: ${{ steps.paths.outputs.artifact_root }}
     env:
       CI_SHARED_ROOT: /data2/ci-runner
-      CI_BUILD_JOBS: 32
+      CI_BUILD_JOBS: 8
+      CI_BUILD_CONFIGS: QuadChannelRocketConfig MediumBoomV3CosimConfig MediumBoomV4CosimConfig
+      CI_ROCKET_CONFIG: QuadChannelRocketConfig
       HTTP_PROXY: http://127.0.0.1:12000
       HTTPS_PROXY: http://127.0.0.1:12000
       NO_PROXY: localhost,127.0.0.1
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prepare result paths
+      - name: Prepare artifact paths
+        id: paths
         run: |
-          run_dir="${CI_SHARED_ROOT}/rocketchip/run-${GITHUB_RUN_NUMBER}-${GITHUB_SHA:0:12}"
+          run_dir="${CI_SHARED_ROOT}/rocketchip/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:12}"
           echo "CI_RUN_DIR=${run_dir}" >> "$GITHUB_ENV"
-          echo "CI_RESULT_DIR=${run_dir}/hello" >> "$GITHUB_ENV"
-          mkdir -p "${run_dir}/hello"
+          echo "CI_ARTIFACT_ROOT=${run_dir}/emu" >> "$GITHUB_ENV"
+          echo "run_dir=${run_dir}" >> "$GITHUB_OUTPUT"
+          echo "artifact_root=${run_dir}/emu" >> "$GITHUB_OUTPUT"
 
-      - name: Build Rocket Chip emulator
-        run: .github/scripts/ci/build-rocketchip.sh
+      - name: Build emulators
+        run: .github/scripts/ci/build-core-regressions.sh
 
-      - name: Run hello
-        id: hello
+  regression:
+    name: ${{ matrix.name }} regression
+    needs: build
+    runs-on: [self-hosted, linux, runner]
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include:
+          - name: Rocket ISA
+            config: QuadChannelRocketConfig
+            testcase: rocket-asm
+          - name: Rocket benchmarks
+            config: QuadChannelRocketConfig
+            testcase: rocket-bmark
+          - name: Rocket hello with loadmem
+            config: QuadChannelRocketConfig
+            testcase: rocket-hello-loadmem
+          - name: Rocket hello
+            config: QuadChannelRocketConfig
+            testcase: rocket-hello
+          - name: BOOM v3 ISA
+            config: MediumBoomV3CosimConfig
+            testcase: boom-asm
+          - name: BOOM v3 benchmarks
+            config: MediumBoomV3CosimConfig
+            testcase: boom-bmark
+          - name: BOOM v4 ISA
+            config: MediumBoomV4CosimConfig
+            testcase: boom-asm
+          - name: BOOM v4 benchmarks
+            config: MediumBoomV4CosimConfig
+            testcase: boom-bmark
+    env:
+      CI_SHARED_ROOT: /data2/ci-runner
+      CI_ARTIFACT_DIR: ${{ needs.build.outputs.artifact_root }}/${{ matrix.config }}
+      CI_SIMULATOR_NAME: simulator-chipyard.harness-${{ matrix.config }}
+      CI_CONFIG: ${{ matrix.config }}
+      CI_TESTCASE: ${{ matrix.testcase }}
+      CI_RESULT_DIR: ${{ needs.build.outputs.run_dir }}/results/${{ matrix.testcase }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore emulator
+        run: .github/scripts/ci/restore-artifact.sh
+
+      - name: Run regression
         run: |
           set -o pipefail
-          .github/scripts/ci/run-hello.sh 2>&1 | tee "${CI_RESULT_DIR}/workflow.log"
+          .github/scripts/ci/run-core-regression.sh 2>&1 | tee "${CI_RESULT_DIR}/workflow.log"
 
-      - name: Delete temporary binaries
+      - name: Write regression summary
         if: always()
         run: |
-          rm -rf "${CI_RESULT_DIR}/tests-build"
-
-      - name: Write hello summary
-        if: always()
-        run: |
-          echo "## Rocket Chip hello" >> "$GITHUB_STEP_SUMMARY"
-          cat "${CI_RESULT_DIR}/result.json" >> "$GITHUB_STEP_SUMMARY"
+          echo "## ${{ matrix.name }} regression" >> "$GITHUB_STEP_SUMMARY"
+          if [[ -f "${CI_RESULT_DIR}/result.json" ]]; then
+            cat "${CI_RESULT_DIR}/result.json" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No test result was produced; the build or setup step failed." >> "$GITHUB_STEP_SUMMARY"
+          fi
