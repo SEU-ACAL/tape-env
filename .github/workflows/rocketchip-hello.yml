@@ -31,9 +31,10 @@ jobs:
             all:
               - '**'
 
-            # Skip the emulator build when every changed path is documentation
-            # or repository metadata that cannot affect the hello flow.
+            # Skip the emulator build when every changed path is CI, documentation,
+            # or repository metadata. Source changes still run the hello flow.
             skip_hello:
+              - '.github/**'
               - 'docs/**'
               - '**/*.md'
               - '**/.gitignore'
