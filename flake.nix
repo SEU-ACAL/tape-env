@@ -144,6 +144,8 @@
           dontConfigure = true;
           postPatch = ''
             sed -i '/^RISCV_GCC_OPTS ?=/a RISCV_GCC_OPTS += -Wno-error=implicit-int -Wno-error=implicit-function-declaration' benchmarks/Makefile
+            # Core regressions target scalar Rocket and BOOM configurations.
+            sed -i 's/-march=rv$(XLEN)gcv/-march=rv$(XLEN)imafd/' benchmarks/Makefile
             # This test revision predates the privileged-spec CSR renames.
             # The aliases retain the same CSR encodings and test semantics.
             find isa -name '*.S' -exec sed -i \
@@ -152,7 +154,10 @@
               -e 's/\<sbadaddr\>/stval/g' {} +
           '';
           buildPhase = ''
-            make -j"$NIX_BUILD_CORES" -C benchmarks RISCV_PREFIX=riscv64-none-elf-
+            make -j"$NIX_BUILD_CORES" -C benchmarks RISCV_PREFIX=riscv64-none-elf- \
+              mm.riscv spmv.riscv mt-vvadd.riscv median.riscv multiply.riscv \
+              qsort.riscv rsort.riscv pmp.riscv towers.riscv vvadd.riscv \
+              dhrystone.riscv mt-matmul.riscv
             make -j"$NIX_BUILD_CORES" -C isa RISCV_PREFIX=riscv64-none-elf- XLEN=64 \
               rv64ui rv64uc rv64um rv64ua rv64uf rv64ud rv64uzfh \
               rv64uzba rv64uzbb rv64uzbs rv64mi \
