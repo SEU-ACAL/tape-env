@@ -45,6 +45,10 @@ export CI_BUILD_CONFIGS CI_BUILD_JOBS CI_ROCKET_CONFIG
 git -C "${REPO_ROOT}" submodule deinit --force --all
 git -C "${REPO_ROOT}" submodule sync --recursive
 
+# Chipyard aggregates Gemmini during Scala compilation even though these core
+# regressions do not exercise the accelerator. The root submodule is sufficient.
+git -C "${REPO_ROOT}" submodule update --init soc-generator/generator/gemmini
+
 SBT_CACHE_ROOT="${CI_CACHE_ROOT}/sbt"
 CI_COURSIER_CACHE="${CI_CACHE_ROOT}/coursier"
 CI_SBT_OPTS="-Dsbt.ivy.home=${SBT_CACHE_ROOT}/ivy -Dsbt.global.base=${SBT_CACHE_ROOT}/global -Dsbt.boot.directory=${SBT_CACHE_ROOT}/boot -Dsbt.color=always -Dsbt.supershell=false -Dsbt.server.forcestart=true"
