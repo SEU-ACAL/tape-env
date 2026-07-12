@@ -63,7 +63,12 @@ run_in_nix '
   generated_rules="${sim_dir}/generated-src/chipyard.harness.TestHarness.${CI_CONFIG}/chipyard.harness.TestHarness.${CI_CONFIG}.d"
   mkdir -p "$(dirname "${generated_rules}")"
   cp -f "${test_rules}" "${generated_rules}"
-  common_args=(-j1 -C "${sim_dir}" CONFIG="${CI_CONFIG}" RISCV="${riscv_tests_root}" BREAK_SIM_PREREQ=1 output_dir="${CI_SIM_OUTPUT_DIR}")
+  simulator="${CI_ARTIFACT_DIR}/simulator-chipyard.harness-${CI_CONFIG}"
+  if [[ ! -x "${simulator}" ]]; then
+    echo "Built Verilator simulator is missing or not executable: ${simulator}" >&2
+    exit 1
+  fi
+  common_args=(-j1 -C "${sim_dir}" CONFIG="${CI_CONFIG}" RISCV="${riscv_tests_root}" sim="${simulator}" BREAK_SIM_PREREQ=1 output_dir="${CI_SIM_OUTPUT_DIR}")
 
   case "${CI_TESTCASE}" in
     rocket-asm|boom-asm)
