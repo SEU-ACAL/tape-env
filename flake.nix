@@ -13,7 +13,26 @@
         riscvPkgs = pkgs.pkgsCross.riscv64-embedded;
         riscvCc = riscvPkgs.stdenv.cc;
         riscvTarget = riscvPkgs.stdenv.targetPlatform.config;
-        spike = pkgs.spike;
+        # Keep Spike ABI-compatible with the TestChipIP Cospike source. This
+        # revision is the one pinned by upstream Chipyard's riscv-isa-sim
+        # submodule.
+        spike = pkgs.stdenv.mkDerivation {
+          pname = "chipyard-spike";
+          version = "9c190a07c6838f6392bafa4ad83acea462c7f759";
+          src = pkgs.fetchFromGitHub {
+            owner = "riscv-software-src";
+            repo = "riscv-isa-sim";
+            rev = "9c190a07c6838f6392bafa4ad83acea462c7f759";
+            hash = "sha256-XmTFBI1tkp0zCw4/SFhlxScYhJsoNHT1GmuhYB8qZho=";
+          };
+          nativeBuildInputs = [ pkgs.dtc ];
+          enableParallelBuilding = true;
+          configureFlags = [
+            "--with-boost=no"
+            "--with-boost-asio=no"
+            "--with-boost-regex=no"
+          ];
+        };
         # Match upstream Chipyard's default prebuilt CIRCT release. Gemmini's
         # Chisel3 annotations are not accepted by newer nixpkgs firtool builds.
         circt = pkgs.stdenvNoCC.mkDerivation {
@@ -212,7 +231,6 @@ EOF
             pkgs.perl
             pkgs.ctags
             pkgs.sbt
-            pkgs.spike
             pkgs.verilator
             pkgs.which
             circt
