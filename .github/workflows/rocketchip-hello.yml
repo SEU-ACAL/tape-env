@@ -16,55 +16,59 @@ concurrency:
 env:
   CI_SHARED_ROOT: /data2/ci-runner
   CI_BUILD_JOBS: 32
-  CI_SIMULATOR_NAME: simulator-chipyard.harness-RocketConfig
-  CI_PR_NUMBER: ${{ github.event.pull_request.number || '' }}
   HTTP_PROXY: http://127.0.0.1:12000
   HTTPS_PROXY: http://127.0.0.1:12000
   NO_PROXY: localhost,127.0.0.1
 
 jobs:
-  build:
-    name: Build Rocket Chip
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, linux, builder]
+  changes:
+    name: Detect relevant changes
+    runs-on: ubuntu-latest
     outputs:
-      artifact_dir: ${{ steps.publish.outputs.artifact_dir }}
+      needs_hello: ${{ steps.filter.outputs.all_count != steps.filter.outputs.skip_hello_count }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prepare artifact paths
-        run: |
-          run_dir="${CI_SHARED_ROOT}/rocketchip/run-${GITHUB_RUN_NUMBER}-${GITHUB_SHA:0:12}"
-          echo "CI_RUN_DIR=${run_dir}" >> "$GITHUB_ENV"
-          echo "CI_ARTIFACT_DIR=${run_dir}/emu" >> "$GITHUB_ENV"
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            all:
+              - '**'
 
-      - name: Build Rocket Chip emulator
-        run: .github/scripts/ci/build-rocketchip.sh
+            # Skip the emulator build when every changed path is documentation
+            # or repository metadata that cannot affect the hello flow.
+            skip_hello:
+              - 'docs/**'
+              - '**/*.md'
+              - '**/.gitignore'
+              - '.github/ISSUE_TEMPLATE/**'
+              - '.github/PULL_REQUEST_TEMPLATE.md'
+              - '.github/dependabot.yml'
+              - '.mergify.yml'
 
-      - name: Publish emulator artifact
-        id: publish
-        run: .github/scripts/ci/publish-artifact.sh
-
-  run-hello:
-    name: Run Rocket Chip Hello
-    needs: build
-    runs-on: [self-hosted, linux, runner]
+  hello:
+    name: Build and Run Rocket Chip Hello
+    needs: changes
+    if: >-
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository) &&
+      (github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.needs_hello == 'true')
+    runs-on: [self-hosted, linux, builder]
     steps:
       - uses: actions/checkout@v4
 
       - name: Prepare result paths
         run: |
-          artifact_dir="${{ needs.build.outputs.artifact_dir }}"
-          run_dir="$(dirname "${artifact_dir}")"
+          run_dir="${CI_SHARED_ROOT}/rocketchip/run-${GITHUB_RUN_NUMBER}-${GITHUB_SHA:0:12}"
           echo "CI_RUN_DIR=${run_dir}" >> "$GITHUB_ENV"
-          echo "CI_ARTIFACT_DIR=${artifact_dir}" >> "$GITHUB_ENV"
           echo "CI_RESULT_DIR=${run_dir}/hello" >> "$GITHUB_ENV"
           mkdir -p "${run_dir}/hello"
 
-      - name: Restore Rocket Chip emulator
-        run: .github/scripts/ci/restore-artifact.sh
+      - name: Build Rocket Chip emulator
+        run: .github/scripts/ci/build-rocketchip.sh
 
       - name: Run hello
         id: hello
