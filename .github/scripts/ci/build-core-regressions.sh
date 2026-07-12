@@ -75,8 +75,6 @@ run_in_nix '
   # processes; otherwise all three builds race to create the same SBT output.
   first_config="${CI_BUILD_CONFIGS%% *}"
   make -C soc-generator/sims/verilator CONFIG="${first_config}" clean
-  make -C soc-generator/sims/verilator launch-sbt \
-    SBT_COMMAND=";project chipyard; clean"
   for attempt in 1 2 3; do
     if make -C soc-generator/sims/verilator CONFIG="${first_config}" firrtl; then
       break
