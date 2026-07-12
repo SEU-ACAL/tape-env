@@ -91,14 +91,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore emulators
-        run: |
-          for config in QuadChannelRocketConfig MediumBoomV3CosimConfig MediumBoomV4CosimConfig; do
-            CI_ARTIFACT_DIR="${CI_ARTIFACT_ROOT}/${config}" \
-              CI_SIMULATOR_NAME="simulator-chipyard.harness-${config}" \
-              .github/scripts/ci/restore-artifact.sh
-          done
-
       - name: Run regressions in parallel
         run: .github/scripts/ci/run-core-regressions-parallel.sh
 
