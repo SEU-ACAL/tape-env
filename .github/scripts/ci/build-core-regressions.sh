@@ -102,14 +102,28 @@ run_in_nix '
 
 rm -rf "${CI_ARTIFACT_ROOT}"
 mkdir -p "${CI_ARTIFACT_ROOT}"
+riscv_tests_root="$("${NIX_BIN}" build --no-link --print-out-paths "${REPO_ROOT}#riscvTests")"
+if [[ ! -d "${riscv_tests_root}/riscv64-unknown-elf/share/riscv-tests" ]]; then
+  echo "RISC-V ISA and benchmark tests are missing: ${riscv_tests_root}" >&2
+  exit 1
+fi
+mkdir -p "${CI_ARTIFACT_ROOT}/riscv-tests"
+cp -a "${riscv_tests_root}/riscv64-unknown-elf" "${CI_ARTIFACT_ROOT}/riscv-tests/"
+
 for config in "${configs[@]}"; do
   simulator="${REPO_ROOT}/soc-generator/sims/verilator/simulator-chipyard.harness-${config}"
+  test_rules="${REPO_ROOT}/soc-generator/sims/verilator/generated-src/chipyard.harness.TestHarness.${config}/chipyard.harness.TestHarness.${config}.d"
   if [[ ! -f "${simulator}" ]]; then
     echo "Built Verilator simulator is missing: ${simulator}" >&2
     exit 1
   fi
+  if [[ ! -f "${test_rules}" ]]; then
+    echo "Generated regression rules are missing: ${test_rules}" >&2
+    exit 1
+  fi
   mkdir -p "${CI_ARTIFACT_ROOT}/${config}"
   cp -a "${simulator}" "${CI_ARTIFACT_ROOT}/${config}/"
+  cp -a "${test_rules}" "${CI_ARTIFACT_ROOT}/${config}/test-rules.d"
 done
 
 run_in_nix '

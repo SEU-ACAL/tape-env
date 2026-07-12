@@ -130,6 +130,43 @@
           CFLAGS_FOR_TARGET = "-Os -mcmodel=medany -march=rv64imafd -mabi=lp64d";
         });
 
+        riscvTests = riscvPkgs.stdenv.mkDerivation rec {
+          pname = "riscv-tests";
+          version = "f2f748ebb9cf8ea049103f85c4cbf7e8a2927b16";
+          src = pkgs.fetchgit {
+            url = "https://github.com/riscv-software-src/riscv-tests.git";
+            rev = version;
+            fetchSubmodules = true;
+            hash = "sha256-E3RfrP+PFIYy9c/pY04jYPxeGpnfgWwjV8iwL5+s+9w=";
+          };
+
+          enableParallelBuilding = true;
+          dontConfigure = true;
+          postPatch = ''
+            sed -i '/^RISCV_GCC_OPTS ?=/a RISCV_GCC_OPTS += -Wno-error=implicit-int -Wno-error=implicit-function-declaration' benchmarks/Makefile
+            # This test revision predates the privileged-spec CSR renames.
+            # The aliases retain the same CSR encodings and test semantics.
+            find isa -name '*.S' -exec sed -i \
+              -e 's/\<sptbr\>/satp/g' \
+              -e 's/\<mbadaddr\>/mtval/g' \
+              -e 's/\<sbadaddr\>/stval/g' {} +
+          '';
+          buildPhase = ''
+            make -j"$NIX_BUILD_CORES" -C benchmarks RISCV_PREFIX=riscv64-none-elf-
+            make -j"$NIX_BUILD_CORES" -C isa RISCV_PREFIX=riscv64-none-elf- XLEN=64 \
+              rv64ui rv64uc rv64um rv64ua rv64uf rv64ud rv64uzfh \
+              rv64uzba rv64uzbb rv64uzbs rv64mi \
+              rv64si-p-csr rv64si-p-icache-alias rv64si-p-ma_fetch \
+              rv64si-p-scall rv64si-p-wfi rv64si-p-sbreak rv64si-p-dirty
+          '';
+          installPhase = ''
+            install -d $out/riscv64-unknown-elf/share/riscv-tests/{isa,benchmarks}
+            find isa -maxdepth 1 -type f -name 'rv64*' -exec \
+              install -m 0755 -t $out/riscv64-unknown-elf/share/riscv-tests/isa {} +
+            install -m 0755 benchmarks/*.riscv $out/riscv64-unknown-elf/share/riscv-tests/benchmarks/
+          '';
+        };
+
         riscvUnknownElfTools = pkgs.runCommand "chipyard-riscv64-unknown-elf-tools" { } ''
           mkdir -p $out/bin $out/include/riscv-pk
           libdir=${libglossHtif}/riscv64-unknown-elf/lib
@@ -193,7 +230,7 @@ EOF
 
       in {
         packages = {
-          inherit chipyardNewlibNano chipyardRiscvTools libglossHtif rawRiscvUnknownElfTools riscvUnknownElfTools;
+          inherit chipyardNewlibNano chipyardRiscvTools libglossHtif rawRiscvUnknownElfTools riscvTests riscvUnknownElfTools;
         };
 
         devShells.default = pkgs.mkShellNoCC {

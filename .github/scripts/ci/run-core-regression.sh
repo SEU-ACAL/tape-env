@@ -50,7 +50,20 @@ trap 'status=$?; if [[ ${status} -eq 0 ]]; then write_result passed; else write_
 rm -rf "${sim_output}"
 run_in_nix '
   sim_dir="soc-generator/sims/verilator"
-  common_args=(-j1 -C "${sim_dir}" CONFIG="${CI_CONFIG}" BREAK_SIM_PREREQ=1 output_dir="${CI_SIM_OUTPUT_DIR}")
+  test_rules="${CI_ARTIFACT_DIR}/test-rules.d"
+  if [[ ! -f "${test_rules}" ]]; then
+    echo "Generated regression rules are missing: ${test_rules}" >&2
+    exit 1
+  fi
+  riscv_tests_root="${CI_ARTIFACT_ROOT}/riscv-tests"
+  if [[ ! -d "${riscv_tests_root}/riscv64-unknown-elf/share/riscv-tests" ]]; then
+    echo "RISC-V ISA and benchmark tests are missing: ${riscv_tests_root}" >&2
+    exit 1
+  fi
+  generated_rules="${sim_dir}/generated-src/chipyard.harness.TestHarness.${CI_CONFIG}/chipyard.harness.TestHarness.${CI_CONFIG}.d"
+  mkdir -p "$(dirname "${generated_rules}")"
+  cp -f "${test_rules}" "${generated_rules}"
+  common_args=(-j1 -C "${sim_dir}" CONFIG="${CI_CONFIG}" RISCV="${riscv_tests_root}" BREAK_SIM_PREREQ=1 output_dir="${CI_SIM_OUTPUT_DIR}")
 
   case "${CI_TESTCASE}" in
     rocket-asm|boom-asm)
