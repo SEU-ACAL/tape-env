@@ -52,3 +52,6 @@
 [submodule "applications/riscv-tests"]
 	path = applications/riscv-tests
 	url = https://github.com/riscv-software-src/riscv-tests.git
+[submodule "applications/zephyr"]
+	path = applications/zephyr
+	url = https://github.com/ucb-bar/zephyr.git

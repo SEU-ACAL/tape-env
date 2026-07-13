@@ -204,6 +204,7 @@ EOF
           shellHook = ''
             export CY_DIR="$PWD"
             export PATH="$RISCV/bin:$PATH"
+            export ZEPHYR_RISCV="${rawRiscvUnknownElfTools}"
             export COURSIER_CACHE="$PWD/.coursier-cache"
             export SBT_OPTS="-Dsbt.global.base=$PWD/.sbt -Dsbt.boot.directory=$PWD/.sbt/boot -Dsbt.ivy.home=$PWD/.ivy2 ''${SBT_OPTS:-}"
             unset NIX_LDFLAGS
@@ -229,6 +230,9 @@ EOF
             pkgs.ninja
             pkgs.numactl
             pkgs.perl
+            pkgs.python3
+            pkgs.python3Packages.pyelftools
+            pkgs.python3Packages.west
             pkgs.ctags
             pkgs.sbt
             pkgs.verilator

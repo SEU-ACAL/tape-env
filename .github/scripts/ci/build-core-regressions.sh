@@ -52,7 +52,7 @@ CI_COURSIER_CACHE="${CI_CACHE_ROOT}/coursier/${CI_CACHE_KEY}"
 CI_SOURCE_REVISION="${GITHUB_SHA:-$(git -C "${REPO_ROOT}" rev-parse HEAD)}"
 CI_CLASSPATH_CACHE="${CI_CACHE_ROOT}/classpath/${CI_CACHE_KEY}/${CI_SOURCE_REVISION}"
 CI_SBT_OPTS="-Dsbt.ivy.home=${SBT_CACHE_ROOT}/ivy -Dsbt.global.base=${SBT_CACHE_ROOT}/global -Dsbt.boot.directory=${SBT_CACHE_ROOT}/boot -Dsbt.color=always -Dsbt.supershell=false -Dsbt.server.forcestart=true"
-export CI_COURSIER_CACHE CI_CLASSPATH_CACHE CI_SBT_OPTS
+export SBT_CACHE_ROOT CI_COURSIER_CACHE CI_CLASSPATH_CACHE CI_SBT_OPTS
 mkdir -p "${CI_CLASSPATH_CACHE}" "${CI_COURSIER_CACHE}" \
   "${SBT_CACHE_ROOT}/ivy" "${SBT_CACHE_ROOT}/global" "${SBT_CACHE_ROOT}/boot"
 

@@ -198,7 +198,7 @@ cd "$RDIR"
             applications/coremark \
             applications/firemarshal \
             applications/spec2017 \
-            applications/zephyrproject/zephyr \
+            applications/zephyr \
             dependencies/tools/dsptools \
             dependencies/tools/rocket-dsp-utils \
             vlsi/hammer-mentor-plugins
