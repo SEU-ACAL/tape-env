@@ -27,6 +27,24 @@ testcases=(
   'boom-bmark-v4:MediumBoomV4CosimConfig'
 )
 
+prepare_test_rules() {
+  local config="$1"
+  local sim_dir="${REPO_ROOT}/soc-generator/sims/verilator"
+  local source_rules="${CI_ARTIFACT_ROOT}/${config}/test-rules.d"
+  local generated_rules="${sim_dir}/generated-src/chipyard.harness.TestHarness.${config}/chipyard.harness.TestHarness.${config}.d"
+
+  if [[ ! -f "${source_rules}" ]]; then
+    echo "Generated regression rules are missing: ${source_rules}" >&2
+    return 1
+  fi
+  mkdir -p "$(dirname "${generated_rules}")"
+  cp -f "${source_rules}" "${generated_rules}"
+}
+
+for config in QuadChannelRocketConfig MediumBoomV3CosimConfig MediumBoomV4CosimConfig; do
+  prepare_test_rules "${config}"
+done
+
 run_testcase() {
   local testcase="$1"
   local config="$2"

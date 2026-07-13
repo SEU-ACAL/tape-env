@@ -61,8 +61,10 @@ run_in_nix '
     exit 1
   fi
   generated_rules="${sim_dir}/generated-src/chipyard.harness.TestHarness.${CI_CONFIG}/chipyard.harness.TestHarness.${CI_CONFIG}.d"
-  mkdir -p "$(dirname "${generated_rules}")"
-  cp -f "${test_rules}" "${generated_rules}"
+  if [[ ! -f "${generated_rules}" ]]; then
+    echo "Prepared regression rules are missing: ${generated_rules}" >&2
+    exit 1
+  fi
   simulator="${CI_ARTIFACT_DIR}/simulator-chipyard.harness-${CI_CONFIG}"
   if [[ ! -x "${simulator}" ]]; then
     echo "Built Verilator simulator is missing or not executable: ${simulator}" >&2
