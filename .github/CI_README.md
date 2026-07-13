@@ -1,103 +1,19 @@
-Chipyard Continuous Integration (CI)
-===========
+# Chipyard Continuous Integration
 
-Website: https://github.com/ucb-bar/chipyard/actions
+The repository's validation CI is the `Rocket and BOOM Regression` workflow
+(`.github/workflows/rocketchip-hello.yml`). It runs for pull requests targeting
+`main` and can also be started manually.
 
-GitHub Actions Brief Explanation
----------------------------
+The workflow builds Verilator emulators for:
 
-CI is executed by Github Actions (GA). GA is controlled by `.yml` files in the `.github/workflows/` directory.
-In our case, we have just one workflow named `chipyard-run-tests.yml`.
-It defines a number of `jobs` within it that do particular tasks.
-All jobs in the workflow must pass for the CI run to be successful.
-In general, a job is run in parallel with others unless it depends on some other job.
-The dependency of one job on the completion of another is specified via the `needs` field.
+- `QuadChannelRocketConfig`
+- `MediumBoomV3CosimConfig`
+- `MediumBoomV4CosimConfig`
 
-For example:
-```yaml
-  prepare-chipyard-cores:
-    name: prepare-chipyard-cores
-    needs: [make-keys, setup-complete]
-```
-This specifies that the `prepare-chipyard-cores` job needs the both the `make-keys` and the `setup-complete` steps to
-be completed before it can run.
+It then runs the Rocket ISA, benchmark, and hello-world regressions, plus the
+BOOM v3 and v4 ISA and benchmark regressions. Builds execute on the
+self-hosted `builder` runner and tests execute on the self-hosted `runner`.
 
-Chipyard runs its CI using the repository Nix development environment and Berkeley's compute infrastructure.
-
-Finally, within each job's `steps:` section, the steps are run sequentially and state persists throughout a job.
-So when you run something like `checkout` the next step has the checked out code.
-
-[Composite Actions](https://docs.github.com/en/actions/creating-actions) (CA) allow for limited subroutine like code re-use within GA.
-We use both community created and our own Composite Actions in our CI process. CA capabilities are changing rapidly.
-Nesting of composite actions was only recently unveiled. There is a lot of room for more code reuse, in particular
-we specify things over and over like checkout commands.
-
-One use of CA: our process relies on caching to avoid running time-consuming and intensive tasks more often than necessary.
-
-The following is an example of using the cache@v2 composite action. A step `uses: actions/cache@v2` which take as parameters the
-path that contains the data to be cached and a key. Paths can have multiple targets.
-The following step can look at the result of the cache operation, if there was cache miss, then we run the command that
-will generate the data to be cached. The caching of the generated data is implicit.
->Note: GA cache documentation suggests using the yml level `if: steps.cache-primes.outputs.cache-hit != 'true'` to
-> determine whether to run the data generation command.
-> At the time of this writing the if construct has a bug and will not run correctly within a composite action. The use
-> of a bash based if is a [hack found on stackoverflow](https://stackoverflow.com/questions/65473359/github-action-unable-to-add-if-condition-in-steps)
-```yaml
-    - uses: actions/cache@v2
-      id: rtl-build-id
-      with:
-        path: |
-          soc-generator/sims/verilator
-          soc-generator/sims/firesim/sim
-          soc-generator/generator/gemmini/software/gemmini-rocc-tests
-        key: ${{ inputs.group-key }}-${{ github.ref }}-${{ github.sha }}
-    - name: run rtl build script if not cached
-      run: |
-        if [[ "${{ steps.rtl-build-id.outputs.cache-hit }}" != 'true' ]]; then
-          echo "Cache miss on ${{ inputs.group-key }}-${{ github.ref }}-${{ github.sha }}"
-          ./.github/scripts/${{ inputs.build-script }} ${{ inputs.group-key }} ${{ inputs.build-type }}
-        else
-          echo "cache hit do not prepare rtl"
-        fi
-      shell: bash
-```
-
-Our own composite actions are defined in the `.github/actions/<ActionName>/action.yml`
-
-.github/scripts directory
--------------------
-
-This directory contains most the collateral for the Chipyard CI to work.
-The following is included in `.github/scripts/: directory
-
-    `remote-do-rtl-build.sh`     # use verilator to build a sim executable (remotely)
-    `defaults.sh`                # default variables used
-    `check-commit.sh`            # check that submodule commits are valid
-    `build-extra-tests.sh`       # build default chipyard tests located in tests/
-    `clean-old-files.sh`         # clean up build server files
-    `do-fpga-rtl-build.sh`       # similar to `do-rtl-build` but using dependencies/fpga/
-    `remote-install-verilator.sh`       # install verilator on build server
-    `remote-run-firesim-scala-tests.sh` # run firesim scala tests
-    `run-tests.sh                # run tests for a specific set of designs
-
-How things are set up for Chipyard
----------------------------------
-
-The steps for CI to run are as follows.
-1. Enter the Nix development shell, which provides the RISC-V compiler, Spike, and simulation tools.
-2. Create the simulator binary.
-The Nix-provided tools provide `fesvr` and `verilator` for this build.
-This stores all collateral for the tests (srcs, generated-srcs, sim binary, etc) to run "out of the gate" in the next job (make needs everything or else it will run again).
-3. Finally, run the desired tests.
-
-Other CI Setup
---------------
-
-Build servers need Nix with flakes enabled.
-
-Notes on CIRCLE CI
-------------------
-This code is heavily based on the origin [CircleCI]() work. There a quite a few differences
-- CCI allows a much larger cache. The entire CY directory and RTL could be cached, with GA there is a 5Gb total cache limit
-- GA support more parallel jobs 20 vs 4
-- GA seems to allow much longer run times
+`Rocket Chip Logrotate` is maintenance automation for the regression artifacts;
+it does not run validation tests. Release-note generation is release automation,
+not CI validation.
