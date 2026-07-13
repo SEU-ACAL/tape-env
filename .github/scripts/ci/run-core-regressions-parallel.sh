@@ -21,6 +21,7 @@ testcases=(
   'rocket-bmark:QuadChannelRocketConfig'
   'rocket-hello-loadmem:QuadChannelRocketConfig'
   'rocket-hello:QuadChannelRocketConfig'
+  'rocket-zephyr-hello:QuadChannelRocketConfig'
   'boom-asm-v3:MediumBoomV3CosimConfig'
   'boom-bmark-v3:MediumBoomV3CosimConfig'
   'boom-asm-v4:MediumBoomV4CosimConfig'
