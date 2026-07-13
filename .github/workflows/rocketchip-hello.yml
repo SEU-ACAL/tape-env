@@ -37,7 +37,6 @@ jobs:
               - 'docs/**'
               - '**/*.md'
               - '**/.gitignore'
-              - '.github/PULL_REQUEST_TEMPLATE.md'
               - '.github/dependabot.yml'
               - '.mergify.yml'
 
