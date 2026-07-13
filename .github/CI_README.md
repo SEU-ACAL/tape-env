@@ -1,7 +1,7 @@
 # Chipyard Continuous Integration
 
-The repository's validation CI is the `Rocket and BOOM Regression` workflow
-(`.github/workflows/rocketchip-hello.yml`). It runs for pull requests targeting
+The repository's validation CI is the `Regression Tests` workflow
+(`.github/workflows/regression.yml`). It runs for pull requests targeting
 `main` and can also be started manually.
 
 The workflow builds Verilator emulators for:

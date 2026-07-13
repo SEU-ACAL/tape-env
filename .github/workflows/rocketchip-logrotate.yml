@@ -1,4 +1,4 @@
-name: Rocket Chip Logrotate
+name: Regression Test Result Rotation
 
 on:
   schedule:
@@ -14,11 +14,11 @@ on:
 permissions: {}
 
 concurrency:
-  group: rocketchip-logrotate
+  group: regression-logrotate
   cancel-in-progress: true
 
 env:
-  CI_RESULTS_ROOT: /data2/ci-runner/rocketchip
+  CI_RESULTS_ROOT: /data2/ci-runner/regression
 
 jobs:
   logrotate:
