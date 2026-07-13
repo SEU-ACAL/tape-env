@@ -206,7 +206,7 @@ MFC_LOWERING_OPTIONS ?= $(build_dir)/.mfc_lowering_options
 # java arguments used in sbt
 #########################################################################################
 JAVA_HEAP_SIZE ?= 8G
-JAVA_TMP_DIR ?= $(base_dir)/../.java_tmp
+JAVA_TMP_DIR ?= $(base_dir)/.sbt/tmp
 export JAVA_TOOL_OPTIONS ?= -Xmx$(JAVA_HEAP_SIZE) -Xss8M -Djava.io.tmpdir=$(JAVA_TMP_DIR)
 JAVA ?= $(shell if [ -n "$$JAVA_HOME" ] && [ -x "$$JAVA_HOME/bin/java" ]; then printf "$$JAVA_HOME/bin/java"; elif [ -x /usr/lib/jvm/java-11-openjdk-amd64/bin/java ]; then printf /usr/lib/jvm/java-11-openjdk-amd64/bin/java; elif command -v java >/dev/null 2>&1; then command -v java; else printf java; fi)
 
