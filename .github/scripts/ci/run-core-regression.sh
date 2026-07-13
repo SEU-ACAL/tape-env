@@ -9,6 +9,7 @@ source "${SCRIPT_DIR}/lib.sh"
 : "${CI_CONFIG:?CI_CONFIG must be set}"
 : "${CI_RESULT_DIR:?CI_RESULT_DIR must be set}"
 : "${CI_TESTCASE:?CI_TESTCASE must be set}"
+: "${CI_WORKLOAD_ROOT:?CI_WORKLOAD_ROOT must be set}"
 
 case "${CI_CONFIG}" in
   [A-Za-z][A-Za-z0-9_]*) ;;
@@ -55,9 +56,14 @@ run_in_nix '
     echo "Generated regression rules are missing: ${test_rules}" >&2
     exit 1
   fi
-  riscv_tests_root="${CI_ARTIFACT_ROOT}/riscv-tests"
+  riscv_tests_root="${CI_WORKLOAD_ROOT}/riscv-tests"
   if [[ ! -d "${riscv_tests_root}/riscv64-unknown-elf/share/riscv-tests" ]]; then
-    echo "RISC-V ISA and benchmark tests are missing: ${riscv_tests_root}" >&2
+    echo "Prebuilt RISC-V ISA and benchmark tests are missing: ${riscv_tests_root}" >&2
+    exit 1
+  fi
+  hello_binary="${CI_WORKLOAD_ROOT}/hello.riscv"
+  if [[ ! -x "${hello_binary}" ]]; then
+    echo "Prebuilt hello test is missing or not executable: ${hello_binary}" >&2
     exit 1
   fi
   generated_rules="${sim_dir}/generated-src/chipyard.harness.TestHarness.${CI_CONFIG}/chipyard.harness.TestHarness.${CI_CONFIG}.d"
@@ -81,11 +87,11 @@ run_in_nix '
       ;;
     rocket-hello-loadmem)
       make "${common_args[@]}" run-binary-fast \
-        BINARY="${CI_ARTIFACT_DIR}/tests-build/hello.riscv" LOADMEM=1
+        BINARY="${hello_binary}" LOADMEM=1
       ;;
     rocket-hello)
       make "${common_args[@]}" run-binary-fast \
-        BINARY="${CI_ARTIFACT_DIR}/tests-build/hello.riscv"
+        BINARY="${hello_binary}"
       ;;
   esac
 '

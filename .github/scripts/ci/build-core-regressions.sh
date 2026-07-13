@@ -9,7 +9,6 @@ source "${SCRIPT_DIR}/lib.sh"
 
 CI_BUILD_JOBS="${CI_BUILD_JOBS:-8}"
 CI_BUILD_CONFIGS="${CI_BUILD_CONFIGS:-QuadChannelRocketConfig MediumBoomV3CosimConfig MediumBoomV4CosimConfig}"
-CI_ROCKET_CONFIG="${CI_ROCKET_CONFIG:-QuadChannelRocketConfig}"
 
 case "${CI_BUILD_JOBS}" in
   ''|*[!0-9]*|0)
@@ -34,11 +33,7 @@ for config in "${configs[@]}"; do
   esac
 done
 
-if [[ " ${CI_BUILD_CONFIGS} " != *" ${CI_ROCKET_CONFIG} "* ]]; then
-  echo "CI_ROCKET_CONFIG must be included in CI_BUILD_CONFIGS: ${CI_ROCKET_CONFIG}" >&2
-  exit 1
-fi
-export CI_BUILD_CONFIGS CI_BUILD_JOBS CI_ROCKET_CONFIG
+export CI_BUILD_CONFIGS CI_BUILD_JOBS
 
 # The self-hosted workspace survives canceled jobs. Deinitialize any partial
 # worktrees so init-submodules can recreate them from the retained git cache.
@@ -119,13 +114,6 @@ run_in_nix '
 
 rm -rf "${CI_ARTIFACT_ROOT}"
 mkdir -p "${CI_ARTIFACT_ROOT}"
-riscv_tests_root="$("${NIX_BIN}" build --no-link --print-out-paths "${REPO_ROOT}#riscvTests")"
-if [[ ! -d "${riscv_tests_root}/riscv64-unknown-elf/share/riscv-tests" ]]; then
-  echo "RISC-V ISA and benchmark tests are missing: ${riscv_tests_root}" >&2
-  exit 1
-fi
-mkdir -p "${CI_ARTIFACT_ROOT}/riscv-tests"
-cp -a "${riscv_tests_root}/riscv64-unknown-elf" "${CI_ARTIFACT_ROOT}/riscv-tests/"
 
 for config in "${configs[@]}"; do
   simulator="${REPO_ROOT}/soc-generator/sims/verilator/simulator-chipyard.harness-${config}"
@@ -142,8 +130,3 @@ for config in "${configs[@]}"; do
   cp -a "${simulator}" "${CI_ARTIFACT_ROOT}/${config}/"
   cp -a "${test_rules}" "${CI_ARTIFACT_ROOT}/${config}/test-rules.d"
 done
-
-run_in_nix '
-  cmake -S applications/tests -B "${CI_ARTIFACT_ROOT}/${CI_ROCKET_CONFIG}/tests-build"
-  cmake --build "${CI_ARTIFACT_ROOT}/${CI_ROCKET_CONFIG}/tests-build" --target hello
-'
