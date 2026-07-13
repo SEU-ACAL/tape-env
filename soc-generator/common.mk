@@ -130,7 +130,10 @@ $(build_dir):
 #########################################################################################
 # compile scala jars
 #########################################################################################
-$(GENERATOR_CLASSPATH): $(CHIPYARD_SCALA_SOURCES) $(SCALA_BUILDTOOL_DEPS) $(CHIPYARD_VLOG_SOURCES)
+$(JAVA_TMP_DIR):
+	mkdir -p $@
+
+$(GENERATOR_CLASSPATH): $(CHIPYARD_SCALA_SOURCES) $(SCALA_BUILDTOOL_DEPS) $(CHIPYARD_VLOG_SOURCES) | $(JAVA_TMP_DIR)
 	mkdir -p $(dir $@)
 	$(call run_sbt_assembly,$(SBT_PROJECT),$(GENERATOR_CLASSPATH))
 
@@ -508,7 +511,7 @@ $(dramsim_lib):
 ################################################
 SBT_COMMAND ?= shell
 .PHONY: launch-sbt
-launch-sbt:
+launch-sbt: | $(JAVA_TMP_DIR)
 	cd $(base_dir) && $(SBT) "$(SBT_COMMAND)"
 
 #########################################################################################
