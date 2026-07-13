@@ -95,7 +95,7 @@ jobs:
         if: always()
         run: |
           echo "## Rocket and BOOM regressions" >> "$GITHUB_STEP_SUMMARY"
-          for testcase in rocket-asm rocket-bmark rocket-hello-loadmem rocket-hello boom-asm-v3 boom-bmark-v3 boom-asm-v4 boom-bmark-v4; do
+          for testcase in rocket-asm rocket-bmark rocket-hello-loadmem rocket-hello rocket-zephyr-hello boom-asm-v3 boom-bmark-v3 boom-asm-v4 boom-bmark-v4; do
             result="${CI_RESULT_ROOT}/${testcase}/result.json"
             if [[ -f "${result}" ]]; then
               cat "${result}" >> "$GITHUB_STEP_SUMMARY"
