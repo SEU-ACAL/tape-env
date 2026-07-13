@@ -37,8 +37,6 @@ jobs:
               - 'docs/**'
               - '**/*.md'
               - '**/.gitignore'
-              - '.github/ISSUE_TEMPLATE/**'
-              - '.github/PULL_REQUEST_TEMPLATE.md'
               - '.github/dependabot.yml'
               - '.mergify.yml'
 
@@ -70,7 +68,6 @@ jobs:
         id: paths
         run: |
           run_dir="${CI_SHARED_ROOT}/rocketchip/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:12}"
-          echo "CI_RUN_DIR=${run_dir}" >> "$GITHUB_ENV"
           echo "CI_ARTIFACT_ROOT=${run_dir}/emu" >> "$GITHUB_ENV"
           echo "run_dir=${run_dir}" >> "$GITHUB_OUTPUT"
           echo "artifact_root=${run_dir}/emu" >> "$GITHUB_OUTPUT"
