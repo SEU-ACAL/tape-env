@@ -203,10 +203,11 @@ EOF
           RISCV = "${chipyardRiscvTools}";
           FIRTOOL_BIN = "${circt}/bin/firtool";
           JAVA_HOME = "${pkgs.jdk17_headless}";
+          VCS_HOME = "/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1";
 
           shellHook = ''
             export CY_DIR="$PWD"
-            export PATH="$RISCV/bin:$PATH"
+            export PATH="$VCS_HOME/bin:$RISCV/bin:$PATH"
             export ZEPHYR_RISCV="${rawRiscvUnknownElfTools}"
             export COURSIER_CACHE="$PWD/.coursier-cache"
             export SBT_OPTS="-Dsbt.global.base=$PWD/.sbt -Dsbt.boot.directory=$PWD/.sbt/boot -Dsbt.ivy.home=$PWD/.ivy2 ''${SBT_OPTS:-}"
