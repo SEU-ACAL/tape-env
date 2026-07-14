@@ -108,7 +108,7 @@ VERILATOR_OPT_FLAGS ?= \
 	-O3 \
 	--x-assign fast \
 	--x-initial fast \
-	--output-split 2000 \
+	--output-split 10000 \
 	--output-split-cfuncs 100
 
 CHIPYARD_VERILATOR_FLAGS := \
