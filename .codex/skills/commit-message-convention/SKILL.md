@@ -50,7 +50,7 @@ Use a body when the motivation, expected effect, risk, or verification does not 
 Add only the footers that apply. Do not invent an issue, author, URL, AI tool, or model name.
 
 - For an issue-related change, add `Fixes #<issue-number>` on its own line. A pull request related to an issue must include this line so GitHub can link and close the issue.
-- When AI materially assists in generating commit or pull request content, add `Assisted-by: <agent>:<model-version>` as required by the project AI Use policy.
+- When Codex materially assists in generating commit or pull request content, add `Assisted-by: Codex:<current-model-version>` using the exact model identifier supplied by the current runtime or system context. Resolve it to a concrete value in the final commit or PR; never leave the placeholder literal and never hardcode a model version in this skill.
 - When another person co-authors the change, add `Co-authored-by: <name> <email>`.
 - When relevant external discussions, reports, or papers exist, add `Link: <url>` as the final footer.
 - Preserve other valid trailers, such as `Signed-off-by`, when supplied.
@@ -117,7 +117,7 @@ The original design has a bug that blabla.
 This commit fixes that by doing blabla.
 
 Fixes #123456
-Assisted-by: Some-AI-Agent:Model-Version
+Assisted-by: Codex:<current-model-version>
 Co-authored-by: Another Author <another.author@example.com>
 Link: https://url.to.related.information
 ```
