@@ -210,6 +210,12 @@ EOF
           shellHook = ''
             export CY_DIR="$PWD"
             export PATH="$VCS_HOME/bin:$RISCV/bin:$PATH"
+            # VCS's Ubuntu mode exports CPATH=/usr/include/x86_64-linux-gnu
+            # to its generated C-source build.  That mixes host glibc bits
+            # headers with the Nix GCC wrapper's glibc headers.  On x86_64
+            # full64, the generic linux mode still selects VCS's linux64
+            # binaries while avoiding that Ubuntu-specific CPATH injection.
+            export VCS_ARCH_OVERRIDE=linux
             export ZEPHYR_RISCV="${rawRiscvUnknownElfTools}"
             export COURSIER_CACHE="$PWD/.coursier-cache"
             export SBT_OPTS="-Dsbt.global.base=$PWD/.sbt -Dsbt.boot.directory=$PWD/.sbt/boot -Dsbt.ivy.home=$PWD/.ivy2 ''${SBT_OPTS:-}"
