@@ -2,14 +2,20 @@
   description = "Chipyard SoC generator development environment";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+    nixpkgs-gcc11.url = "github:NixOS/nixpkgs/nixos-23.11";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, nixpkgs-gcc11, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
+        gcc11Pkgs = import nixpkgs-gcc11 { inherit system; };
+        gcc11ForVcs = pkgs.runCommand "gcc11-for-vcs" { } ''
+          mkdir -p $out/bin
+          ln -s ${gcc11Pkgs.gcc11}/bin/gcc $out/bin/gcc
+        '';
         riscvPkgs = pkgs.pkgsCross.riscv64-embedded;
         riscvCc = riscvPkgs.stdenv.cc;
         riscvTarget = riscvPkgs.stdenv.targetPlatform.config;
@@ -222,6 +228,7 @@ EOF
             pkgs.coreutils
             pkgs.dtc
             pkgs.flex
+            gcc11ForVcs
             pkgs.gcc
             pkgs.git
             pkgs.gnumake
