@@ -12,17 +12,14 @@
       let
         pkgs = import nixpkgs { inherit system; };
         gcc11Pkgs = import nixpkgs-gcc11 { inherit system; };
-        gcc11ForVcs = pkgs.runCommand "gcc11-for-vcs" { } ''
-          mkdir -p $out/bin
-          ln -s ${gcc11Pkgs.gcc11}/bin/gcc $out/bin/gcc
-        '';
+        gcc11Stdenv = gcc11Pkgs.overrideCC gcc11Pkgs.stdenv gcc11Pkgs.gcc11;
         riscvPkgs = pkgs.pkgsCross.riscv64-embedded;
         riscvCc = riscvPkgs.stdenv.cc;
         riscvTarget = riscvPkgs.stdenv.targetPlatform.config;
         # Keep Spike ABI-compatible with the TestChipIP Cospike source. This
         # revision is the one pinned by upstream Chipyard's riscv-isa-sim
         # submodule.
-        spike = pkgs.stdenv.mkDerivation {
+        spike = gcc11Stdenv.mkDerivation {
           pname = "chipyard-spike";
           version = "9c190a07c6838f6392bafa4ad83acea462c7f759";
           src = pkgs.fetchFromGitHub {
@@ -228,8 +225,7 @@ EOF
             pkgs.coreutils
             pkgs.dtc
             pkgs.flex
-            gcc11ForVcs
-            pkgs.gcc
+            gcc11Pkgs.gcc11
             pkgs.git
             pkgs.gnumake
             pkgs.jq
