@@ -108,7 +108,7 @@ VERILATOR_OPT_FLAGS ?= \
 	-O3 \
 	--x-assign fast \
 	--x-initial fast \
-	--output-split 10000 \
+	--output-split 2000 \
 	--output-split-cfuncs 100
 
 CHIPYARD_VERILATOR_FLAGS := \
@@ -194,15 +194,18 @@ $(model_mk_debug): $(sim_common_files) $(EXTRA_SIM_REQS)
 #########################################################################################
 # invoke make to make verilator sim rules
 #########################################################################################
-VM_PARALLEL_BUILDS ?= 8
+# In Verilator's generated Makefile, VM_PARALLEL_BUILDS=1 selects one object
+# per generated C++ source.  Any other value creates a single __ALL.cpp
+# aggregation unit, which prevents parallel C++ compilation for large models.
+VERILATOR_MAKE_JOBS ?= 8
 
 $(sim): $(model_mk) $(dramsim_lib)
 	$(require_riscv)
-	$(MAKE) VM_PARALLEL_BUILDS=$(VM_PARALLEL_BUILDS) -C $(model_dir) -f V$(TB).mk
+	$(MAKE) -j$(VERILATOR_MAKE_JOBS) VM_PARALLEL_BUILDS=1 -C $(model_dir) -f V$(TB).mk
 
 $(sim_debug): $(model_mk_debug) $(dramsim_lib)
 	$(require_riscv)
-	$(MAKE) VM_PARALLEL_BUILDS=$(VM_PARALLEL_BUILDS) -C $(model_dir_debug) -f V$(TB).mk
+	$(MAKE) -j$(VERILATOR_MAKE_JOBS) VM_PARALLEL_BUILDS=1 -C $(model_dir_debug) -f V$(TB).mk
 
 #########################################################################################
 # create a verilator vpd rule
