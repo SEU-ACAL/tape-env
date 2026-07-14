@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CI_RESULTS_ROOT: /data2/ci-runner/regression
+  CI_RESULTS_ROOT: /data1/ci-runner/regression
 
 jobs:
   logrotate:

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
-CI_SHARED_ROOT="${CI_SHARED_ROOT:-/data2/ci-runner}"
+CI_SHARED_ROOT="${CI_SHARED_ROOT:-/data1/ci-runner}"
 CI_CACHE_ROOT="${CI_CACHE_ROOT:-${CI_SHARED_ROOT}/cache}"
 NIX_BIN="${NIX_BIN:-/nix/var/nix/profiles/default/bin/nix}"
 

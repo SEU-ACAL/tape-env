@@ -54,7 +54,7 @@ jobs:
       run_dir: ${{ steps.paths.outputs.run_dir }}
       artifact_root: ${{ steps.paths.outputs.artifact_root }}
     env:
-      CI_SHARED_ROOT: /data2/ci-runner
+      CI_SHARED_ROOT: /data1/ci-runner
       CI_BUILD_JOBS: 8
       CI_BUILD_CONFIGS: QuadChannelRocketConfig MediumBoomV3CosimConfig MediumBoomV4CosimConfig
       HTTP_PROXY: http://127.0.0.1:12000
@@ -80,7 +80,7 @@ jobs:
     runs-on: [self-hosted, linux, runner]
     timeout-minutes: 180
     env:
-      CI_SHARED_ROOT: /data2/ci-runner
+      CI_SHARED_ROOT: /data1/ci-runner
       CI_WORKLOAD_ROOT: /data2/ci-workloads
       CI_ARTIFACT_ROOT: ${{ needs.build.outputs.artifact_root }}
       CI_RESULT_ROOT: ${{ needs.build.outputs.run_dir }}/results
