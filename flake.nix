@@ -204,6 +204,8 @@ EOF
           FIRTOOL_BIN = "${circt}/bin/firtool";
           JAVA_HOME = "${pkgs.jdk17_headless}";
           VCS_HOME = "/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1";
+          LM_LICENSE_FILE = "26000@devjz-ubt20-s01";
+          SNPSLMD_LICENSE_FILE = "26000@devjz-ubt20-s01";
 
           shellHook = ''
             export CY_DIR="$PWD"
