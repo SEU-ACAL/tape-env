@@ -69,6 +69,8 @@ HELP_COMPILATION_VARIABLES += \
 "   VERILATOR_PROFILE      = 'none' if no verilator profiling (default)" \
 "                            'all' if full verilator runtime profiling" \
 "                            'threads' if runtime thread profiling only" \
+"   VERILATOR_ASSERTS      = '1' to compile SystemVerilog assertions (default)" \
+"                            '0' for a fast build without Verilator assertion checks" \
 "   VERILATOR_THREADS      = how many threads the simulator will use (default 1)" \
 "   USE_FST                = set to '1' to build Verilator simulator to emit FST instead of VCD."
 
@@ -102,8 +104,9 @@ get_waveform_flag = +vcdfile=$(1).$(if $(filter $(USE_FST),0),vcd,fst)
 #----------------------------------------------------------------------------------------
 # verilation configuration/optimization
 #----------------------------------------------------------------------------------------
-# we initially had --noassert for performance, but several modules use
-# assertions, including dramsim, so we enable --assert by default
+# Assertions produce substantial generated C++ for large configurations.  Keep
+# them enabled by default because several modules (including DRAMSim) rely on
+# their checks; fast builds may opt out explicitly with VERILATOR_ASSERTS=0.
 VERILATOR_OPT_FLAGS ?= \
 	-O3 \
 	--x-assign fast \
@@ -111,8 +114,9 @@ VERILATOR_OPT_FLAGS ?= \
 	--output-split 10000 \
 	--output-split-cfuncs 100
 
+VERILATOR_ASSERTS ?= 1
 CHIPYARD_VERILATOR_FLAGS := \
-	--assert
+	$(if $(filter 1 yes true,$(VERILATOR_ASSERTS)),--assert)
 
 PLATFORM_OPTS = $(CHIPYARD_VERILATOR_FLAGS)
 

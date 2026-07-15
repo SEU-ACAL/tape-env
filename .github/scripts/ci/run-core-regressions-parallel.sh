@@ -22,10 +22,10 @@ testcases=(
   'rocket-hello-loadmem:QuadChannelRocketConfig'
   'rocket-hello:QuadChannelRocketConfig'
   'rocket-zephyr-hello:QuadChannelRocketConfig'
-  'boom-asm-v3:MediumBoomV3CosimConfig'
-  'boom-bmark-v3:MediumBoomV3CosimConfig'
-  'boom-asm-v4:MediumBoomV4CosimConfig'
-  'boom-bmark-v4:MediumBoomV4CosimConfig'
+  'boom-asm-v3:MediumBoomV3CosimFastConfig'
+  'boom-bmark-v3:MediumBoomV3CosimFastConfig'
+  'boom-asm-v4:MediumBoomV4CosimFastConfig'
+  'boom-bmark-v4:MediumBoomV4CosimFastConfig'
 )
 
 prepare_test_rules() {
@@ -42,7 +42,7 @@ prepare_test_rules() {
   cp -f "${source_rules}" "${generated_rules}"
 }
 
-for config in QuadChannelRocketConfig MediumBoomV3CosimConfig MediumBoomV4CosimConfig; do
+for config in QuadChannelRocketConfig MediumBoomV3CosimFastConfig MediumBoomV4CosimFastConfig; do
   prepare_test_rules "${config}"
 done
 

@@ -7,11 +7,14 @@ The repository's validation CI is the `Regression Tests` workflow
 The workflow builds Verilator emulators for:
 
 - `QuadChannelRocketConfig`
-- `MediumBoomV3CosimConfig`
-- `MediumBoomV4CosimConfig`
+- `MediumBoomV3CosimFastConfig`
+- `MediumBoomV4CosimFastConfig`
 
 It then runs the Rocket ISA, benchmark, native hello-world, and Zephyr
 hello-world regressions, plus the BOOM v3 and v4 ISA and benchmark regressions.
+The BOOM regression configurations omit TileLink monitors and, for Verilator,
+disable Verilator assertion checking to keep software regressions practical;
+the standard BOOM cosimulation configurations remain available for validation.
 The Zephyr coverage is limited to the bare-metal
 `samples/chipyard/hello_world` sample on `chipyard_riscv64`; it does not cover
 other Zephyr samples, SMP, networking, Linux, or FireSim. Builds execute on the

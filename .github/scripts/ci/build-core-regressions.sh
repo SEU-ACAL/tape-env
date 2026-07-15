@@ -8,11 +8,19 @@ source "${SCRIPT_DIR}/lib.sh"
 : "${CI_ARTIFACT_ROOT:?CI_ARTIFACT_ROOT must be set}"
 
 CI_BUILD_JOBS="${CI_BUILD_JOBS:-8}"
-CI_BUILD_CONFIGS="${CI_BUILD_CONFIGS:-QuadChannelRocketConfig MediumBoomV3CosimConfig MediumBoomV4CosimConfig}"
+CI_VERILATOR_MAKE_JOBS="${CI_VERILATOR_MAKE_JOBS:-8}"
+CI_BUILD_CONFIGS="${CI_BUILD_CONFIGS:-QuadChannelRocketConfig MediumBoomV3CosimFastConfig MediumBoomV4CosimFastConfig}"
 
 case "${CI_BUILD_JOBS}" in
   ''|*[!0-9]*|0)
     echo "CI_BUILD_JOBS must be a positive integer: ${CI_BUILD_JOBS}" >&2
+    exit 1
+    ;;
+esac
+
+case "${CI_VERILATOR_MAKE_JOBS}" in
+  ''|*[!0-9]*|0)
+    echo "CI_VERILATOR_MAKE_JOBS must be a positive integer: ${CI_VERILATOR_MAKE_JOBS}" >&2
     exit 1
     ;;
 esac
@@ -33,7 +41,7 @@ for config in "${configs[@]}"; do
   esac
 done
 
-export CI_BUILD_CONFIGS CI_BUILD_JOBS
+export CI_BUILD_CONFIGS CI_BUILD_JOBS CI_VERILATOR_MAKE_JOBS
 
 # The self-hosted workspace survives canceled jobs. Deinitialize any partial
 # worktrees so init-submodules can recreate them from the retained git cache.
@@ -101,7 +109,11 @@ run_in_nix '
   read -r -a configs <<< "${CI_BUILD_CONFIGS}"
   pids=()
   for config in "${configs[@]}"; do
-    make -j"${CI_BUILD_JOBS}" -C soc-generator CONFIG="${config}" emu &
+    verilator_args=(VERILATOR_MAKE_JOBS="${CI_VERILATOR_MAKE_JOBS}" OBJCACHE=ccache)
+    if [[ "${config}" == *Boom*FastConfig ]]; then
+      verilator_args+=(VERILATOR_ASSERTS=0)
+    fi
+    make -j"${CI_BUILD_JOBS}" -C soc-generator CONFIG="${config}" "${verilator_args[@]}" emu &
     pids+=("$!")
   done
 

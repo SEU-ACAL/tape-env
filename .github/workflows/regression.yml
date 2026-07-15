@@ -56,7 +56,8 @@ jobs:
     env:
       CI_SHARED_ROOT: /data1/ci-runner
       CI_BUILD_JOBS: 8
-      CI_BUILD_CONFIGS: QuadChannelRocketConfig MediumBoomV3CosimConfig MediumBoomV4CosimConfig
+      CI_VERILATOR_MAKE_JOBS: 8
+      CI_BUILD_CONFIGS: QuadChannelRocketConfig MediumBoomV3CosimFastConfig MediumBoomV4CosimFastConfig
       HTTP_PROXY: http://127.0.0.1:12000
       HTTPS_PROXY: http://127.0.0.1:12000
       NO_PROXY: localhost,127.0.0.1

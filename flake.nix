@@ -230,6 +230,7 @@ EOF
             pkgs.bash
             pkgs.bison
             pkgs.bc
+            pkgs.ccache
             pkgs.cmake
             pkgs.coreutils
             pkgs.dtc

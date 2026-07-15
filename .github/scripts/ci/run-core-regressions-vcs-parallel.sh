@@ -22,13 +22,13 @@ testcases=(
   'rocket-hello-loadmem:QuadChannelRocketConfig'
   'rocket-hello:QuadChannelRocketConfig'
   'rocket-zephyr-hello:QuadChannelRocketConfig'
-  'boom-asm-v3:MediumBoomV3CosimConfig'
-  'boom-bmark-v3:MediumBoomV3CosimConfig'
-  'boom-asm-v4:MediumBoomV4CosimConfig'
-  'boom-bmark-v4:MediumBoomV4CosimConfig'
+  'boom-asm-v3:MediumBoomV3CosimFastConfig'
+  'boom-bmark-v3:MediumBoomV3CosimFastConfig'
+  'boom-asm-v4:MediumBoomV4CosimFastConfig'
+  'boom-bmark-v4:MediumBoomV4CosimFastConfig'
 )
 
-for config in QuadChannelRocketConfig MediumBoomV3CosimConfig MediumBoomV4CosimConfig; do
+for config in QuadChannelRocketConfig MediumBoomV3CosimFastConfig MediumBoomV4CosimFastConfig; do
   rules="${CI_ARTIFACT_ROOT}/${config}/test-rules.d"
   generated="${REPO_ROOT}/soc-generator/sims/vcs/generated-src/chipyard.harness.TestHarness.${config}/chipyard.harness.TestHarness.${config}.d"
   mkdir -p "$(dirname "${generated}")"
