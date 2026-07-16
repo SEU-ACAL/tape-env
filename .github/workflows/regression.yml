@@ -90,7 +90,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Initialize Chipyard submodules
-        run: dependencies/scripts/init-submodules.sh
+        run: ./init-submodules.sh
 
       - name: Run regressions in parallel
         run: .github/scripts/ci/run-core-regressions-parallel.sh

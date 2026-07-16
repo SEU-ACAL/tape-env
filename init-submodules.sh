@@ -103,12 +103,6 @@ update_submodule() {
     fi
 }
 
-configure_firemarshal() {
-    if [[ ! -f applications/firemarshal/marshal-config.yaml ]]; then
-        echo "firesim-dir: '../../soc-generator/sims/firesim/'" > applications/firemarshal/marshal-config.yaml
-    fi
-}
-
 if [[ "$ENABLE_FULL" -eq 1 ]]; then
     submodule_name="all registered submodules"
     git submodule update --init --recursive
@@ -117,7 +111,6 @@ else
         soc-generator/generator/gemmini
         soc-generator/generator/rocket-chip
         soc-generator/sims/firesim
-        applications/firemarshal
         applications/zephyr
         dependencies/tools/dsptools
         dependencies/tools/rocket-dsp-utils
@@ -139,7 +132,6 @@ else
     git config --local submodule.soc-generator/sims/firesim.update none
     update_submodule dependencies/tools/rocket-dsp-utils
     update_submodule dependencies/tools/dsptools
-    update_submodule applications/firemarshal
 
     if [[ "$ENABLE_GEMMINI" -eq 1 ]]; then
         update_submodule soc-generator/generator/gemmini
@@ -147,5 +139,3 @@ else
         git -C soc-generator/generator/gemmini submodule update --init --recursive software/gemmini-rocc-tests
     fi
 fi
-
-configure_firemarshal
