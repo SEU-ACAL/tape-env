@@ -17,6 +17,12 @@ concurrency:
 jobs:
   changes:
     name: Detect relevant changes
+    # Dependency update PRs do not need to consume the self-hosted regression
+    # runners. The PR author is used instead of github.actor so maintainer
+    # retries or updates remain classified as Dependabot PRs.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     outputs:
       needs_regression: ${{ steps.filter.outputs.all_count != steps.filter.outputs.skip_regression_count }}
