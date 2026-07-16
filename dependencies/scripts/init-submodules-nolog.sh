@@ -196,6 +196,7 @@ cd "$RDIR"
             soc-generator/sims/firesim \
             applications/nvdla-workload \
             applications/coremark \
+            applications/firemarshal \
             applications/spec2017 \
             applications/zephyr \
             dependencies/tools/dsptools \
@@ -308,4 +309,12 @@ cd "$RDIR"
     submodule_name="dependencies/tools/dsptools"
     git submodule update --init dependencies/tools/dsptools || exit 1
 
+    # Only shallow clone needed for basic SW tests
+    submodule_name="applications/firemarshal"
+    git submodule update --init applications/firemarshal || exit 1
 )
+
+# Configure firemarshal to know where our firesim installation is
+if [ ! -f ./applications/firemarshal/marshal-config.yaml ]; then
+  echo "firesim-dir: '../../soc-generator/sims/firesim/'" > ./applications/firemarshal/marshal-config.yaml
+fi
