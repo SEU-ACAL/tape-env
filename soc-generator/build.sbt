@@ -198,7 +198,7 @@ lazy val chipyard = {
       testchipip, rocketchip, boom, gemmini, rocketchip_blocks, rocketchip_inclusive_cache,
     ).map(sbt.Project.projectToRef) ++
     (if (useChisel7) Seq() else Seq(sbt.Project.projectToRef(firrtl2_bridge))) ++
-    (if (useChisel7) Seq() else Seq(sbt.Project.projectToRef(dsptools), sbt.Project.projectToRef(rocket_dsp_utils)))
+    (if (useChisel7) Seq() else Seq(sbt.Project.projectToRef(dsptools)))
 
   val baseDeps: Seq[sbt.ClasspathDep[sbt.ProjectReference]] =
     baseProjects.map(pr => sbt.ClasspathDependency(pr, None))
@@ -289,11 +289,6 @@ lazy val dsptools = freshProject("dsptools", file("../dependencies/tools/dsptool
 lazy val cde = projectFromDir("cde", file("../dependencies/tools/cde"))
   .settings(commonSettings)
   .settings(Compile / scalaSource := file("../dependencies/tools/cde/cde/src/chipsalliance/rocketchip"))
-
-lazy val rocket_dsp_utils = freshProject("rocket-dsp-utils", file("../dependencies/tools/rocket-dsp-utils"))
-  .dependsOn(rocketchip, cde, dsptools)
-  .settings(libraryDependencies ++= rocketLibDeps.value)
-  .settings(commonSettings)
 
 lazy val rocketchip_blocks = withInitCheck((project in file("generator/rocket-chip-blocks")), "rocket-chip-blocks")
   .dependsOn(rocketchip)
