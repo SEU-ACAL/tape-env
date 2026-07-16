@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #============================================================================
 # - really simple script, which just prints out the numactl cmd to
@@ -23,54 +23,56 @@
 #       1:  20  10
 #============================================================================
 
-import subprocess
 import re
+import shutil
+import subprocess
 import sys
 
-which_proc = subprocess.Popen(["which", "numactl"], stdout=subprocess.PIPE)
-out, err = which_proc.communicate()
+if not shutil.which("numactl"):
+    sys.exit(0)
 
-if out != "":
-    numactl_proc = subprocess.Popen(["numactl", "-H"], stdout=subprocess.PIPE)
-    out, err = numactl_proc.communicate()
+result = subprocess.run(
+    ["numactl", "-H"],
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    text=True,
+)
+if result.returncode != 0:
+    sys.exit(0)
 
-    lines = out.split("\n")
-    line_idx = 0
+lines = result.stdout.splitlines()
+head_line = lines[0] if lines else ""
+node_match = re.match(r"^ *available: +(\d+) nodes", head_line)
+if not node_match:
+    sys.exit("[ERROR] Malformed head line: " + head_line)
 
-    head_line = lines[line_idx]
-    line_idx += 1
-    node_match = re.match(r"^ *available: +(\d+) nodes", head_line)
-    if node_match:
-        avail_nodes = node_match.group(1)
-        best_node_id = ""
-        best_cpus = ""
-        best_free_size = 0
+available_nodes = int(node_match.group(1))
+best_node_id = ""
+best_cpus = ""
+best_free_size = 0
+line_idx = 1
 
-        # loop through available nodes, selecting the node with the most free mem
-        for i in avail_nodes:
-            cpu_line      = lines[line_idx]
-            # mem. size unused. skip and use mem. free
-            mem_free_line = lines[line_idx + 2]
-            line_idx += 3
+for _ in range(available_nodes):
+    if line_idx + 2 >= len(lines):
+        sys.exit("[ERROR] Incomplete numactl topology output")
 
-            cpu_match = re.match(r"^ *node (\d+) cpus: (\d.*\d)$", cpu_line)
-            if cpu_match:
-                node_id = cpu_match.group(1)
-                cpus = cpu_match.group(2).replace(" ", ",")
+    cpu_line = lines[line_idx]
+    mem_free_line = lines[line_idx + 2]
+    line_idx += 3
+    cpu_match = re.match(r"^ *node (\d+) cpus: (\d.*\d)$", cpu_line)
+    if not cpu_match:
+        sys.exit("[ERROR] Malformed cpus line: " + cpu_line)
 
-                mem_free_match = re.match(r"^ *node " + node_id + " free: (\d+) \S+$", mem_free_line)
-                if mem_free_match:
-                    free_size = mem_free_match.group(1)
-                    if int(free_size) > int(best_free_size):
-                        best_node_id = node_id
-                        best_cpus = cpus
-                        best_free_size = free_size
-                else:
-                    sys.exit("[ERROR] Malformed mem free line: " + mem_free_line)
+    node_id = cpu_match.group(1)
+    cpus = cpu_match.group(2).replace(" ", ",")
+    mem_free_match = re.match(r"^ *node " + node_id + r" free: (\d+) \S+$", mem_free_line)
+    if not mem_free_match:
+        sys.exit("[ERROR] Malformed mem free line: " + mem_free_line)
 
-            else:
-                sys.exit("[ERROR] Malformed cpus line: " + cpu_line)
+    free_size = int(mem_free_match.group(1))
+    if free_size > best_free_size:
+        best_node_id = node_id
+        best_cpus = cpus
+        best_free_size = free_size
 
-        sys.stdout.write("numactl -m " + best_node_id + " -C " + best_cpus + " --")
-    else:
-        sys.exit("[ERROR] Malformed head line: " + head_line)
+sys.stdout.write("numactl -m " + best_node_id + " -C " + best_cpus + " --")
