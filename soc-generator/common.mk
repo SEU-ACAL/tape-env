@@ -66,11 +66,11 @@ HELP_SIMULATION_VARIABLES += \
 "   BREAK_SIM_PREREQ       = when running a binary, doesn't rebuild RTL on source changes"
 
 EXTRA_SIM_FLAGS ?=
-NUMACTL         ?= 0
+NUMACTL         ?= 1
 
 dependencies_dir ?= $(base_dir)/../dependencies
 
-NUMA_PREFIX = $(if $(filter $(NUMACTL),0),,$(shell $(dependencies_dir)/scripts/numa_prefix))
+NUMA_PREFIX = $(if $(filter $(NUMACTL),0),,$(shell $(base_dir)/scripts/numa_prefix))
 
 #----------------------------------------------------------------------------
 HELP_COMMANDS += \
