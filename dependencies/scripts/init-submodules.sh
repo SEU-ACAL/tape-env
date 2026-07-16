@@ -17,11 +17,6 @@ set -euo pipefail
 
 RDIR=$(git rev-parse --show-toplevel)
 
-# get helpful utilities
-source $RDIR/dependencies/scripts/utils.sh
-
-common_setup
-
 submodule_name=""
 
 # Custom error handler function
@@ -175,8 +170,6 @@ fi
 
 :
 
-# before doing anything verify that you are on a release branch/tag
-save_bash_options
 set +e
 
 cd "$RDIR"
