@@ -40,9 +40,6 @@
 [submodule "dependencies/tools/firrtl2"]
 	path = dependencies/tools/firrtl2
 	url = https://github.com/ucb-bar/firrtl2.git
-[submodule "applications/firemarshal"]
-	path = applications/firemarshal
-	url = https://github.com/firesim/FireMarshal.git
 [submodule "soc-generator/generator/boom"]
 	path = soc-generator/generator/boom
 	url = https://github.com/riscv-boom/riscv-boom.git
