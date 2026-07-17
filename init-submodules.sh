@@ -110,7 +110,6 @@ else
     excluded_submodules=(
         soc-generator/generator/gemmini
         soc-generator/generator/rocket-chip
-        soc-generator/sims/firesim
         applications/zephyr
         dependencies/tools/dsptools
     )
@@ -127,8 +126,6 @@ else
     )
 
     update_submodule soc-generator/generator/rocket-chip
-    update_submodule soc-generator/sims/firesim
-    git config --local submodule.soc-generator/sims/firesim.update none
     update_submodule dependencies/tools/dsptools
 
     if [[ "$ENABLE_GEMMINI" -eq 1 ]]; then
