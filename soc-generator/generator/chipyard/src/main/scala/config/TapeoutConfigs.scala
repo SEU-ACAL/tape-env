@@ -16,11 +16,23 @@ import freechips.rocketchip.subsystem.{MBUS}
 class TapeoutConfig extends Config(
 
   new freechips.rocketchip.subsystem.WithoutTLMonitors ++
+  new WithTapeoutRocket ++
+  // AbstractConfig adds an MBUS scratchpad; remove all subsystem scratchpads.
+  new testchipip.soc.WithNoScratchpads ++
   new WithTapeoutSingleClock(100) ++
   new chipyard.harness.WithSimTSIOverSerialTL(fast = true) ++
-  new freechips.rocketchip.rocket.WithNHugeCores(1) ++ // 1 RocketTile
   new chipyard.WithSerialConnect ++
   new chipyard.config.AbstractConfig)
+
+// Rocket tile and cache sizing for the tapeout target.
+class WithTapeoutRocket extends Config(
+  // 64B line, 8-way: 8 sets * 8 ways * 64B = 4 KiB per L1 cache.
+  new freechips.rocketchip.rocket.WithL1ICacheSets(8) ++
+  new freechips.rocketchip.rocket.WithL1DCacheSets(8) ++
+  // Keep the default 8-way associativity: 16 KiB / (8 ways * 64B) = 32 sets.
+  new freechips.rocketchip.subsystem.WithInclusiveCache(nWays = 8, capacityKB = 16) ++
+  new freechips.rocketchip.rocket.WithNHugeCores(1)
+)
 
 
 // 串行接口
