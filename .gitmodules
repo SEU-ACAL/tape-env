@@ -9,16 +9,10 @@
 	url = https://github.com/ucb-bar/berkeley-hardfloat.git
 [submodule "soc-generator/generator/rocket-chip"]
 	path = soc-generator/generator/rocket-chip
-	url = https://github.com/chipsalliance/rocket-chip.git
-[submodule "soc-generator/generator/rocket-chip-blocks"]
-	path = soc-generator/generator/rocket-chip-blocks
-	url = https://github.com/chipsalliance/rocket-chip-blocks.git
+	url = https://github.com/SEU-ACAL/rocket-chip.git
 [submodule "soc-generator/generator/rocket-chip-inclusive-cache"]
 	path = soc-generator/generator/rocket-chip-inclusive-cache
-	url = https://github.com/chipsalliance/rocket-chip-inclusive-cache.git
-[submodule "soc-generator/generator/testchipip"]
-	path = soc-generator/generator/testchipip
-	url = https://github.com/ucb-bar/testchipip.git
+	url = https://github.com/SEU-ACAL/rocket-chip-inclusive-cache.git
 [submodule "dependencies/tools/DRAMSim2"]
 	path = dependencies/tools/DRAMSim2
 	url = https://github.com/firesim/DRAMSim2.git
@@ -36,7 +30,7 @@
 	url = https://github.com/ucb-bar/firrtl2.git
 [submodule "soc-generator/generator/boom"]
 	path = soc-generator/generator/boom
-	url = https://github.com/riscv-boom/riscv-boom.git
+	url = https://github.com/SEU-ACAL/acal-boom.git
 [submodule "soc-generator/generator/gemmini"]
 	path = soc-generator/generator/gemmini
 	url = https://github.com/ucb-bar/gemmini.git
