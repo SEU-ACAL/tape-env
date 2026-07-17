@@ -28,9 +28,6 @@
 [submodule "dependencies/tools/cde"]
 	path = dependencies/tools/cde
 	url = https://github.com/chipsalliance/cde.git
-[submodule "dependencies/tools/rocket-dsp-utils"]
-	path = dependencies/tools/rocket-dsp-utils
-	url = https://github.com/ucb-bar/rocket-dsp-utils.git
 [submodule "dependencies/tools/dsptools"]
 	path = dependencies/tools/dsptools
 	url = https://github.com/ucb-bar/dsptools.git

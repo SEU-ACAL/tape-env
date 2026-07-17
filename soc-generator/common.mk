@@ -66,11 +66,11 @@ HELP_SIMULATION_VARIABLES += \
 "   BREAK_SIM_PREREQ       = when running a binary, doesn't rebuild RTL on source changes"
 
 EXTRA_SIM_FLAGS ?=
-NUMACTL         ?= 0
+NUMACTL         ?= 1
 
 dependencies_dir ?= $(base_dir)/../dependencies
 
-NUMA_PREFIX = $(if $(filter $(NUMACTL),0),,$(shell $(dependencies_dir)/scripts/numa_prefix))
+NUMA_PREFIX = $(if $(filter $(NUMACTL),0),,$(shell $(base_dir)/scripts/numa_prefix))
 
 #----------------------------------------------------------------------------
 HELP_COMMANDS += \
@@ -279,7 +279,7 @@ UNIQUIFY_STAMP ?= $(build_dir)/.uniquify.stamp
 $(TOP_MODS_FILELIST) $(MODEL_MODS_FILELIST) $(ALL_MODS_FILELIST) $(BB_MODS_FILELIST) $(MFC_MODEL_HRCHY_JSON_UNIQUIFIED): $(UNIQUIFY_STAMP)
 
 $(UNIQUIFY_STAMP): $(MFC_MODEL_HRCHY_JSON) $(MFC_TOP_HRCHY_JSON) $(MFC_FILELIST) $(MFC_BB_MODS_FILELIST)
-	$(dependencies_dir)/scripts/uniquify-module-names.py \
+	$(base_dir)/scripts/uniquify-module-names.py \
 		--model-hier-json $(MFC_MODEL_HRCHY_JSON) \
 		--top-hier-json $(MFC_TOP_HRCHY_JSON) \
 		--in-all-filelist $(MFC_FILELIST) \
@@ -302,7 +302,7 @@ SPLIT_MEMS_STAMP ?= $(build_dir)/.split-mems.stamp
 $(TOP_SMEMS_CONF) $(MODEL_SMEMS_CONF): $(SPLIT_MEMS_STAMP)
 
 $(SPLIT_MEMS_STAMP): $(MFC_SMEMS_CONF) $(MFC_MODEL_HRCHY_JSON_UNIQUIFIED)
-	$(dependencies_dir)/scripts/split-mems-conf.py \
+	$(base_dir)/scripts/split-mems-conf.py \
 		--in-smems-conf $(MFC_SMEMS_CONF) \
 		--in-model-hrchy-json $(MFC_MODEL_HRCHY_JSON_UNIQUIFIED) \
 		--dut-module-name $(TOP) \
