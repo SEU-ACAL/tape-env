@@ -83,8 +83,6 @@ def projectFromDir(name: String, dir: File): Project = {
 
 /**
   * It has been a struggle for us to override settings in subprojects.
-  * An example would be replacing dsptools's maven dependency on chisel with the local chisel project.
-  *
   * This function works around this by specifying the project's source root at src/ and
   * overriding scalaSource and resourceDirectory.
   */
@@ -188,8 +186,7 @@ lazy val chipyard = {
   val baseProjects: Seq[ProjectReference] =
     Seq(
       testchipip, rocketchip, boom, gemmini, rocketchip_blocks, rocketchip_inclusive_cache,
-    ).map(sbt.Project.projectToRef) ++
-    (if (useChisel7) Seq() else Seq(sbt.Project.projectToRef(dsptools)))
+    ).map(sbt.Project.projectToRef)
 
   val baseDeps: Seq[sbt.ClasspathDep[sbt.ProjectReference]] =
     baseProjects.map(pr => sbt.ClasspathDependency(pr, None))
@@ -202,8 +199,7 @@ lazy val chipyard = {
         // Directories or files relative to repo root
         "generator/chipyard/src/main/scala/config/SpikeConfigs.scala",
         "generator/chipyard/src/main/scala/config/ChipletConfigs.scala",
-        "generator/chipyard/src/main/scala/SpikeTile.scala",
-        "generator/chipyard/src/main/scala/example/dsptools"
+        "generator/chipyard/src/main/scala/SpikeTile.scala"
       ) ++ (if (useChisel7) Seq(
         "generator/chipyard/src/main/scala/config/MMIOAcceleratorConfigs.scala",
         "generator/chipyard/src/main/scala/upf"
@@ -258,24 +254,6 @@ lazy val tapeout = projectFromDir("tapeout", file("../dependencies/tools/tapeout
   .settings(commonSettings)
   .settings(scalaVersion := "2.13.10") // stuck on chisel3 2.13.10
   .settings(libraryDependencies ++= Seq("com.typesafe.play" %% "play-json" % "2.9.2"))
-
-lazy val fixedpoint = freshProject("fixedpoint", file("../dependencies/tools/fixedpoint"))
-  .settings(chiselSettings)
-  .settings(commonSettings)
-
-lazy val dsptools = freshProject("dsptools", file("../dependencies/tools/dsptools"))
-  .dependsOn(fixedpoint)
-  .settings(
-    chiselSettings,
-    commonSettings,
-    scalaTestSettings,
-    libraryDependencies ++= Seq(
-      "edu.berkeley.cs" %% "chiseltest" % chiselTestVersion,
-      "org.typelevel" %% "spire" % "0.18.0",
-      "org.scalanlp" %% "breeze" % "2.1.0",
-      "junit" % "junit" % "4.13" % "test",
-      "org.scalacheck" %% "scalacheck" % "1.14.3" % "test",
-  ))
 
 lazy val cde = projectFromDir("cde", file("../dependencies/tools/cde"))
   .settings(commonSettings)

@@ -111,7 +111,6 @@ else
         soc-generator/generator/gemmini
         soc-generator/generator/rocket-chip
         applications/zephyr
-        dependencies/tools/dsptools
     )
 
     skip_submodule() { git config --local "submodule.$1.update" none; }
@@ -126,7 +125,6 @@ else
     )
 
     update_submodule soc-generator/generator/rocket-chip
-    update_submodule dependencies/tools/dsptools
 
     if [[ "$ENABLE_GEMMINI" -eq 1 ]]; then
         update_submodule soc-generator/generator/gemmini
