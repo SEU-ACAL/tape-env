@@ -5,7 +5,6 @@ package chipyard.stage
 
 import circt.stage.{ChiselStage, CIRCTTargetAnnotation, CIRCTTarget}
 import firrtl.options.{Shell}
-import firrtl.options.Viewer.view
 import firrtl.{AnnotationSeq}
 import firrtl.options.{Phase, PhaseManager, Shell, Dependency}
 
@@ -40,11 +39,6 @@ class ChipyardStage extends ChiselStage {
     override protected def includeLoggerOptions = false
   }
   override def run(annotations: AnnotationSeq): AnnotationSeq = {
-    val enableSFCFIRRTLEmissionPasses = if (view[ChipyardOptions](annotations).enableSFCFIRRTLEmission) {
-      Seq(Dependency[chipyard.stage.phases.LegacyFirrtl2Emission])
-    } else {
-      Seq.empty
-    }
     val pm = new PhaseManager(
       targets = Seq(
         Dependency[chipyard.stage.phases.Checks],
@@ -55,7 +49,7 @@ class ChipyardStage extends ChiselStage {
         Dependency[chipyard.stage.phases.AddDefaultTests],
         Dependency[chipyard.stage.phases.GenerateTestSuiteMakefrags],
         Dependency[chipyard.stage.phases.GenerateArtefacts],
-      ) ++ enableSFCFIRRTLEmissionPasses,
+      ),
       currentState = Seq(
         Dependency[firrtl.stage.phases.AddDefaults],
         Dependency[firrtl.stage.phases.Checks]

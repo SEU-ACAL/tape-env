@@ -111,8 +111,7 @@ SCALA_EXT = scala
 VLOG_EXT = sv v
 CHIPYARD_SOURCE_DIRS = \
 	$(wildcard $(base_dir)/generator/*) \
-	$(wildcard $(dependencies_dir)/fpga/fpga-shells $(dependencies_dir)/fpga/src $(dependencies_dir)/tools/stage) \
-	$(dependencies_dir)/tools/firrtl2
+	$(wildcard $(dependencies_dir)/fpga/fpga-shells $(dependencies_dir)/fpga/src $(dependencies_dir)/tools/stage)
 CHIPYARD_SCALA_SOURCES = $(call lookup_srcs_by_multiple_type,$(CHIPYARD_SOURCE_DIRS),$(SCALA_EXT))
 CHIPYARD_VLOG_SOURCES = $(call lookup_srcs_by_multiple_type,$(CHIPYARD_SOURCE_DIRS),$(VLOG_EXT))
 TAPEOUT_SOURCE_DIRS = $(dependencies_dir)/tools/tapeout
