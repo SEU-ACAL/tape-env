@@ -12,7 +12,7 @@
 	url = https://github.com/SEU-ACAL/rocket-chip.git
 [submodule "soc-generator/generator/rocket-chip-inclusive-cache"]
 	path = soc-generator/generator/rocket-chip-inclusive-cache
-	url = https://github.com/chipsalliance/rocket-chip-inclusive-cache.git
+	url = https://github.com/SEU-ACAL/rocket-chip-inclusive-cache.git
 [submodule "dependencies/tools/DRAMSim2"]
 	path = dependencies/tools/DRAMSim2
 	url = https://github.com/firesim/DRAMSim2.git
