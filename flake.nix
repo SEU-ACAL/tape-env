@@ -241,7 +241,9 @@ EOF
             pkgs.jq
             pkgs.jdk17_headless
             pkgs.ninja
-            pkgs.numactl
+            # numactl 2.0.18 rejects membind on the Linux 5.4 hosts used for simulation.
+            # Keep it on the existing nixpkgs-gcc11 input, whose 2.0.16 package supports it.
+            gcc11Pkgs.numactl
             pkgs.perl
             pkgs.python3
             pkgs.python3Packages.pyelftools
