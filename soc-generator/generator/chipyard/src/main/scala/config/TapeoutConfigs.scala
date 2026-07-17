@@ -26,9 +26,11 @@ class TapeoutConfig extends Config(
 
 // Rocket tile and cache sizing for the tapeout target.
 class WithTapeoutRocket extends Config(
-  // 64B line, 8-way: 8 sets * 8 ways * 64B = 4 KiB per L1 cache.
-  new freechips.rocketchip.rocket.WithL1ICacheSets(8) ++
-  new freechips.rocketchip.rocket.WithL1DCacheSets(8) ++
+  // 64B line, direct-mapped: 64 sets * 1 way * 64B = 4 KiB per L1 cache.
+  new freechips.rocketchip.rocket.WithL1ICacheSets(64) ++
+  new freechips.rocketchip.rocket.WithL1ICacheWays(1) ++
+  new freechips.rocketchip.rocket.WithL1DCacheSets(64) ++
+  new freechips.rocketchip.rocket.WithL1DCacheWays(1) ++
   // Keep the default 8-way associativity: 16 KiB / (8 ways * 64B) = 32 sets.
   new freechips.rocketchip.subsystem.WithInclusiveCache(nWays = 8, capacityKB = 16) ++
   new freechips.rocketchip.rocket.WithNHugeCores(1)
