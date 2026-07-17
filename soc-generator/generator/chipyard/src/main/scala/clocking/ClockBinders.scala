@@ -13,7 +13,6 @@ import chipyard.iocell._
 // the requested clocks. This also adds TileLink ClockDivider and ClockSelector
 // blocks, which allow memory-mapped control of clock division, and clock muxing
 // between the FakePLL and the slow off-chip clock
-// Note: This will not simulate properly with firesim
 // Unsetting enable will prevent the divider/selector from actually modifying the clock,
 // while preserving the address map. Unsetting enable should only be done for RTL
 // simulators (Verilator) which do not model reset properly

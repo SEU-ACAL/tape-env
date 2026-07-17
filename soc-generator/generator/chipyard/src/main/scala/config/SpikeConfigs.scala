@@ -44,7 +44,7 @@ class dmiCheckpointingSpikeUltraFastConfig extends Config(
   new chipyard.config.WithNPMPs(0) ++                            // remove PMPs (reduce non-core arch state)
   new dmiSpikeUltraFastConfig)
 
-// Add the default firechip devices
+// Add the default simulation devices
 class SpikeUltraFastDevicesConfig extends Config(
   new chipyard.harness.WithSimBlockDevice ++
   new chipyard.harness.WithLoopbackNIC ++

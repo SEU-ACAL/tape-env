@@ -29,8 +29,8 @@ intentionally does not contain a `dependencies/` entry; the SBT build is loaded
 from the repository root so `soc-generator/generator` and `dependencies` are
 both inside the build root.
 
-The FireSim checkout lives at `sims/firesim`. Application and software trees
-live at the repository top level under `../applications`.
+Application and software trees live at the repository top level under
+`../applications`.
 
 ## Application boundary
 
