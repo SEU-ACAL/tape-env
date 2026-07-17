@@ -10,15 +10,9 @@
 [submodule "soc-generator/generator/rocket-chip"]
 	path = soc-generator/generator/rocket-chip
 	url = https://github.com/chipsalliance/rocket-chip.git
-[submodule "soc-generator/generator/rocket-chip-blocks"]
-	path = soc-generator/generator/rocket-chip-blocks
-	url = https://github.com/chipsalliance/rocket-chip-blocks.git
 [submodule "soc-generator/generator/rocket-chip-inclusive-cache"]
 	path = soc-generator/generator/rocket-chip-inclusive-cache
 	url = https://github.com/chipsalliance/rocket-chip-inclusive-cache.git
-[submodule "soc-generator/generator/testchipip"]
-	path = soc-generator/generator/testchipip
-	url = https://github.com/ucb-bar/testchipip.git
 [submodule "dependencies/tools/DRAMSim2"]
 	path = dependencies/tools/DRAMSim2
 	url = https://github.com/firesim/DRAMSim2.git
