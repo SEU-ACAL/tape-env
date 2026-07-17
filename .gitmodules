@@ -19,9 +19,6 @@
 [submodule "soc-generator/generator/testchipip"]
 	path = soc-generator/generator/testchipip
 	url = https://github.com/ucb-bar/testchipip.git
-[submodule "soc-generator/sims/firesim"]
-	path = soc-generator/sims/firesim
-	url = https://github.com/firesim/firesim.git
 [submodule "dependencies/tools/DRAMSim2"]
 	path = dependencies/tools/DRAMSim2
 	url = https://github.com/firesim/DRAMSim2.git

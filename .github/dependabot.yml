@@ -12,9 +12,6 @@ updates:
     labels:
       - "dependencies"
       - "changelog:omit"
-    # allow certain submodules
-    allow:
-      - dependency-name: "soc-generator/sims/firesim"
   # submit a PR for bumping GH-A dependencies
   - package-ecosystem: github-actions
     schedule:

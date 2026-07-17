@@ -17,7 +17,7 @@ disable Verilator assertion checking to keep software regressions practical;
 the standard BOOM cosimulation configurations remain available for validation.
 The Zephyr coverage is limited to the bare-metal
 `samples/chipyard/hello_world` sample on `chipyard_riscv64`; it does not cover
-other Zephyr samples, SMP, networking, Linux, or FireSim. Builds execute on the
+other Zephyr samples, SMP, networking, or Linux. Builds execute on the
 self-hosted `builder` runner and tests execute on the self-hosted `runner`.
 
 The regression software is prebuilt outside the workflow and shared by both
