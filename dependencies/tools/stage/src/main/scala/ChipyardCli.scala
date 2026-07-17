@@ -12,7 +12,6 @@ trait ChipyardCli { this: Shell =>
     TopModuleAnnotation,
     ConfigsAnnotation,
     OutputBaseNameAnnotation,
-    UnderscoreDelimitedConfigsAnnotation,
-    LegacySFCAnnotation
+    UnderscoreDelimitedConfigsAnnotation
   ).foreach(_.addOptions(parser))
 }

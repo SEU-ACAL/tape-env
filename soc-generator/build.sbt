@@ -189,7 +189,6 @@ lazy val chipyard = {
     Seq(
       testchipip, rocketchip, boom, gemmini, rocketchip_blocks, rocketchip_inclusive_cache,
     ).map(sbt.Project.projectToRef) ++
-    (if (useChisel7) Seq() else Seq(sbt.Project.projectToRef(firrtl2_bridge))) ++
     (if (useChisel7) Seq() else Seq(sbt.Project.projectToRef(dsptools)))
 
   val baseDeps: Seq[sbt.ClasspathDep[sbt.ProjectReference]] =
@@ -316,36 +315,3 @@ lazy val fpga_shells = projectFromDir("fpga_shells", file("../dependencies/fpga/
 lazy val chipyard_fpga = projectFromDir("chipyard_fpga", file("../dependencies/fpga"))
   .dependsOn(chipyard, fpga_shells)
   .settings(commonSettings)
-
-lazy val firrtl2 = freshProject("firrtl2", file("../dependencies/tools/firrtl2"))
-  .enablePlugins(BuildInfoPlugin)
-  .enablePlugins(Antlr4Plugin)
-  .settings(commonSettings)
-  .settings(
-    sourceDirectory := file("../dependencies/tools/firrtl2/src"),
-    scalacOptions ++= Seq(
-      "-language:reflectiveCalls",
-      "-language:existentials",
-      "-language:implicitConversions"),
-    libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.2.14" % "test",
-      "org.scalatestplus" %% "scalacheck-1-15" % "3.2.11.0" % "test",
-      "com.github.scopt" %% "scopt" % "4.1.0",
-      "org.json4s" %% "json4s-native" % "4.1.0-M4",
-      "org.apache.commons" % "commons-text" % "1.10.0",
-      "com.lihaoyi" %% "os-lib" % "0.8.1",
-      "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4"),
-    Antlr4 / antlr4GenVisitor := true,
-    Antlr4 / antlr4GenListener := true,
-    Antlr4 / antlr4PackageName := Option("firrtl2.antlr"),
-    Antlr4 / antlr4Version := "4.9.3",
-    Antlr4 / javaSource := (Compile / sourceManaged).value,
-    buildInfoPackage := "firrtl2",
-    buildInfoUsePackageAsPath := true,
-    buildInfoKeys := Seq[BuildInfoKey](buildInfoPackage, version, scalaVersion, sbtVersion)
-  )
-
-lazy val firrtl2_bridge = freshProject("firrtl2_bridge", file("../dependencies/tools/firrtl2/bridge"))
-  .dependsOn(firrtl2)
-  .settings(commonSettings)
-  .settings(chiselSettings)

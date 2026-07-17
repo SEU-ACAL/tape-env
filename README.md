@@ -12,7 +12,7 @@ FPGA 加速仿真及其配套编译栈不属于本仓库；FireMarshal 是独立
 - `soc-generator/`：SoC 生成、Verilator/VCS 仿真入口及生成的构建产物。
 - `soc-generator/generator/`：Rocket、BOOM、Gemmini 和 Chipyard 集成源码。
 - `applications/`：裸机测试、RISC-V 回归测试和 Zephyr 工作负载。
-- `dependencies/`：非 SoC 生成器依赖，例如 DRAMSim2、FIRRTL2、CDE 和 FPGA shells。
+- `dependencies/`：非 SoC 生成器依赖，例如 DRAMSim2、CDE 和 FPGA shells。
 - `.github/`：CI 工作流与回归脚本。
 
 ## 前置条件
@@ -114,7 +114,8 @@ ISA 与 benchmark 回归测试来自 `applications/riscv-tests`；构建和运�
 | Inclusive Cache | [SEU-ACAL/rocket-chip-inclusive-cache](https://github.com/SEU-ACAL/rocket-chip-inclusive-cache) | 共享 L2 缓存 |
 | Gemmini | [ucb-bar/gemmini](https://github.com/ucb-bar/gemmini) | 可选矩阵乘加速器 |
 | TestChipIP、rocket-chip-blocks | 本仓库受控源码 | Chipyard SoC 集成模块，不作为子模块管理 |
-| DRAMSim2、FIRRTL2 | `dependencies/tools/` 子模块 | 常规仿真与默认 Chisel 6 构建依赖 |
+| DRAMSim2 | `dependencies/tools/` 子模块 | 常规仿真内存模型 |
+| CDE | `dependencies/tools/` 子模块 | Rocket/Chipyard 配置基础设施 |
 
 子模块版本以 [.gitmodules](.gitmodules) 中的 URL 和父仓库记录的 gitlink 为准。修改
 子模块版本时，应同时更新两者并完成对应的生成或仿真验证。

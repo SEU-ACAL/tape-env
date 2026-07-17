@@ -25,9 +25,6 @@
 [submodule "dependencies/tools/fixedpoint"]
 	path = dependencies/tools/fixedpoint
 	url = https://github.com/ucb-bar/fixedpoint.git
-[submodule "dependencies/tools/firrtl2"]
-	path = dependencies/tools/firrtl2
-	url = https://github.com/ucb-bar/firrtl2.git
 [submodule "soc-generator/generator/boom"]
 	path = soc-generator/generator/boom
 	url = https://github.com/SEU-ACAL/acal-boom.git
