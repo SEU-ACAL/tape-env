@@ -1,93 +1,126 @@
-![CHIPYARD](https://github.com/ucb-bar/chipyard/raw/main/docs/_static/images/chipyard-logo-full.png)
+# Chipyard SoC 生成与仿真环境
 
-# Chipyard Framework [![Test](https://github.com/ucb-bar/chipyard/actions/workflows/chipyard-run-tests.yml/badge.svg)](https://github.com/ucb-bar/chipyard/actions)
+本仓库是基于 Chipyard 的 Chisel/RISC-V SoC 生成与仿真环境。当前维护重点是
+Rocket、BOOM、共享 L2、Gemmini 和 TestChipIP 的 RTL 生成，以及 Verilator/VCS
+软件仿真和裸机工作负载验证。
 
-## Quick Links
+FPGA 加速仿真及其配套编译栈不属于本仓库；FireMarshal 是独立的工作负载工具，应在
+其自身工作区中使用和维护。
 
-* **Latest Documentation**: https://chipyard.readthedocs.io/
-* **User Question Forum**: https://groups.google.com/forum/#!forum/chipyard
-* **Bugs and Feature Requests**: https://github.com/ucb-bar/chipyard/issues
+## 目录说明
 
-## Using Chipyard
+- `soc-generator/`：SoC 生成、Verilator/VCS 仿真入口及生成的构建产物。
+- `soc-generator/generator/`：Rocket、BOOM、Gemmini 和 Chipyard 集成源码。
+- `applications/`：裸机测试、RISC-V 回归测试和 Zephyr 工作负载。
+- `dependencies/`：非 SoC 生成器依赖，例如 DRAMSim2、FIRRTL2、CDE 和 FPGA shells。
+- `.github/`：CI 工作流与回归脚本。
 
-To get started using Chipyard, see the documentation on the Chipyard documentation site: https://chipyard.readthedocs.io/
+## 前置条件
 
-## What is Chipyard
+支持的开发环境为 Linux 上的 Nix Flake。需要预先安装 Git 和启用 Flake 的 Nix；
+`nix develop` 会提供 `firtool`、Verilator、SBT、Spike、RISC-V 交叉编译器及其他
+必要工具。VCS 流程还需要本地安装并配置 Synopsys VCS。
 
-Chipyard is an open source framework for agile development of Chisel-based systems-on-chip.
-It will allow you to leverage the Chisel HDL, Rocket Chip SoC generator, and other [Berkeley][berkeley] projects to produce a [RISC-V][riscv] SoC with everything from MMIO-mapped peripherals to custom accelerators.
-Chipyard contains processor cores ([Rocket][rocket-chip], [BOOM][boom], [CVA6 (Ariane)][cva6]), vector units ([Saturn][saturn], [Ara][ara]), accelerators ([Gemmini][gemmini], [NVDLA][nvdla]), memory systems, and additional peripherals and tooling to help create a full featured SoC.
-Chipyard supports multiple concurrent flows of agile hardware development, including software RTL simulation, automated VLSI flows ([Hammer][hammer]), and software workload generation for bare-metal and Linux-based systems ([FireMarshal][firemarshal]).
-Chipyard is actively developed in the [Berkeley Architecture Research Group][ucb-bar] in the [Electrical Engineering and Computer Sciences Department][eecs] at the [University of California, Berkeley][berkeley].
+## 初始化
 
-## Resources
+克隆仓库后，使用仓库脚本初始化子模块：
 
-* Chipyard Documentation: https://chipyard.readthedocs.io/
-* Chipyard Basics slides: https://fires.im/asplos23-slides-pdf/02_chipyard_basics.pdf
-
-## Need help?
-
-* Join the Chipyard Mailing List: https://groups.google.com/forum/#!forum/chipyard
-* If you find a bug or would like propose a feature, post an issue on this repo: https://github.com/ucb-bar/chipyard/issues
-
-## Contributing
-
-* See [CONTRIBUTING.md](/CONTRIBUTING.md)
-
-## Attribution and Chipyard-related Publications
-
-If used for research, please cite Chipyard by the following publication:
-
-```
-@article{chipyard,
-  author={Amid, Alon and Biancolin, David and Gonzalez, Abraham and Grubb, Daniel and Karandikar, Sagar and Liew, Harrison and Magyar,   Albert and Mao, Howard and Ou, Albert and Pemberton, Nathan and Rigge, Paul and Schmidt, Colin and Wright, John and Zhao, Jerry and Shao, Yakun Sophia and Asanovi\'{c}, Krste and Nikoli\'{c}, Borivoje},
-  journal={IEEE Micro},
-  title={Chipyard: Integrated Design, Simulation, and Implementation Framework for Custom SoCs},
-  year={2020},
-  volume={40},
-  number={4},
-  pages={10-21},
-  doi={10.1109/MM.2020.2996616},
-  ISSN={1937-4143},
-}
+```sh
+git clone <repository-url> chipyard
+cd chipyard
+./init-submodules.sh
 ```
 
-* **Chipyard**
-    * A. Amid, et al. *IEEE Micro'20* [PDF](https://ieeexplore.ieee.org/document/9099108).
-    * A. Amid, et al. *DAC'20* [PDF](https://ieeexplore.ieee.org/document/9218756).
-    * A. Amid, et al. *ISCAS'21* [PDF](https://ieeexplore.ieee.org/abstract/document/9401515).
+默认初始化 RTL 仿真所需的子模块，不初始化 Gemmini 和 Zephyr。按需使用：
 
-These additional publications cover many of the internal components used in Chipyard. However, for the most up-to-date details, users should refer to the Chipyard docs.
+```sh
+./init-submodules.sh --gemmini  # Gemmini 及其 RoCC 测试工作负载
+./init-submodules.sh --full     # 所有已登记子模块
+```
 
-* **Generators**
-    * **Rocket Chip**: K. Asanovic, et al., *UCB EECS TR*. [PDF](http://www2.eecs.berkeley.edu/Pubs/TechRpts/2016/EECS-2016-17.pdf).
-    * **BOOM**: C. Celio, et al., *Hot Chips 30*. [PDF](https://old.hotchips.org/hc30/1conf/1.03_Berkeley_BROOM_HC30.Berkeley.Celio.v02.pdf).
-      * **SonicBOOM (BOOMv3)**: J. Zhao, et al., *CARRV'20*. [PDF](https://carrv.github.io/2020/papers/CARRV2020_paper_15_Zhao.pdf).
-      * **COBRA (BOOM Branch Prediction)**: J. Zhao, et al., *ISPASS'21*. [PDF](https://ieeexplore.ieee.org/document/9408173).
-    * **Gemmini**: H. Genc, et al., *DAC'21*. [PDF](https://arxiv.org/pdf/1911.09925).
-* **Tools**
-    * **Chisel**: J. Bachrach, et al., *DAC'12*. [PDF](https://people.eecs.berkeley.edu/~krste/papers/chisel-dac2012.pdf).
-    * **FIRRTL**: A. Izraelevitz, et al., *ICCAD'17*. [PDF](https://ieeexplore.ieee.org/document/8203780).
-    * **Chisel DSP**: A. Wang, et al., *DAC'18*. [PDF](https://ieeexplore.ieee.org/document/8465790).
-    * **FireMarshal**: N. Pemberton, et al., *ISPASS'21*. [PDF](https://ieeexplore.ieee.org/document/9408192).
-* **VLSI**
-    * **Hammer**: E. Wang, et al., *ISQED'20*. [PDF](https://www.isqed.org/English/Archives/2020/Technical_Sessions/113.html).
-    * **Hammer**: H. Liew, et al., *DAC'22*. [PDF](https://dl.acm.org/doi/abs/10.1145/3489517.3530672).
+进入开发环境：
 
-## Acknowledgements
+```sh
+nix develop
+```
 
-This work is supported by the NSF CCRI ENS Chipyard Award #2016662.
+## 快速验证：运行 Hello
 
-[hammer]:https://github.com/ucb-bar/hammer
-[ucb-bar]: http://bar.eecs.berkeley.edu
-[eecs]: https://eecs.berkeley.edu
-[berkeley]: https://berkeley.edu
-[riscv]: https://riscv.org/
-[rocket-chip]: https://github.com/freechipsproject/rocket-chip
-[boom]: https://github.com/riscv-boom/riscv-boom
-[firemarshal]: https://github.com/firesim/FireMarshal/
-[cva6]: https://github.com/openhwgroup/cva6/
-[gemmini]: https://github.com/ucb-bar/gemmini
-[nvdla]: http://nvdla.org/
-[saturn]: https://github.com/ucb-bar/saturn-vectors
-[ara]: https://github.com/pulp-platform/ara
+以下命令构建裸机 `hello.riscv`，生成 `RocketConfig` 的 Verilator 仿真器并执行它。
+首次运行需要生成 RTL 和编译 Verilator C++ 模型，耗时会明显更长。
+
+```sh
+cmake -S applications/tests -B applications/tests/build -D CMAKE_BUILD_TYPE=Debug
+cmake --build applications/tests/build --target hello
+
+cd soc-generator
+make CONFIG=RocketConfig run-fast \
+  BINARY="$PWD/../applications/tests/build/hello.riscv"
+```
+
+成功时 UART 输出包含：
+
+```text
+Hello world from core 0, a rocket
+```
+
+日志默认位于：
+`soc-generator/sims/verilator/output/chipyard.harness.TestHarness.RocketConfig/hello.log`。
+使用 `run` 可同时生成指令反汇编输出；使用 `run-debug` 可生成波形和额外调试信息。
+
+## SoC 生成与仿真
+
+在 `nix develop` 环境中进入 `soc-generator/` 后，可使用以下入口：
+
+```sh
+make CONFIG=RocketConfig verilog
+make CONFIG=RocketConfig emu
+make CONFIG=RocketConfig emu-debug
+make CONFIG=RocketConfig run BINARY=/absolute/path/to/program.elf
+```
+
+默认仿真器是 Verilator。VCS 可通过 `SIM=vcs` 选择，例如：
+
+```sh
+make SIM=vcs CONFIG=RocketConfig verilog
+```
+
+可用配置类可通过 `make find-configs` 查询。常用配置包括：
+
+- `RocketConfig`：默认单核 Rocket SoC。
+- `QuadChannelRocketConfig`：CI 使用的多通道 Rocket 配置。
+- `MediumBoomV3CosimFastConfig`、`MediumBoomV4CosimFastConfig`：CI 使用的 BOOM 配置。
+- `GemminiRocketConfig`：Gemmini 加速器配置，使用前执行 `./init-submodules.sh --gemmini`。
+
+更多生成和仿真变量见 [soc-generator/README.md](soc-generator/README.md)。
+
+## 工作负载与回归
+
+`applications/tests/` 包含常用裸机程序，例如 `hello`、`mt-hello` 和外设测试。其
+构建细节见 [applications/tests/README.md](applications/tests/README.md)。Rocket/BOOM
+ISA 与 benchmark 回归测试来自 `applications/riscv-tests`；构建和运行方式见
+[applications/README.md](applications/README.md)。
+
+仓库 CI 会构建 Rocket 与 BOOM 的 Verilator/VCS 回归配置，并运行 ISA、benchmark、
+裸机 Hello 和 Zephyr Hello 验证。CI 使用的配置及预构建工作负载说明见
+[.github/CI_README.md](.github/CI_README.md)。
+
+## 组件来源与边界
+
+| 组件 | 来源 | 说明 |
+| --- | --- | --- |
+| Rocket Chip | [SEU-ACAL/rocket-chip](https://github.com/SEU-ACAL/rocket-chip) | SoC 基础生成器 |
+| BOOM | [SEU-ACAL/acal-boom](https://github.com/SEU-ACAL/acal-boom) | 高性能 RISC-V 核 |
+| Inclusive Cache | [SEU-ACAL/rocket-chip-inclusive-cache](https://github.com/SEU-ACAL/rocket-chip-inclusive-cache) | 共享 L2 缓存 |
+| Gemmini | [ucb-bar/gemmini](https://github.com/ucb-bar/gemmini) | 可选矩阵乘加速器 |
+| TestChipIP、rocket-chip-blocks | 本仓库受控源码 | Chipyard SoC 集成模块，不作为子模块管理 |
+| DRAMSim2、FIRRTL2 | `dependencies/tools/` 子模块 | 常规仿真与默认 Chisel 6 构建依赖 |
+
+子模块版本以 [.gitmodules](.gitmodules) 中的 URL 和父仓库记录的 gitlink 为准。修改
+子模块版本时，应同时更新两者并完成对应的生成或仿真验证。
+
+## 贡献
+
+提交前请在 Nix 环境中运行与改动范围匹配的构建或回归测试。不要直接修改第三方子模块
+工作树；需要升级时更新 `.gitmodules` 和子模块 gitlink。详细规范见
+[CONTRIBUTING.md](CONTRIBUTING.md)。
