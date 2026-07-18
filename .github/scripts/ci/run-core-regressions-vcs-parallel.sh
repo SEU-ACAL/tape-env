@@ -17,18 +17,14 @@ case "${CI_VCS_TEST_JOBS}" in
 esac
 
 testcases=(
-  'rocket-asm:QuadChannelRocketConfig'
-  'rocket-bmark:QuadChannelRocketConfig'
-  'rocket-hello-loadmem:QuadChannelRocketConfig'
-  'rocket-hello:QuadChannelRocketConfig'
-  'rocket-zephyr-hello:QuadChannelRocketConfig'
-  'boom-asm-v3:MediumBoomV3CosimFastConfig'
-  'boom-bmark-v3:MediumBoomV3CosimFastConfig'
-  'boom-asm-v4:MediumBoomV4CosimFastConfig'
-  'boom-bmark-v4:MediumBoomV4CosimFastConfig'
+  'rocket-asm:TapeoutConfig'
+  'rocket-bmark:TapeoutConfig'
+  'rocket-hello-loadmem:TapeoutConfig'
+  'rocket-hello:TapeoutConfig'
+  'rocket-zephyr-hello:TapeoutConfig'
 )
 
-for config in QuadChannelRocketConfig MediumBoomV3CosimFastConfig MediumBoomV4CosimFastConfig; do
+for config in TapeoutConfig; do
   rules="${CI_ARTIFACT_ROOT}/${config}/test-rules.d"
   generated="${REPO_ROOT}/soc-generator/sims/vcs/generated-src/chipyard.harness.TestHarness.${config}/chipyard.harness.TestHarness.${config}.d"
   mkdir -p "$(dirname "${generated}")"

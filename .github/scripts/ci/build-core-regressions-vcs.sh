@@ -8,7 +8,7 @@ source "${SCRIPT_DIR}/lib.sh"
 : "${CI_ARTIFACT_ROOT:?CI_ARTIFACT_ROOT must be set}"
 
 CI_VCS_BUILD_JOBS="${CI_VCS_BUILD_JOBS:-8}"
-CI_VCS_BUILD_CONFIGS="${CI_VCS_BUILD_CONFIGS:-QuadChannelRocketConfig MediumBoomV3CosimFastConfig MediumBoomV4CosimFastConfig}"
+CI_VCS_BUILD_CONFIGS="${CI_VCS_BUILD_CONFIGS:-TapeoutConfig}"
 
 case "${CI_VCS_BUILD_JOBS}" in
   ''|*[!0-9]*|0)

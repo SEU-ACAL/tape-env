@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   build-vcs:
-    name: Build VCS Rocket and BOOM simulators
+    name: Build VCS Tapeout simulator
     runs-on: [self-hosted, linux, builder]
     timeout-minutes: 360
     outputs:
@@ -27,7 +27,7 @@ jobs:
     env:
       CI_SHARED_ROOT: /data1/ci-runner
       CI_VCS_BUILD_JOBS: 8
-      CI_VCS_BUILD_CONFIGS: QuadChannelRocketConfig MediumBoomV3CosimFastConfig MediumBoomV4CosimFastConfig
+      CI_VCS_BUILD_CONFIGS: TapeoutConfig
       HTTP_PROXY: http://127.0.0.1:12000
       HTTPS_PROXY: http://127.0.0.1:12000
       NO_PROXY: localhost,127.0.0.1
@@ -46,7 +46,7 @@ jobs:
         run: .github/scripts/ci/build-core-regressions-vcs.sh
 
   regression-vcs:
-    name: Run VCS Rocket and BOOM regressions
+    name: Run VCS Tapeout regressions
     needs: build-vcs
     runs-on: [self-hosted, linux, runner]
     timeout-minutes: 360
@@ -68,8 +68,8 @@ jobs:
       - name: Write VCS regression summary
         if: always()
         run: |
-          echo "## VCS Rocket and BOOM regressions" >> "$GITHUB_STEP_SUMMARY"
-          for testcase in rocket-asm rocket-bmark rocket-hello-loadmem rocket-hello rocket-zephyr-hello boom-asm-v3 boom-bmark-v3 boom-asm-v4 boom-bmark-v4; do
+          echo "## VCS Tapeout regressions" >> "$GITHUB_STEP_SUMMARY"
+          for testcase in rocket-asm rocket-bmark rocket-hello-loadmem rocket-hello rocket-zephyr-hello; do
             result="${CI_RESULT_ROOT}/${testcase}/result.json"
             if [[ -f "${result}" ]]; then
               cat "${result}" >> "$GITHUB_STEP_SUMMARY"
