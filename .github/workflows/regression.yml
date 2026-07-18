@@ -46,8 +46,8 @@ jobs:
               - '.github/dependabot.yml'
               - '.mergify.yml'
 
-  build:
-    name: Build Rocket and BOOM emulators
+  regression:
+    name: Run Verilator and VCS regressions
     needs: changes
     if: >-
       (github.event_name != 'pull_request' ||
@@ -55,61 +55,104 @@ jobs:
       (github.event_name == 'workflow_dispatch' ||
       needs.changes.outputs.needs_regression == 'true')
     runs-on: [self-hosted, linux, builder]
-    timeout-minutes: 180
-    outputs:
-      run_dir: ${{ steps.paths.outputs.run_dir }}
-      artifact_root: ${{ steps.paths.outputs.artifact_root }}
-    env:
-      CI_SHARED_ROOT: /data1/ci-runner
-      CI_BUILD_JOBS: 8
-      CI_VERILATOR_MAKE_JOBS: 8
-      CI_BUILD_CONFIGS: QuadChannelRocketConfig MediumBoomV3CosimFastConfig MediumBoomV4CosimFastConfig
-      HTTP_PROXY: http://127.0.0.1:12000
-      HTTPS_PROXY: http://127.0.0.1:12000
-      NO_PROXY: localhost,127.0.0.1
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Prepare artifact paths
-        id: paths
-        run: |
-          run_dir="${CI_SHARED_ROOT}/regression/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:12}"
-          echo "CI_ARTIFACT_ROOT=${run_dir}/emu" >> "$GITHUB_ENV"
-          echo "run_dir=${run_dir}" >> "$GITHUB_OUTPUT"
-          echo "artifact_root=${run_dir}/emu" >> "$GITHUB_OUTPUT"
-
-      - name: Build emulators
-        run: .github/scripts/ci/build-core-regressions.sh
-
-  regression:
-    name: Run Rocket and BOOM regressions
-    needs: build
-    runs-on: [self-hosted, linux, runner]
-    timeout-minutes: 180
+    timeout-minutes: 360
     env:
       CI_SHARED_ROOT: /data1/ci-runner
       CI_WORKLOAD_ROOT: /data2/ci-workloads
-      CI_ARTIFACT_ROOT: ${{ needs.build.outputs.artifact_root }}
-      CI_RESULT_ROOT: ${{ needs.build.outputs.run_dir }}/results
-      CI_TEST_JOBS: 8
+      USE_TSMC28_SRAM: "1"
+      TSMC28_SRAM_ROOT: /data2/TSMC28/Memory/SRAM
     steps:
       - uses: actions/checkout@v4
 
-      - name: Initialize Chipyard submodules
-        run: ./init-submodules.sh
+      - name: Prepare isolated worktrees
+        id: worktrees
+        run: |
+          run_dir="${CI_SHARED_ROOT}/regression/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:12}"
+          mkdir -p "${run_dir}"
+          git worktree add --detach "${run_dir}/verilator" "${GITHUB_SHA}"
+          git worktree add --detach "${run_dir}/vcs" "${GITHUB_SHA}"
+          echo "CI_RUN_DIR=${run_dir}" >> "$GITHUB_ENV"
 
-      - name: Run regressions in parallel
-        run: .github/scripts/ci/run-core-regressions-parallel.sh
+      - name: Run Verilator and VCS regressions in parallel
+        run: |
+          run_verilator() {
+            env \
+              GITHUB_WORKSPACE="${CI_RUN_DIR}/verilator" \
+              CI_SHARED_ROOT="${CI_RUN_DIR}/verilator-ci" \
+              CI_CACHE_ROOT="${CI_RUN_DIR}/verilator-cache" \
+              CI_ARTIFACT_ROOT="${CI_RUN_DIR}/verilator-artifacts" \
+              CI_RESULT_ROOT="${CI_RUN_DIR}/verilator-results" \
+              CI_BUILD_JOBS=8 \
+              CI_VERILATOR_MAKE_JOBS=8 \
+              CI_BUILD_CONFIGS="QuadChannelRocketConfig MediumBoomV3CosimFastConfig MediumBoomV4CosimFastConfig" \
+              CI_TEST_JOBS=8 \
+              HTTP_PROXY=http://127.0.0.1:12000 \
+              HTTPS_PROXY=http://127.0.0.1:12000 \
+              NO_PROXY=localhost,127.0.0.1 \
+              .github/scripts/ci/build-core-regressions.sh && \
+            env \
+              GITHUB_WORKSPACE="${CI_RUN_DIR}/verilator" \
+              CI_ARTIFACT_ROOT="${CI_RUN_DIR}/verilator-artifacts" \
+              CI_RESULT_ROOT="${CI_RUN_DIR}/verilator-results" \
+              CI_TEST_JOBS=8 \
+              .github/scripts/ci/run-core-regressions-parallel.sh
+          }
+
+          run_vcs() {
+            env \
+              GITHUB_WORKSPACE="${CI_RUN_DIR}/vcs" \
+              CI_SHARED_ROOT="${CI_RUN_DIR}/vcs-ci" \
+              CI_CACHE_ROOT="${CI_RUN_DIR}/vcs-cache" \
+              CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \
+              CI_RESULT_ROOT="${CI_RUN_DIR}/vcs-results" \
+              CI_VCS_BUILD_JOBS=8 \
+              CI_VCS_BUILD_CONFIGS=TapeoutConfig \
+              HTTP_PROXY=http://127.0.0.1:12000 \
+              HTTPS_PROXY=http://127.0.0.1:12000 \
+              NO_PROXY=localhost,127.0.0.1 \
+              .github/scripts/ci/build-core-regressions-vcs.sh && \
+            env \
+              GITHUB_WORKSPACE="${CI_RUN_DIR}/vcs" \
+              CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \
+              CI_RESULT_ROOT="${CI_RUN_DIR}/vcs-results" \
+              CI_VCS_TEST_JOBS=8 \
+              .github/scripts/ci/run-core-regressions-vcs-parallel.sh
+          }
+
+          run_verilator > "${CI_RUN_DIR}/verilator.log" 2>&1 &
+          verilator_pid=$!
+          run_vcs > "${CI_RUN_DIR}/vcs.log" 2>&1 &
+          vcs_pid=$!
+
+          status=0
+          wait "${verilator_pid}" || status=1
+          wait "${vcs_pid}" || status=1
+          exit "${status}"
 
       - name: Write regression summary
         if: always()
         run: |
           echo "## Rocket and BOOM regressions" >> "$GITHUB_STEP_SUMMARY"
           for testcase in rocket-asm rocket-bmark rocket-hello-loadmem rocket-hello rocket-zephyr-hello boom-asm-v3 boom-bmark-v3 boom-asm-v4 boom-bmark-v4; do
-            result="${CI_RESULT_ROOT}/${testcase}/result.json"
+            result="${CI_RUN_DIR}/verilator-results/${testcase}/result.json"
             if [[ -f "${result}" ]]; then
               cat "${result}" >> "$GITHUB_STEP_SUMMARY"
             else
               echo "No result was produced for ${testcase}." >> "$GITHUB_STEP_SUMMARY"
             fi
           done
+          echo "## VCS Tapeout regressions" >> "$GITHUB_STEP_SUMMARY"
+          for testcase in rocket-asm rocket-bmark rocket-hello-loadmem rocket-hello rocket-zephyr-hello; do
+            result="${CI_RUN_DIR}/vcs-results/${testcase}/result.json"
+            if [[ -f "${result}" ]]; then
+              cat "${result}" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "No result was produced for ${testcase}." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+      - name: Remove isolated worktrees
+        if: always()
+        run: |
+          git worktree remove --force "${CI_RUN_DIR}/verilator" || true
+          git worktree remove --force "${CI_RUN_DIR}/vcs" || true
