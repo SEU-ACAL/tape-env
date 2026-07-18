@@ -194,6 +194,11 @@ EXT_FILELISTS ?=
 # external verilog incdirs. Users, or project-supplied make fragments can append to this
 EXT_INCDIRS ?=
 
+# project-supplied configuration stamps that must trigger simulator rebuilds
+SIM_CONFIG_STAMPS ?=
+# project-supplied configuration stamps that must trigger top MacroCompiler reruns
+TOP_MACRO_STAMP_DEPS ?=
+
 # files that contain lists of files needed for VCS or Verilator simulation
 SIM_FILE_REQS =
 sim_files              ?= $(build_dir)/sim_files.f

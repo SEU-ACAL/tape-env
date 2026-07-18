@@ -317,7 +317,7 @@ TOP_MACRO_STAMP ?= $(build_dir)/.top-macrocompiler.stamp
 $(TOP_SMEMS_FILE) $(TOP_SMEMS_FIR): $(TOP_MACRO_STAMP)
 	@test -f $@ || { rm -f $(TOP_MACRO_STAMP); $(MAKE) $(TOP_MACRO_STAMP); }
 
-$(TOP_MACRO_STAMP): $(TAPEOUT_CLASSPATH) $(TOP_SMEMS_CONF)
+$(TOP_MACRO_STAMP): $(TAPEOUT_CLASSPATH) $(TOP_SMEMS_CONF) $(TOP_MACRO_STAMP_DEPS)
 	$(call run_jar_scala_main,$(TAPEOUT_CLASSPATH),tapeout.macros.MacroCompiler,-n $(TOP_SMEMS_CONF) -v $(TOP_SMEMS_FILE) -f $(TOP_SMEMS_FIR) $(TOP_MACROCOMPILER_MODE))
 	touch $(TOP_SMEMS_FILE) $(TOP_SMEMS_FIR)
 	touch $@
@@ -337,7 +337,7 @@ $(MODEL_MACRO_STAMP): $(TAPEOUT_CLASSPATH) $(MODEL_SMEMS_CONF)
 # note: {MODEL,TOP}_BB_MODS_FILELIST is added as a req. so that the files get generated,
 #       however it is really unneeded since ALL_MODS_FILELIST includes all BB files
 ########################################################################################
-$(sim_common_files): $(sim_files) $(ALL_MODS_FILELIST) $(TOP_SMEMS_FILE) $(MODEL_SMEMS_FILE) $(BB_MODS_FILELIST) $(EXT_FILELISTS) $(base_dir)/common.mk $(sim_dir)/Makefile
+$(sim_common_files): $(sim_files) $(ALL_MODS_FILELIST) $(TOP_SMEMS_FILE) $(MODEL_SMEMS_FILE) $(BB_MODS_FILELIST) $(EXT_FILELISTS) $(SIM_CONFIG_STAMPS) $(base_dir)/common.mk $(sim_dir)/Makefile
 ifneq (,$(EXT_FILELISTS))
 	cat $(EXT_FILELISTS) > $@
 else
