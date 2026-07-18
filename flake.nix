@@ -204,12 +204,14 @@ EOF
           FIRTOOL_BIN = "${circt}/bin/firtool";
           JAVA_HOME = "${pkgs.jdk17_headless}";
           VCS_HOME = "/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1";
+          VERDI_HOME = "/data0/tools/Synopsys/verdi/verdi/W-2024.09-SP1";
           LM_LICENSE_FILE = "26000@devjz-ubt20-s01";
           SNPSLMD_LICENSE_FILE = "26000@devjz-ubt20-s01";
 
           shellHook = ''
             export CY_DIR="$PWD"
-            export PATH="$VCS_HOME/bin:$RISCV/bin:$PATH"
+            export PATH="$VERDI_HOME/bin:$VCS_HOME/bin:$RISCV/bin:$PATH"
+            export LD_LIBRARY_PATH="${pkgs.zlib}/lib:''${LD_LIBRARY_PATH:-}"
             # VCS's Ubuntu mode exports CPATH=/usr/include/x86_64-linux-gnu
             # to its generated C-source build.  That mixes host glibc bits
             # headers with the Nix GCC wrapper's glibc headers.  On x86_64
@@ -252,6 +254,7 @@ EOF
             pkgs.sbt
             pkgs.verilator
             pkgs.which
+            pkgs.zlib
             circt
             riscvCc
           ];
