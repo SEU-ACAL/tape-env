@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+env:
+  USE_TSMC28_SRAM: "1"
+  TSMC28_SRAM_ROOT: /data2/TSMC28/Memory/SRAM
+
 concurrency:
   group: vcs-nightly-${{ github.workflow }}
   cancel-in-progress: false
