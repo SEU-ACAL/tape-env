@@ -49,6 +49,9 @@ class ChipyardSystemModule(_outer: ChipyardSystem) extends ChipyardSubsystemModu
 
 // Similar to ExtMem but instantiates a TL mem port
 case object ExtTLMem extends Field[Option[MemoryPortParams]](None)
+case object ExtSerialTLMem extends Field[Option[MemoryPortParams]](None)
+
+
 
 /** Adds a port to the system intended to master an TL DRAM controller. */
 trait CanHaveMasterTLMemPort { this: BaseSubsystem =>
