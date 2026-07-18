@@ -64,20 +64,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prepare isolated worktrees
-        id: worktrees
+      - name: Checkout Verilator workspace
+        uses: actions/checkout@v4
+        with:
+          path: ci-workspaces/verilator
+          fetch-depth: 0
+
+      - name: Checkout VCS workspace
+        uses: actions/checkout@v4
+        with:
+          path: ci-workspaces/vcs
+          fetch-depth: 0
+
+      - name: Prepare isolated CI paths
         run: |
           run_dir="${CI_SHARED_ROOT}/regression/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:12}"
           mkdir -p "${run_dir}"
-          git worktree add --detach "${run_dir}/verilator" "${GITHUB_SHA}"
-          git worktree add --detach "${run_dir}/vcs" "${GITHUB_SHA}"
           echo "CI_RUN_DIR=${run_dir}" >> "$GITHUB_ENV"
+          echo "CI_VERILATOR_WORKSPACE=${GITHUB_WORKSPACE}/ci-workspaces/verilator" >> "$GITHUB_ENV"
+          echo "CI_VCS_WORKSPACE=${GITHUB_WORKSPACE}/ci-workspaces/vcs" >> "$GITHUB_ENV"
 
       - name: Run Verilator and VCS regressions in parallel
         run: |
           run_verilator() {
             env \
-              GITHUB_WORKSPACE="${CI_RUN_DIR}/verilator" \
+              GITHUB_WORKSPACE="${CI_VERILATOR_WORKSPACE}" \
               CI_SHARED_ROOT="${CI_RUN_DIR}/verilator-ci" \
               CI_CACHE_ROOT="${CI_RUN_DIR}/verilator-cache" \
               CI_ARTIFACT_ROOT="${CI_RUN_DIR}/verilator-artifacts" \
@@ -89,18 +100,18 @@ jobs:
               HTTP_PROXY=http://127.0.0.1:12000 \
               HTTPS_PROXY=http://127.0.0.1:12000 \
               NO_PROXY=localhost,127.0.0.1 \
-              .github/scripts/ci/build-core-regressions.sh && \
+              "${CI_VERILATOR_WORKSPACE}/.github/scripts/ci/build-core-regressions.sh" && \
             env \
-              GITHUB_WORKSPACE="${CI_RUN_DIR}/verilator" \
+              GITHUB_WORKSPACE="${CI_VERILATOR_WORKSPACE}" \
               CI_ARTIFACT_ROOT="${CI_RUN_DIR}/verilator-artifacts" \
               CI_RESULT_ROOT="${CI_RUN_DIR}/verilator-results" \
               CI_TEST_JOBS=8 \
-              .github/scripts/ci/run-core-regressions-parallel.sh
+              "${CI_VERILATOR_WORKSPACE}/.github/scripts/ci/run-core-regressions-parallel.sh"
           }
 
           run_vcs() {
             env \
-              GITHUB_WORKSPACE="${CI_RUN_DIR}/vcs" \
+              GITHUB_WORKSPACE="${CI_VCS_WORKSPACE}" \
               CI_SHARED_ROOT="${CI_RUN_DIR}/vcs-ci" \
               CI_CACHE_ROOT="${CI_RUN_DIR}/vcs-cache" \
               CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \
@@ -110,13 +121,13 @@ jobs:
               HTTP_PROXY=http://127.0.0.1:12000 \
               HTTPS_PROXY=http://127.0.0.1:12000 \
               NO_PROXY=localhost,127.0.0.1 \
-              .github/scripts/ci/build-core-regressions-vcs.sh && \
+              "${CI_VCS_WORKSPACE}/.github/scripts/ci/build-core-regressions-vcs.sh" && \
             env \
-              GITHUB_WORKSPACE="${CI_RUN_DIR}/vcs" \
+              GITHUB_WORKSPACE="${CI_VCS_WORKSPACE}" \
               CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \
               CI_RESULT_ROOT="${CI_RUN_DIR}/vcs-results" \
               CI_VCS_TEST_JOBS=8 \
-              .github/scripts/ci/run-core-regressions-vcs-parallel.sh
+              "${CI_VCS_WORKSPACE}/.github/scripts/ci/run-core-regressions-vcs-parallel.sh"
           }
 
           run_verilator > "${CI_RUN_DIR}/verilator.log" 2>&1 &
@@ -150,9 +161,3 @@ jobs:
               echo "No result was produced for ${testcase}." >> "$GITHUB_STEP_SUMMARY"
             fi
           done
-
-      - name: Remove isolated worktrees
-        if: always()
-        run: |
-          git worktree remove --force "${CI_RUN_DIR}/verilator" || true
-          git worktree remove --force "${CI_RUN_DIR}/vcs" || true
