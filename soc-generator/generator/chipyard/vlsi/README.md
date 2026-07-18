@@ -1,0 +1,13 @@
+# TSMC28 SRAM integration
+
+Set `USE_TSMC28_SRAM=1` when invoking a `soc-generator` target to replace top-level sequential memories with the discrete macros in `tsmc28_sram_library.mdf.json`:
+
+```sh
+make -C soc-generator SIM=vcs USE_TSMC28_SRAM=1 verilog
+```
+
+The make fragment uses `--mode strict`, so generation fails if any top-level sequential memory cannot map to a listed single-port macro. The macro library uses the TSMC `CLK/CEB/WEB/A/D/Q` interface, with active-low `CEB` and `WEB`; required `RTSEL` and `WTSEL` pins are tied to their macro-specific characterization defaults.
+
+`tsmc28_sram_sim.sources` is expanded into a build-local filelist of the `ssg0p81v125c` TSMC timing models for VCS or Verilator. Override `TSMC28_SRAM_ROOT`, `TSMC28_SRAM_MDF`, and `TSMC28_SRAM_SIM_SOURCES` for a different installation or generated macro set.
+
+For synthesis, add the `NLDM/*_ssg0p81v125c.lib` files of every macro reported in the generated `*.top.mems.v`. For place-and-route, add the matching `LEF/*.lef` and `GDSII/*.gds`; use the same macro module names. Do not use the simulation Verilog models as synthesis sources.

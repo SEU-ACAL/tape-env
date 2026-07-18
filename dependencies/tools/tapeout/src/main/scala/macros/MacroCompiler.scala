@@ -232,9 +232,6 @@ class MacroCompilerPass(
                 splitMemory(memMask.get)
               } else {
                 // e.g. mem mask = 13, lib width = 8
-                System.err.println(
-                  s"Unmasked target memory: unaligned mem maskGran $p with lib (${lib.src.name}) width ${libPort.src.width.get} not supported"
-                )
                 return Seq()
               }
             }
@@ -303,10 +300,7 @@ class MacroCompilerPass(
 
     // Width mapping. See calculateBitPairs.
     val bitPairs: Seq[(BigInt, BigInt)] = calculateBitPairs(mem, lib)
-    if (bitPairs.isEmpty) {
-      System.err.println("Error occurred during bitPairs calculations (bitPairs is empty).")
-      return None
-    }
+    if (bitPairs.isEmpty) return None
     // Check bit pairs.
     checkBitPairs(bitPairs)
 
