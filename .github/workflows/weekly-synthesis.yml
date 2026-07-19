@@ -37,9 +37,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: SEU-ACAL/Tapeout-Workbench
-          # Pin the flow revision so weekly QoR changes track this repository,
-          # rather than an unrelated upstream update.
-          ref: 8f9aec5c094f40158d33f974bafa8079794c23f9
+          # With no ref, actions/checkout uses the repository's default branch.
+          # Weekly synthesis therefore tracks the latest Tapeout-Workbench flow.
           path: ci-workspaces/tapeout-workbench
           persist-credentials: false
 
