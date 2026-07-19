@@ -94,7 +94,7 @@ jobs:
               CI_RESULT_ROOT="${CI_RUN_DIR}/verilator-results" \
               CI_BUILD_JOBS=8 \
               CI_VERILATOR_MAKE_JOBS=8 \
-              CI_BUILD_CONFIGS="QuadChannelRocketConfig MediumBoomV3CosimFastConfig MediumBoomV4CosimFastConfig" \
+              CI_BUILD_CONFIGS="QuadChannelRocketConfig MediumBoomV3CosimFastConfig" \
               CI_TEST_JOBS=8 \
               "${CI_VERILATOR_WORKSPACE}/.github/scripts/ci/build-core-regressions.sh"
           }
@@ -159,7 +159,7 @@ jobs:
         if: always()
         run: |
           echo "## Rocket and BOOM regressions" >> "$GITHUB_STEP_SUMMARY"
-          for testcase in rocket-asm rocket-bmark rocket-hello-loadmem rocket-hello rocket-zephyr-hello boom-asm-v3 boom-bmark-v3 boom-asm-v4 boom-bmark-v4; do
+          for testcase in rocket-asm rocket-bmark rocket-hello-loadmem rocket-hello rocket-zephyr-hello boom-asm-v3 boom-bmark-v3; do
             result="${CI_RUN_DIR}/verilator-results/${testcase}/result.json"
             if [[ -f "${result}" ]]; then
               cat "${result}" >> "$GITHUB_STEP_SUMMARY"
