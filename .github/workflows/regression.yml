@@ -59,8 +59,6 @@ jobs:
     env:
       CI_SHARED_ROOT: /data1/ci-runner
       CI_WORKLOAD_ROOT: /data2/ci-workloads
-      USE_TSMC28_SRAM: "1"
-      TSMC28_SRAM_ROOT: /data2/TSMC28/Memory/SRAM
     steps:
       - uses: actions/checkout@v4
 
@@ -84,9 +82,9 @@ jobs:
           echo "CI_VERILATOR_WORKSPACE=${GITHUB_WORKSPACE}/ci-workspaces/verilator" >> "$GITHUB_ENV"
           echo "CI_VCS_WORKSPACE=${GITHUB_WORKSPACE}/ci-workspaces/vcs" >> "$GITHUB_ENV"
 
-      - name: Run Verilator and VCS regressions in parallel
+      - name: Build Verilator and VCS simulators in parallel
         run: |
-          run_verilator() {
+          build_verilator() {
             env \
               GITHUB_WORKSPACE="${CI_VERILATOR_WORKSPACE}" \
               CI_SHARED_ROOT="${CI_RUN_DIR}/verilator-ci" \
@@ -100,7 +98,39 @@ jobs:
               HTTP_PROXY=http://127.0.0.1:12000 \
               HTTPS_PROXY=http://127.0.0.1:12000 \
               NO_PROXY=localhost,127.0.0.1 \
-              "${CI_VERILATOR_WORKSPACE}/.github/scripts/ci/build-core-regressions.sh" && \
+              "${CI_VERILATOR_WORKSPACE}/.github/scripts/ci/build-core-regressions.sh"
+          }
+
+          build_vcs() {
+            env \
+              GITHUB_WORKSPACE="${CI_VCS_WORKSPACE}" \
+              CI_SHARED_ROOT="${CI_RUN_DIR}/vcs-ci" \
+              CI_CACHE_ROOT="${CI_RUN_DIR}/vcs-cache" \
+              CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \
+              CI_RESULT_ROOT="${CI_RUN_DIR}/vcs-results" \
+              CI_VCS_BUILD_JOBS=8 \
+              CI_VCS_BUILD_CONFIGS=TapeoutConfig \
+              USE_TSMC28_SRAM=1 \
+              TSMC28_SRAM_ROOT=/data2/TSMC28/Memory/SRAM \
+              HTTP_PROXY=http://127.0.0.1:12000 \
+              HTTPS_PROXY=http://127.0.0.1:12000 \
+              NO_PROXY=localhost,127.0.0.1 \
+              "${CI_VCS_WORKSPACE}/.github/scripts/ci/build-core-regressions-vcs.sh"
+          }
+
+          build_verilator > "${CI_RUN_DIR}/verilator-build.log" 2>&1 &
+          verilator_pid=$!
+          build_vcs > "${CI_RUN_DIR}/vcs-build.log" 2>&1 &
+          vcs_pid=$!
+
+          status=0
+          wait "${verilator_pid}" || status=1
+          wait "${vcs_pid}" || status=1
+          exit "${status}"
+
+      - name: Run Verilator and VCS regressions in parallel
+        run: |
+          run_verilator() {
             env \
               GITHUB_WORKSPACE="${CI_VERILATOR_WORKSPACE}" \
               CI_ARTIFACT_ROOT="${CI_RUN_DIR}/verilator-artifacts" \
@@ -112,27 +142,17 @@ jobs:
           run_vcs() {
             env \
               GITHUB_WORKSPACE="${CI_VCS_WORKSPACE}" \
-              CI_SHARED_ROOT="${CI_RUN_DIR}/vcs-ci" \
-              CI_CACHE_ROOT="${CI_RUN_DIR}/vcs-cache" \
-              CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \
-              CI_RESULT_ROOT="${CI_RUN_DIR}/vcs-results" \
-              CI_VCS_BUILD_JOBS=8 \
-              CI_VCS_BUILD_CONFIGS=TapeoutConfig \
-              HTTP_PROXY=http://127.0.0.1:12000 \
-              HTTPS_PROXY=http://127.0.0.1:12000 \
-              NO_PROXY=localhost,127.0.0.1 \
-              "${CI_VCS_WORKSPACE}/.github/scripts/ci/build-core-regressions-vcs.sh" && \
-            env \
-              GITHUB_WORKSPACE="${CI_VCS_WORKSPACE}" \
               CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \
               CI_RESULT_ROOT="${CI_RUN_DIR}/vcs-results" \
               CI_VCS_TEST_JOBS=8 \
+              USE_TSMC28_SRAM=1 \
+              TSMC28_SRAM_ROOT=/data2/TSMC28/Memory/SRAM \
               "${CI_VCS_WORKSPACE}/.github/scripts/ci/run-core-regressions-vcs-parallel.sh"
           }
 
-          run_verilator > "${CI_RUN_DIR}/verilator.log" 2>&1 &
+          run_verilator > "${CI_RUN_DIR}/verilator-regression.log" 2>&1 &
           verilator_pid=$!
-          run_vcs > "${CI_RUN_DIR}/vcs.log" 2>&1 &
+          run_vcs > "${CI_RUN_DIR}/vcs-regression.log" 2>&1 &
           vcs_pid=$!
 
           status=0

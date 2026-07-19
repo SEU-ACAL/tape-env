@@ -37,6 +37,8 @@ export CI_VCS_BUILD_CONFIGS CI_VCS_BUILD_JOBS
 
 git -C "${REPO_ROOT}" submodule sync --recursive
 
+git -C "${REPO_ROOT}" submodule update --init soc-generator/generator/gemmini
+
 CI_CACHE_KEY="${RUNNER_NAME:-${HOSTNAME:-local}}"
 SBT_CACHE_ROOT="${CI_CACHE_ROOT}/sbt/${CI_CACHE_KEY}"
 CI_COURSIER_CACHE="${CI_CACHE_ROOT}/coursier/${CI_CACHE_KEY}"
