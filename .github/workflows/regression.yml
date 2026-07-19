@@ -59,9 +59,10 @@ jobs:
     env:
       CI_SHARED_ROOT: /data1/ci-runner
       CI_WORKLOAD_ROOT: /data2/ci-workloads
+      HTTP_PROXY: http://127.0.0.1:12000
+      HTTPS_PROXY: http://127.0.0.1:12000
+      NO_PROXY: localhost,127.0.0.1
     steps:
-      - uses: actions/checkout@v4
-
       - name: Checkout Verilator workspace
         uses: actions/checkout@v4
         with:
@@ -95,9 +96,6 @@ jobs:
               CI_VERILATOR_MAKE_JOBS=8 \
               CI_BUILD_CONFIGS="QuadChannelRocketConfig MediumBoomV3CosimFastConfig MediumBoomV4CosimFastConfig" \
               CI_TEST_JOBS=8 \
-              HTTP_PROXY=http://127.0.0.1:12000 \
-              HTTPS_PROXY=http://127.0.0.1:12000 \
-              NO_PROXY=localhost,127.0.0.1 \
               "${CI_VERILATOR_WORKSPACE}/.github/scripts/ci/build-core-regressions.sh"
           }
 
@@ -112,9 +110,6 @@ jobs:
               CI_VCS_BUILD_CONFIGS=TapeoutConfig \
               USE_TSMC28_SRAM=1 \
               TSMC28_SRAM_ROOT=/data2/TSMC28/Memory/SRAM \
-              HTTP_PROXY=http://127.0.0.1:12000 \
-              HTTPS_PROXY=http://127.0.0.1:12000 \
-              NO_PROXY=localhost,127.0.0.1 \
               "${CI_VCS_WORKSPACE}/.github/scripts/ci/build-core-regressions-vcs.sh"
           }
 
