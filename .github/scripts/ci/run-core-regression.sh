@@ -80,14 +80,14 @@ run_in_nix '
         echo "Prebuilt RISC-V ISA and benchmark tests are missing: ${riscv_tests_root}" >&2
         exit 1
       fi
-      make "${common_args[@]}" run-asm-tests-fast LOADMEM=1
+      make -j"${CI_SIM_TEST_JOBS:-1}" "${common_args[@]:1}" run-asm-tests-fast LOADMEM=1
       ;;
     rocket-bmark|boom-bmark)
       if [[ ! -d "${riscv_tests_root}/riscv64-unknown-elf/share/riscv-tests" ]]; then
         echo "Prebuilt RISC-V ISA and benchmark tests are missing: ${riscv_tests_root}" >&2
         exit 1
       fi
-      make "${common_args[@]}" run-bmark-tests-fast LOADMEM=1
+      make -j"${CI_SIM_TEST_JOBS:-1}" "${common_args[@]:1}" run-bmark-tests-fast LOADMEM=1
       ;;
     rocket-hello-loadmem)
       hello_binary="${CI_WORKLOAD_ROOT}/hello.riscv"

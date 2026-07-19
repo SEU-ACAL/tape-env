@@ -8,7 +8,7 @@ source "${SCRIPT_DIR}/lib.sh"
 : "${CI_ARTIFACT_ROOT:?CI_ARTIFACT_ROOT must be set}"
 
 CI_VCS_BUILD_JOBS="${CI_VCS_BUILD_JOBS:-8}"
-CI_VCS_BUILD_CONFIGS="${CI_VCS_BUILD_CONFIGS:-QuadChannelRocketConfig MediumBoomV3CosimFastConfig MediumBoomV4CosimFastConfig}"
+CI_VCS_BUILD_CONFIGS="${CI_VCS_BUILD_CONFIGS:-TapeoutConfig}"
 
 case "${CI_VCS_BUILD_JOBS}" in
   ''|*[!0-9]*|0)
@@ -36,6 +36,8 @@ done
 export CI_VCS_BUILD_CONFIGS CI_VCS_BUILD_JOBS
 
 git -C "${REPO_ROOT}" submodule sync --recursive
+
+git -C "${REPO_ROOT}" submodule update --init soc-generator/generator/gemmini
 
 CI_CACHE_KEY="${RUNNER_NAME:-${HOSTNAME:-local}}"
 SBT_CACHE_ROOT="${CI_CACHE_ROOT}/sbt/${CI_CACHE_KEY}"

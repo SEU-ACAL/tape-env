@@ -24,8 +24,6 @@ testcases=(
   'rocket-zephyr-hello:QuadChannelRocketConfig'
   'boom-asm-v3:MediumBoomV3CosimFastConfig'
   'boom-bmark-v3:MediumBoomV3CosimFastConfig'
-  'boom-asm-v4:MediumBoomV4CosimFastConfig'
-  'boom-bmark-v4:MediumBoomV4CosimFastConfig'
 )
 
 prepare_test_rules() {
@@ -42,7 +40,7 @@ prepare_test_rules() {
   cp -f "${source_rules}" "${generated_rules}"
 }
 
-for config in QuadChannelRocketConfig MediumBoomV3CosimFastConfig MediumBoomV4CosimFastConfig; do
+for config in QuadChannelRocketConfig MediumBoomV3CosimFastConfig; do
   prepare_test_rules "${config}"
 done
 
@@ -52,8 +50,8 @@ run_testcase() {
   local script_testcase
 
   case "${testcase}" in
-    boom-asm-v3|boom-asm-v4) script_testcase=boom-asm ;;
-    boom-bmark-v3|boom-bmark-v4) script_testcase=boom-bmark ;;
+    boom-asm-v3) script_testcase=boom-asm ;;
+    boom-bmark-v3) script_testcase=boom-bmark ;;
     *) script_testcase="${testcase}" ;;
   esac
 

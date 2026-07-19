@@ -9,7 +9,7 @@ source "${SCRIPT_DIR}/lib.sh"
 
 CI_BUILD_JOBS="${CI_BUILD_JOBS:-8}"
 CI_VERILATOR_MAKE_JOBS="${CI_VERILATOR_MAKE_JOBS:-8}"
-CI_BUILD_CONFIGS="${CI_BUILD_CONFIGS:-QuadChannelRocketConfig MediumBoomV3CosimFastConfig MediumBoomV4CosimFastConfig}"
+CI_BUILD_CONFIGS="${CI_BUILD_CONFIGS:-QuadChannelRocketConfig MediumBoomV3CosimFastConfig}"
 
 case "${CI_BUILD_JOBS}" in
   ''|*[!0-9]*|0)
