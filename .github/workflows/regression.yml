@@ -89,7 +89,7 @@ jobs:
             env \
               GITHUB_WORKSPACE="${CI_VERILATOR_WORKSPACE}" \
               CI_SHARED_ROOT="${CI_RUN_DIR}/verilator-ci" \
-              CI_CACHE_ROOT="${CI_RUN_DIR}/verilator-cache" \
+              CI_CACHE_ROOT=/data1/ci-runner/cache/regression/verilator \
               CI_ARTIFACT_ROOT="${CI_RUN_DIR}/verilator-artifacts" \
               CI_RESULT_ROOT="${CI_RUN_DIR}/verilator-results" \
               CI_BUILD_JOBS=8 \
@@ -103,7 +103,7 @@ jobs:
             env \
               GITHUB_WORKSPACE="${CI_VCS_WORKSPACE}" \
               CI_SHARED_ROOT="${CI_RUN_DIR}/vcs-ci" \
-              CI_CACHE_ROOT="${CI_RUN_DIR}/vcs-cache" \
+              CI_CACHE_ROOT=/data1/ci-runner/cache/regression/vcs \
               CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \
               CI_RESULT_ROOT="${CI_RUN_DIR}/vcs-results" \
               CI_VCS_BUILD_JOBS=8 \
