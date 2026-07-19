@@ -1,0 +1,59 @@
+name: Weekly Synthesis
+
+on:
+  schedule:
+    # Sunday 18:00 UTC is Monday 02:00 in Asia/Shanghai (UTC+8).
+    - cron: '0 18 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-synthesis-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  synthesis:
+    name: Synthesize TapeoutConfig
+    # The runner must have a valid Design Compiler license and the mounted
+    # TSMC28 PDK paths used by Tapeout-Workbench.
+    runs-on: [self-hosted, linux, builder, synthesis]
+    timeout-minutes: 720
+    env:
+      CI_SHARED_ROOT: /data1/ci-runner
+      TSMC28_SRAM_ROOT: /data2/TSMC28/Memory/SRAM
+      DC_CONTAINER: ci_env
+      DC_SHELL_BIN: /data2/tools/syn/R-2020.09-SP5/bin/dc_shell
+    steps:
+      - name: Checkout Chipyard
+        uses: actions/checkout@v4
+        with:
+          path: ci-workspaces/chipyard
+          submodules: false
+
+      - name: Checkout synthesis flow
+        uses: actions/checkout@v4
+        with:
+          repository: SEU-ACAL/Tapeout-Workbench
+          # Pin the flow revision so weekly QoR changes track this repository,
+          # rather than an unrelated upstream update.
+          ref: 8f9aec5c094f40158d33f974bafa8079794c23f9
+          path: ci-workspaces/tapeout-workbench
+          persist-credentials: false
+
+      - name: Prepare isolated synthesis paths
+        run: |
+          run_dir="${CI_SHARED_ROOT}/weekly-synthesis/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:12}"
+          mkdir -p "${run_dir}"
+          echo "CI_SYNTHESIS_RUN_ROOT=${run_dir}" >> "$GITHUB_ENV"
+          echo "CI_CHIPYARD_WORKSPACE=${GITHUB_WORKSPACE}/ci-workspaces/chipyard" >> "$GITHUB_ENV"
+          echo "CI_TAPEOUT_WORKBENCH=${GITHUB_WORKSPACE}/ci-workspaces/tapeout-workbench" >> "$GITHUB_ENV"
+
+      - name: Generate RTL and run Design Compiler
+        run: |
+          env \
+            GITHUB_WORKSPACE="${CI_CHIPYARD_WORKSPACE}" \
+            SYNTHESIS_WORKBENCH="${CI_TAPEOUT_WORKBENCH}" \
+            CI_SYNTHESIS_RUN_ROOT="${CI_SYNTHESIS_RUN_ROOT}" \
+            "${CI_CHIPYARD_WORKSPACE}/.github/scripts/ci/run-weekly-synthesis.sh"
