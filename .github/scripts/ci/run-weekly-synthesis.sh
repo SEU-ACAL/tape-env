@@ -80,11 +80,6 @@ if [[ ! -d "${SYNTHESIS_WORKBENCH}/2-SYN" ]]; then
   exit 1
 fi
 
-if [[ "$(docker inspect --format '{{.State.Running}}' "${DC_CONTAINER}" 2>/dev/null || true)" != "true" ]]; then
-  echo "The Design Compiler container is not running: ${DC_CONTAINER}" >&2
-  exit 1
-fi
-
 git -C "${REPO_ROOT}" submodule sync --recursive
 git -C "${REPO_ROOT}" submodule update --init soc-generator/generator/gemmini
 
@@ -140,6 +135,10 @@ tcl_command="set data {$(tcl_escape "${run_label}")}; set SOURCE_CODE_HOME {$(tc
 
 pushd "${FLOW_DIR}" >/dev/null
 mkdir -p alib elab log "outputs/${run_label}" "rpt/${run_label}"
+if [[ "$(docker inspect --format '{{.State.Running}}' "${DC_CONTAINER}" 2>/dev/null || true)" != "true" ]]; then
+  echo "The Design Compiler container is not running: ${DC_CONTAINER}" >&2
+  exit 1
+fi
 set +e
 # GitHub Actions has no TTY, so use -i instead of the interactive equivalent
 # `docker exec -it ci_env bash`. The actual Design Compiler process runs here.
