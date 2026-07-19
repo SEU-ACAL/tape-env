@@ -42,3 +42,14 @@ a regression. The generated Verilator emulator and its configuration-specific
 `Rocket Chip Logrotate` is maintenance automation for the regression artifacts;
 it does not run validation tests. Release-note generation is release automation,
 not CI validation.
+
+`Weekly Synthesis` runs at 02:00 Asia/Shanghai every Monday (18:00 UTC on
+Sunday), or manually through GitHub Actions. It generates
+`TapeoutConfig` with the TSMC28 SRAM macro mapping and runs the pinned
+`SEU-ACAL/Tapeout-Workbench` Design Compiler flow. The job must run on a
+self-hosted runner labeled `builder` and `synthesis`, with an available Design
+Compiler license and the PDK mounts expected by the pinned flow. Design
+Compiler runs in the `ci_env` container through `docker exec -i ci_env bash -lc`;
+GitHub Actions has no TTY, so `-i` is used in place of `-it`. It does not upload
+implementation files. Its job summary reports total cell area and the worst
+setup slack for I2R, R2R, R2O, and I2O paths.
