@@ -103,7 +103,7 @@ run_in_nix '
   export SBT_OPTS="${CI_SBT_OPTS}"
   ./init-submodules.sh
   make -C soc-generator SIM=vcs CONFIG="${SYNTHESIS_CONFIG}" \
-    USE_TSMC28_SRAM=1 TSMC28_SRAM_ROOT="${TSMC28_SRAM_ROOT:-/data2/TSMC28/Memory/SRAM}" \
+    USE_TSMC28_SRAM=1 \
     verilog
 '
 

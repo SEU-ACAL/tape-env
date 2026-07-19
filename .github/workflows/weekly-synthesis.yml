@@ -22,9 +22,7 @@ jobs:
     timeout-minutes: 720
     env:
       CI_SHARED_ROOT: /data1/ci-runner
-      TSMC28_SRAM_ROOT: /data2/TSMC28/Memory/SRAM
       DC_CONTAINER: ci_env
-      DC_SHELL_BIN: /data2/tools/syn/R-2020.09-SP5/bin/dc_shell
     steps:
       - name: Checkout Chipyard
         uses: actions/checkout@v4
