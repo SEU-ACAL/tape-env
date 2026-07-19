@@ -131,6 +131,7 @@ jobs:
               CI_ARTIFACT_ROOT="${CI_RUN_DIR}/verilator-artifacts" \
               CI_RESULT_ROOT="${CI_RUN_DIR}/verilator-results" \
               CI_TEST_JOBS=8 \
+              CI_SIM_TEST_JOBS=4 \
               "${CI_VERILATOR_WORKSPACE}/.github/scripts/ci/run-core-regressions-parallel.sh"
           }
 
@@ -140,6 +141,7 @@ jobs:
               CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \
               CI_RESULT_ROOT="${CI_RUN_DIR}/vcs-results" \
               CI_VCS_TEST_JOBS=8 \
+              CI_VCS_SIM_TEST_JOBS=4 \
               USE_TSMC28_SRAM=1 \
               TSMC28_SRAM_ROOT=/data2/TSMC28/Memory/SRAM \
               "${CI_VCS_WORKSPACE}/.github/scripts/ci/run-core-regressions-vcs-parallel.sh"

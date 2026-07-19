@@ -56,10 +56,10 @@ run_in_nix '
 
   case "${CI_TESTCASE}" in
     rocket-asm|boom-asm)
-      make "${common_args[@]}" run-asm-tests-fast LOADMEM=1
+      make -j"${CI_VCS_SIM_TEST_JOBS:-1}" "${common_args[@]:1}" run-asm-tests-fast LOADMEM=1
       ;;
     rocket-bmark|boom-bmark)
-      make "${common_args[@]}" run-bmark-tests-fast LOADMEM=1
+      make -j"${CI_VCS_SIM_TEST_JOBS:-1}" "${common_args[@]:1}" run-bmark-tests-fast LOADMEM=1
       ;;
     rocket-hello-loadmem)
       make "${common_args[@]}" run-binary-fast BINARY="${CI_WORKLOAD_ROOT}/hello.riscv" LOADMEM=1
