@@ -18,7 +18,7 @@ jobs:
     name: Synthesize TapeoutConfig
     # The runner must have a valid Design Compiler license and the mounted
     # TSMC28 PDK paths used by Tapeout-Workbench.
-    runs-on: [self-hosted, linux, builder, synthesis]
+    runs-on: [self-hosted, linux, builder]
     timeout-minutes: 720
     env:
       CI_SHARED_ROOT: /data1/ci-runner

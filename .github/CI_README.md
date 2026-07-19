@@ -47,7 +47,7 @@ not CI validation.
 Sunday), or manually through GitHub Actions. It generates
 `TapeoutConfig` with the TSMC28 SRAM macro mapping and runs the pinned
 `SEU-ACAL/Tapeout-Workbench` Design Compiler flow. The job must run on a
-self-hosted runner labeled `builder` and `synthesis`, with an available Design
+self-hosted runner labeled `builder`, with an available Design
 Compiler license and the PDK mounts expected by the pinned flow. Design
 Compiler runs in the `ci_env` container through `docker exec -i ci_env bash -lc`;
 GitHub Actions has no TTY, so `-i` is used in place of `-it`. It does not upload
