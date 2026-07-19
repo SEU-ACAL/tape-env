@@ -21,8 +21,38 @@ CI_COURSIER_CACHE="${CI_CACHE_ROOT}/coursier/synthesis/${CI_CACHE_KEY}"
 CI_SBT_OPTS="-Dsbt.ivy.home=${SBT_CACHE_ROOT}/ivy -Dsbt.global.base=${SBT_CACHE_ROOT}/global -Dsbt.boot.directory=${SBT_CACHE_ROOT}/boot -Dsbt.color=always -Dsbt.supershell=false -Dsbt.server.forcestart=true"
 FLOW_DIR="${CI_SYNTHESIS_RUN_ROOT}/dc-flow"
 
+extract_sdc_values() {
+  local command="$1" sdc_file="$2"
+
+  awk -v command="${command}" '
+    $1 == command {
+      for (i = 2; i <= NF; i++) {
+        if ($i ~ /^-?[0-9]+([.][0-9]+)?([eE][-+]?[0-9]+)?$/) {
+          print $i
+          break
+        }
+      }
+    }
+  ' "${sdc_file}" | sort -nu | paste -sd ', ' -
+}
+
+clock_frequency_mhz() {
+  local period="$1" time_unit="$2"
+
+  case "${time_unit}" in
+    fs) awk -v period="${period}" 'BEGIN { printf "%.3f MHz", 1000000000 / period }' ;;
+    ps) awk -v period="${period}" 'BEGIN { printf "%.3f MHz", 1000000 / period }' ;;
+    ns) awk -v period="${period}" 'BEGIN { printf "%.3f MHz", 1000 / period }' ;;
+    us) awk -v period="${period}" 'BEGIN { printf "%.3f MHz", 1 / period }' ;;
+    ms) awk -v period="${period}" 'BEGIN { printf "%.6f MHz", 0.001 / period }' ;;
+    s) awk -v period="${period}" 'BEGIN { printf "%.9f MHz", 0.000001 / period }' ;;
+    *) printf 'unavailable' ;;
+  esac
+}
+
 write_qor_summary() {
-  local report_dir area_report group_report slack
+  local report_dir area_report group_report slack constraint_sdc time_unit workbench_revision
+  local clock_period clock_frequency input_delay output_delay clock_uncertainty
 
   if [[ -z "${GITHUB_STEP_SUMMARY:-}" ]]; then
     return
@@ -34,6 +64,53 @@ write_qor_summary() {
     echo
     echo "| Metric | Value |"
     echo "| --- | ---: |"
+
+    workbench_revision="$(git -C "${SYNTHESIS_WORKBENCH}" rev-parse --short HEAD 2>/dev/null || true)"
+    echo "| Tapeout-Workbench revision | ${workbench_revision:-unavailable} |"
+
+    constraint_sdc="$(find "${FLOW_DIR}/outputs" -type f -name "${TOP_MODULE}.sdc" -print 2>/dev/null | sort | tail -n 1 || true)"
+    if [[ -n "${constraint_sdc}" ]]; then
+      time_unit="$(awk '
+        $1 == "set_units" {
+          for (i = 2; i < NF; i++) {
+            if ($i == "-time") {
+              print $(i + 1)
+              exit
+            }
+          }
+        }
+      ' "${constraint_sdc}")"
+      clock_period="$(awk '
+        $1 == "create_clock" {
+          for (i = 2; i < NF; i++) {
+            if ($i == "-period") {
+              print $(i + 1)
+              exit
+            }
+          }
+        }
+      ' "${constraint_sdc}")"
+      input_delay="$(extract_sdc_values set_input_delay "${constraint_sdc}")"
+      output_delay="$(extract_sdc_values set_output_delay "${constraint_sdc}")"
+      clock_uncertainty="$(extract_sdc_values set_clock_uncertainty "${constraint_sdc}")"
+      if [[ -n "${clock_period}" && -n "${time_unit}" ]]; then
+        clock_frequency="$(clock_frequency_mhz "${clock_period}" "${time_unit}")"
+      else
+        clock_frequency="unavailable"
+      fi
+
+      echo "| Clock period | ${clock_period:-unavailable} ${time_unit:-} |"
+      echo "| Clock frequency | ${clock_frequency} |"
+      echo "| Clock uncertainty | ${clock_uncertainty:-unavailable} ${time_unit:-} |"
+      echo "| Input delay | ${input_delay:-unavailable} ${time_unit:-} |"
+      echo "| Output delay | ${output_delay:-unavailable} ${time_unit:-} |"
+    else
+      echo "| Clock period | unavailable |"
+      echo "| Clock frequency | unavailable |"
+      echo "| Clock uncertainty | unavailable |"
+      echo "| Input delay | unavailable |"
+      echo "| Output delay | unavailable |"
+    fi
 
     if [[ -z "${report_dir}" ]]; then
       echo "| Status | No Design Compiler report was produced |"
