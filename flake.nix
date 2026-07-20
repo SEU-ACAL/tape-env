@@ -15,7 +15,15 @@
         gcc11Stdenv = gcc11Pkgs.overrideCC gcc11Pkgs.stdenv gcc11Pkgs.gcc11;
         riscvPkgs = pkgs.pkgsCross.riscv64-embedded;
         riscvCc = riscvPkgs.stdenv.cc;
+        riscvLinuxCc = pkgs.pkgsCross.riscv64.stdenv.cc;
         riscvTarget = riscvPkgs.stdenv.targetPlatform.config;
+        firemarshalPython = pkgs.python3.withPackages (ps: [
+          ps.doit
+          ps.gitpython
+          ps.humanfriendly
+          ps.psutil
+          ps.pyyaml
+        ]);
         # Keep Spike ABI-compatible with the TestChipIP Cospike source. This
         # revision is the one pinned by upstream Chipyard's riscv-isa-sim
         # submodule.
@@ -201,6 +209,10 @@ EOF
 
         devShells.default = pkgs.mkShellNoCC {
           RISCV = "${chipyardRiscvTools}";
+          # FireMarshal's Buildroot configuration requires a Linux-targeted
+          # compiler under $RISCV, while Chipyard's existing $RISCV is the
+          # bare-metal toolchain used by simulators and bare-metal workloads.
+          FIREMARSHAL_RISCV = "${riscvLinuxCc}";
           FIRTOOL_BIN = "${circt}/bin/firtool";
           JAVA_HOME = "${pkgs.jdk17_headless}";
           VCS_HOME = "/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1";
@@ -210,7 +222,7 @@ EOF
 
           shellHook = ''
             export CY_DIR="$PWD"
-            export PATH="$CY_DIR/bin:$VERDI_HOME/bin:$VCS_HOME/bin:$RISCV/bin:$PATH"
+            export PATH="$CY_DIR/bin:$VERDI_HOME/bin:$VCS_HOME/bin:$RISCV/bin:$FIREMARSHAL_RISCV/bin:$PATH"
             export LD_LIBRARY_PATH="${pkgs.zlib}/lib:''${LD_LIBRARY_PATH:-}"
             # VCS's Ubuntu mode exports CPATH=/usr/include/x86_64-linux-gnu
             # to its generated C-source build.  That mixes host glibc bits
@@ -247,7 +259,7 @@ EOF
             # Keep it on the existing nixpkgs-gcc11 input, whose 2.0.16 package supports it.
             gcc11Pkgs.numactl
             pkgs.perl
-            pkgs.python3
+            firemarshalPython
             pkgs.python3Packages.pyelftools
             pkgs.python3Packages.west
             pkgs.ctags

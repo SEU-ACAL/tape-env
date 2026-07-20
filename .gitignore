@@ -31,3 +31,4 @@ project/project/
 p2e.toml
 .vscode/
 tests/build/
+applications/linux/build/

@@ -4,14 +4,14 @@
 Rocket、BOOM、共享 L2、Gemmini 和 TestChipIP 的 RTL 生成，以及 Verilator/VCS
 软件仿真和裸机工作负载验证。
 
-FPGA 加速仿真及其配套编译栈不属于本仓库；FireMarshal 是独立的工作负载工具，应在
-其自身工作区中使用和维护。
+FPGA 加速仿真及其配套编译栈不属于本仓库；Linux 工作负载通过固定版本的
+FireMarshal 子模块生成，详情见 [applications/README.md](applications/README.md)。
 
 ## 目录说明
 
 - `soc-generator/`：SoC 生成、Verilator/VCS 仿真入口及生成的构建产物。
 - `soc-generator/generator/`：Rocket、BOOM、Gemmini 和 Chipyard 集成源码。
-- `applications/`：裸机测试、RISC-V 回归测试和 Zephyr 工作负载。
+- `applications/`：裸机测试、RISC-V 回归测试、Zephyr 与 FireMarshal Linux 工作负载。
 - `dependencies/`：非 SoC 生成器依赖，例如 DRAMSim2、CDE 和 FPGA shells。
 - `.github/`：CI 工作流与回归脚本。
 
@@ -37,6 +37,7 @@ cd chipyard
 
 ```sh
 ./init-submodules.sh --gemmini  # Gemmini 及其 RoCC 测试工作负载
+./init-submodules.sh --firemarshal # FireMarshal Linux workload 依赖
 ./init-submodules.sh --full     # 所有已登记子模块
 ```
 

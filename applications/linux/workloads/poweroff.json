@@ -1,0 +1,5 @@
+{
+  "name": "tape-env-linux-poweroff",
+  "base": "br-base.json",
+  "command": "echo 'Tapeout FireMarshal Linux workload booted'; poweroff"
+}
