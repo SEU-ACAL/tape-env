@@ -208,3 +208,59 @@ jobs:
           name: tapeoutconfig-regmap
           path: "${{ env.CI_RUN_DIR }}/tapeoutconfig-regmap"
           if-no-files-found: warn
+
+      - name: Print regression failure diagnostics
+        if: failure()
+        run: |
+          logs=(
+            "${CI_RUN_DIR}/verilator-build.log"
+            "${CI_RUN_DIR}/vcs-build.log"
+            "${CI_RUN_DIR}/verilator-regression.log"
+            "${CI_RUN_DIR}/vcs-regression.log"
+          )
+
+          for log in "${logs[@]}"; do
+            if [[ -f "${log}" ]]; then
+              echo "::group::Last 400 lines of ${log}"
+              tail -n 400 "${log}"
+              echo "::endgroup::"
+            else
+              echo "Diagnostic log was not produced: ${log}" >&2
+            fi
+          done
+
+      - name: Archive regression failure diagnostics
+        if: failure()
+        run: |
+          archive="${RUNNER_TEMP}/regression-failure-diagnostics.tar.gz"
+          paths=()
+          for path in \
+            "${CI_RUN_DIR}/verilator-build.log" \
+            "${CI_RUN_DIR}/vcs-build.log" \
+            "${CI_RUN_DIR}/verilator-regression.log" \
+            "${CI_RUN_DIR}/vcs-regression.log" \
+            "${CI_RUN_DIR}/verilator-artifacts" \
+            "${CI_RUN_DIR}/vcs-artifacts" \
+            "${CI_RUN_DIR}/verilator-results" \
+            "${CI_RUN_DIR}/vcs-results"
+          do
+            if [[ -e "${path}" ]]; then
+              paths+=("${path#"${CI_RUN_DIR}/"}")
+            fi
+          done
+
+          if [[ ${#paths[@]} -eq 0 ]]; then
+            echo "No regression diagnostics were produced." >&2
+            exit 0
+          fi
+
+          tar -C "${CI_RUN_DIR}" -czf "${archive}" "${paths[@]}"
+
+      - name: Upload regression failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-failure-diagnostics-${{ github.run_id }}
+          path: ${{ runner.temp }}/regression-failure-diagnostics.tar.gz
+          if-no-files-found: warn
+          retention-days: 14
