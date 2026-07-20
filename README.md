@@ -38,6 +38,7 @@ cd chipyard
 ```sh
 ./init-submodules.sh --gemmini  # Gemmini 及其 RoCC 测试工作负载
 ./init-submodules.sh --firemarshal # FireMarshal Linux workload 依赖
+./init-submodules.sh --p2e      # HPEC P2E runner
 ./init-submodules.sh --full     # 所有已登记子模块
 ```
 
@@ -46,6 +47,16 @@ cd chipyard
 ```sh
 nix develop
 ```
+
+JTAG 软件调试使用独立环境，不增加默认开发 shell 的依赖：
+
+```sh
+nix develop .#jtag-debug
+```
+
+该轻量环境提供 `openocd`、`gdb` 和 `riscv64-unknown-elf-gdb`，不包含 SoC 编译
+工具链；它用于连接已由默认开发环境生成的仿真器。GDB 来自 flake 锁定的 Nixpkgs，
+支持 RV64 bare-metal ELF。
 
 ## 快速验证：运行 Hello
 
