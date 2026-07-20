@@ -99,6 +99,10 @@ fi
 
 cd "$RDIR"
 
+# Keep cached checkouts aligned with URLs changed in .gitmodules, including
+# HTTPS-only CI environments where SSH to GitHub is unavailable.
+git submodule sync --recursive
+
 update_submodule() {
     submodule_name="$1"
     if [[ "${2:-}" == "recursive" ]]; then

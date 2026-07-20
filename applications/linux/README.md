@@ -26,11 +26,13 @@ applications/linux/build/chipyard/tape-env-linux-poweroff/
   buildroot_config
 ```
 
-构建后的 P2E 调用为：
+构建后的 P2E 调用从 runner 子仓库执行：
 
 ```sh
+cd /path/to/tape-env/dependencies/p2e-runner
+nix develop
 p2e run --image \
-  applications/linux/build/chipyard/tape-env-linux-poweroff/tape-env-linux-poweroff-bin-nodisk
+  ../../applications/linux/build/chipyard/tape-env-linux-poweroff/tape-env-linux-poweroff-bin-nodisk
 ```
 
 `--disk` 可生成标准 FireMarshal boot ELF 和 ext2 根文件系统镜像，适用于后续有块设备的
