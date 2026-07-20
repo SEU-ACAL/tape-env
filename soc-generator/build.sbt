@@ -292,4 +292,6 @@ lazy val fpga_shells = projectFromDir("fpga_shells", file("../dependencies/fpga/
 
 lazy val chipyard_fpga = projectFromDir("chipyard_fpga", file("../dependencies/fpga"))
   .dependsOn(chipyard, fpga_shells)
+  .settings(chiselSettings)
+  .settings(Compile / unmanagedSourceDirectories += file("../dependencies/p2e-runner/platform/tape-env/src/main/scala"))
   .settings(commonSettings)

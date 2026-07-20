@@ -26,5 +26,8 @@ project/project/
 .sbt
 .classpath_cache/
 .coursier-cache/
+.p2e/
+/waveforms/p2e/
+p2e.toml
 .vscode/
 tests/build/

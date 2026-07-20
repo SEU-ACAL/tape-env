@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+runner_root="$project_root/dependencies/p2e-runner"
+manifest="$runner_root/Cargo.toml"
+
+case "${1:-}" in
+  build)
+    shift
+    set -- remote build "$@"
+    ;;
+  run)
+    shift
+    set -- remote run "$@"
+    ;;
+  configure-password)
+    shift
+    set -- remote configure-password "$@"
+    ;;
+  help|-h|--help|"")
+    cat <<'EOF'
+Usage:
+  p2e build [--case-name NAME] [--results-dir DIR]
+  p2e run --image WORKLOAD [--case-name NAME]
+  p2e configure-password
+
+The project defaults are read from p2e.toml. `p2e run` uses the most recently
+successfully built case when --case-name is omitted.
+EOF
+    exit 0
+    ;;
+esac
+
+if [[ ! -f "$manifest" ]]; then
+  echo "p2e-runner submodule is not initialized: $runner_root" >&2
+  echo "Run: git submodule update --init --recursive dependencies/p2e-runner" >&2
+  exit 1
+fi
+
+# Keep the P2E Rust/SSH toolchain in the p2e-runner submodule. The Tapeout
+# development shell only supplies the Chisel/FPGA generator environment.
+exec nix develop "path:$runner_root" --command cargo run \
+  --manifest-path "$manifest" --release -- \
+  --config "$project_root/p2e.toml" "$@"

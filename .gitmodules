@@ -31,3 +31,7 @@
 [submodule "applications/zephyr"]
 	path = applications/zephyr
 	url = https://github.com/ucb-bar/zephyr.git
+[submodule "dependencies/p2e-runner"]
+	path = dependencies/p2e-runner
+	url = git@github.com:SEU-ACAL/p2e_runner.git
+	branch = main

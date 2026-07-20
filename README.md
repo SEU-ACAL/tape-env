@@ -15,6 +15,8 @@ FPGA 加速仿真及其配套编译栈不属于本仓库；FireMarshal 是独立
 - `dependencies/`：非 SoC 生成器依赖，例如 DRAMSim2、CDE 和 FPGA shells。
 - `.github/`：CI 工作流与回归脚本。
 
+远端 HPEC P2E 构建与运行流程见 [P2E.md](P2E.md)。
+
 ## 前置条件
 
 支持的开发环境为 Linux 上的 Nix Flake。需要预先安装 Git 和启用 Flake 的 Nix；

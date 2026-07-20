@@ -210,7 +210,7 @@ EOF
 
           shellHook = ''
             export CY_DIR="$PWD"
-            export PATH="$VERDI_HOME/bin:$VCS_HOME/bin:$RISCV/bin:$PATH"
+            export PATH="$CY_DIR/bin:$VERDI_HOME/bin:$VCS_HOME/bin:$RISCV/bin:$PATH"
             export LD_LIBRARY_PATH="${pkgs.zlib}/lib:''${LD_LIBRARY_PATH:-}"
             # VCS's Ubuntu mode exports CPATH=/usr/include/x86_64-linux-gnu
             # to its generated C-source build.  That mixes host glibc bits

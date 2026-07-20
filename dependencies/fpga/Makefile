@@ -44,6 +44,22 @@ ifeq ($(SUB_PROJECT),vcu118)
 	FPGA_BRAND        ?= xilinx
 endif
 
+ifeq ($(SUB_PROJECT),hpec-p2e)
+	SBT_PROJECT       ?= chipyard_fpga
+	MODEL             ?= P2ETop
+	VLOG_MODEL        ?= P2ETop
+	MODEL_PACKAGE     ?= chipyard.p2e.hpec
+	CONFIG            ?= HpecP2ETapeoutConfig
+	CONFIG_PACKAGE    ?= chipyard.p2e.hpec
+	GENERATOR_PACKAGE ?= chipyard
+	TB                ?= none # unused
+	TOP               ?= ChipTop
+	BOARD             ?= hpec-p2e
+	FPGA_BRAND        ?= hpec
+	HPEC_P2E_PLATFORM_DIR := $(abspath ../p2e-runner/platform/tape-env/src)
+	EXTRA_GENERATOR_REQS += $(shell find $(HPEC_P2E_PLATFORM_DIR) -type f -name '*.scala')
+endif
+
 ifeq ($(SUB_PROJECT),nexysvideo)
 	SBT_PROJECT       ?= chipyard_fpga
 	MODEL             ?= NexysVideoHarness
@@ -133,6 +149,10 @@ $(sim_files): $(SIM_FILE_REQS) $(ALL_MODS_FILELIST) | $(GEN_COLLATERAL_DIR)
 # import other necessary rules and variables
 #########################################################################################
 include $(base_dir)/common.mk
+
+ifeq ($(SUB_PROJECT),hpec-p2e)
+$(GENERATOR_CLASSPATH): $(shell find $(HPEC_P2E_PLATFORM_DIR) -type f -name '*.scala')
+endif
 
 #########################################################################################
 # copy from other directory
