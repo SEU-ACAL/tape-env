@@ -1,0 +1,17 @@
+{
+  "name": "p2e-br-base",
+  "distro": {
+    "name": "br",
+    "opts": {
+      "configs": ["../../../../../configs/buildroot-p2e.defconfig"]
+    }
+  },
+  "linux": {
+    "source": "../../../../../linux",
+    "config": "../../../../../configs/linux-base.config",
+    "modules": {}
+  },
+  "firmware": {
+    "opensbi-src": "../../../../../opensbi"
+  }
+}

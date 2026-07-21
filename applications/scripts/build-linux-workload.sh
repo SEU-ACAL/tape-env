@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
 
-# Build a FireMarshal Linux workload for the Chipyard/Tapeout platform. The
-# default embeds the rootfs into the boot ELF because P2E has no disk device.
+# Build a trimmed FireMarshal Linux workload for Tapeout. The default embeds
+# the rootfs into the boot ELF because P2E has no disk device.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(git -C "${SCRIPT_DIR}/../.." rev-parse --show-toplevel)"
-FIREMARSHAL_DIR="${REPO_ROOT}/applications/firemarshal"
-DEFAULT_CONFIG="${REPO_ROOT}/applications/linux/workloads/poweroff.json"
+FIREMARSHAL_DIR="${REPO_ROOT}/applications/linux-workloads/firemarshal"
+DEFAULT_CONFIG="${REPO_ROOT}/applications/linux-workloads/workloads/poweroff.json"
+HTIF_CONSOLE_CONFIG="${REPO_ROOT}/applications/linux-workloads/workloads/htif-console.json"
+FIRESIM_CONFIG="${REPO_ROOT}/applications/linux-workloads/workloads/firesim-poweroff.json"
 CONFIG="${DEFAULT_CONFIG}"
-OUTPUT_DIR="${REPO_ROOT}/applications/linux/build"
+CONFIG_EXPLICIT=0
+OUTPUT_DIR="${REPO_ROOT}/applications/linux-workloads/build"
 NO_DISK=1
+VERIFY_SPIKE=0
+HTIF_CONSOLE=0
+FIRESIM=0
 JOBS="${FIREMARSHAL_JOBS:-}"
 
 usage() {
@@ -22,13 +28,16 @@ Build a FireMarshal Buildroot Linux workload for Tapeout/P2E.
 
 Options:
   --config PATH    FireMarshal workload configuration (default: poweroff.json)
-  --output DIR     Artifact root (default: applications/linux/build)
-  --disk           Build a disk-backed image instead of P2E's initramfs ELF
+  --output DIR     Artifact root (default: applications/linux-workloads/build)
+  --disk           Build a disk-backed image without installing it to FireSim
+  --firesim        Build and install the FireSim disk workload
+  --htif-console   Build the P2E debugging workload with Linux output over HTIF
+  --verify-spike   Launch the completed no-disk workload in Spike
   --jobs N         Parallel build jobs (default: FireMarshal auto-detect)
   -h, --help       Show this help text
 
 The default output is a P2E-loadable ELF at:
-  <output>/chipyard/tape-env-linux-poweroff/tape-env-linux-poweroff-bin-nodisk
+  <output>/tape-env/tape-env-linux-poweroff/tape-env-linux-poweroff-bin-nodisk
 EOF
 }
 
@@ -37,6 +46,7 @@ while [[ $# -gt 0 ]]; do
     --config)
       [[ $# -ge 2 ]] || { echo "--config requires a path" >&2; exit 2; }
       CONFIG="$2"
+      CONFIG_EXPLICIT=1
       shift 2
       ;;
     --output)
@@ -46,6 +56,20 @@ while [[ $# -gt 0 ]]; do
       ;;
     --disk)
       NO_DISK=0
+      shift
+      ;;
+    --htif-console)
+      CONFIG="${HTIF_CONSOLE_CONFIG}"
+      HTIF_CONSOLE=1
+      shift
+      ;;
+    --firesim)
+      FIRESIM=1
+      NO_DISK=0
+      shift
+      ;;
+    --verify-spike)
+      VERIFY_SPIKE=1
       shift
       ;;
     --jobs)
@@ -65,6 +89,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ "${FIRESIM}" -eq 1 && "${CONFIG_EXPLICIT}" -eq 0 ]]; then
+  CONFIG="${FIRESIM_CONFIG}"
+fi
+
 if [[ -z "${IN_NIX_SHELL:-}" ]]; then
   echo "Run this script from the Tapeout Nix development shell:" >&2
   echo "  nix develop --command applications/scripts/build-linux-workload.sh" >&2
@@ -83,14 +111,37 @@ if [[ ! -f "${CONFIG}" ]]; then
   exit 1
 fi
 
+if [[ "${CONFIG}" == "${HTIF_CONSOLE_CONFIG}" ]]; then
+  HTIF_CONSOLE=1
+fi
+
+if [[ "${FIRESIM}" -eq 1 && "${HTIF_CONSOLE}" -eq 1 ]]; then
+  echo "--firesim cannot be combined with --htif-console." >&2
+  exit 2
+fi
+
+# Spike places its DTB in its ROM, while the P2E OpenSBI payload deliberately
+# reads the HPEC DTB from the DDR-preloaded address. Treating a Spike launch as
+# a P2E HTIF validation would therefore produce a misleading boot failure.
+if [[ "${HTIF_CONSOLE}" -eq 1 && "${VERIFY_SPIKE}" -eq 1 ]]; then
+  echo "--verify-spike is not supported with --htif-console; run this workload through P2E DDR preload." >&2
+  exit 2
+fi
+
 if [[ -n "${JOBS}" && ! "${JOBS}" =~ ^[1-9][0-9]*$ ]]; then
   echo "--jobs must be a positive integer: ${JOBS}" >&2
   exit 2
 fi
 
-git -C "${REPO_ROOT}" submodule update --init applications/firemarshal
+git -C "${REPO_ROOT}" submodule update --init \
+  applications/linux-workloads/buildroot \
+  applications/linux-workloads/busybox \
+  applications/linux-workloads/iceblk-driver \
+  applications/linux-workloads/icenet-driver \
+  applications/linux-workloads/linux \
+  applications/linux-workloads/opensbi
 if [[ ! -x "${FIREMARSHAL_DIR}/marshal" ]]; then
-  echo "FireMarshal submodule is unavailable: ${FIREMARSHAL_DIR}" >&2
+  echo "Trimmed FireMarshal scripts are unavailable: ${FIREMARSHAL_DIR}" >&2
   exit 1
 fi
 
@@ -100,30 +151,22 @@ fi
 # build and restore the upstream configuration on every exit path.
 BUSYBOX_CONFIG="${FIREMARSHAL_DIR}/wlutil/busybox-config"
 BUSYBOX_CONFIG_BACKUP="$(mktemp)"
-BUILDROOT_DISTRO="${FIREMARSHAL_DIR}/boards/default/distros/br/br.py"
+BUILDROOT_DISTRO="${FIREMARSHAL_DIR}/boards/tape-env/distros/br/br.py"
 BUILDROOT_DISTRO_BACKUP="$(mktemp)"
-BUILDROOT_HELPERS="${FIREMARSHAL_DIR}/boards/default/distros/br/buildroot/toolchain/helpers.mk"
+BUILDROOT_HELPERS="${FIREMARSHAL_DIR}/boards/tape-env/distros/br/buildroot/toolchain/helpers.mk"
 BUILDROOT_HELPERS_BACKUP="$(mktemp)"
-COREUTILS_MK="${FIREMARSHAL_DIR}/boards/default/distros/br/buildroot/package/coreutils/coreutils.mk"
-COREUTILS_MK_BACKUP="$(mktemp)"
-PROCPS_NG_MK="${FIREMARSHAL_DIR}/boards/default/distros/br/buildroot/package/procps-ng/procps-ng.mk"
-PROCPS_NG_MK_BACKUP="$(mktemp)"
-FAKEROOT_FS_COMMON_MK="${FIREMARSHAL_DIR}/boards/default/distros/br/buildroot/fs/common.mk"
+FAKEROOT_FS_COMMON_MK="${FIREMARSHAL_DIR}/boards/tape-env/distros/br/buildroot/fs/common.mk"
 FAKEROOT_FS_COMMON_MK_BACKUP="$(mktemp)"
 cp "${BUSYBOX_CONFIG}" "${BUSYBOX_CONFIG_BACKUP}"
 cp "${BUILDROOT_DISTRO}" "${BUILDROOT_DISTRO_BACKUP}"
 cp "${BUILDROOT_HELPERS}" "${BUILDROOT_HELPERS_BACKUP}"
-cp "${COREUTILS_MK}" "${COREUTILS_MK_BACKUP}"
-cp "${PROCPS_NG_MK}" "${PROCPS_NG_MK_BACKUP}"
 cp "${FAKEROOT_FS_COMMON_MK}" "${FAKEROOT_FS_COMMON_MK_BACKUP}"
 restore_firemarshal_files() {
   cp "${BUSYBOX_CONFIG_BACKUP}" "${BUSYBOX_CONFIG}"
   cp "${BUILDROOT_DISTRO_BACKUP}" "${BUILDROOT_DISTRO}"
   cp "${BUILDROOT_HELPERS_BACKUP}" "${BUILDROOT_HELPERS}"
-  cp "${COREUTILS_MK_BACKUP}" "${COREUTILS_MK}"
-  cp "${PROCPS_NG_MK_BACKUP}" "${PROCPS_NG_MK}"
   cp "${FAKEROOT_FS_COMMON_MK_BACKUP}" "${FAKEROOT_FS_COMMON_MK}"
-  rm -f "${BUSYBOX_CONFIG_BACKUP}" "${BUILDROOT_DISTRO_BACKUP}" "${BUILDROOT_HELPERS_BACKUP}" "${COREUTILS_MK_BACKUP}" "${PROCPS_NG_MK_BACKUP}" "${FAKEROOT_FS_COMMON_MK_BACKUP}"
+  rm -f "${BUSYBOX_CONFIG_BACKUP}" "${BUILDROOT_DISTRO_BACKUP}" "${BUILDROOT_HELPERS_BACKUP}" "${FAKEROOT_FS_COMMON_MK_BACKUP}"
 }
 trap restore_firemarshal_files EXIT
 sed -i \
@@ -151,26 +194,11 @@ perl -0pi -e 's{        urllib\.request\.urlretrieve\(fakerootSite \+ "/" \+ fak
 perl -0pi -e 's/if \[\[ ! "\$\$\{real_version\}\." =~ \^\$\$\{expected_version\}\\\. \]\] ; then \\\n/if [ "\$\${real_version%%.*}" -lt "\$\${expected_version}" ] ; then \\\n/' \
   "${BUILDROOT_HELPERS}"
 
-# Coreutils 9.3's Buildroot cache assumes POSIX strerror_r(), but Nix glibc
-# exposes the GNU char*-returning variant when Coreutils enables GNU APIs.
-sed -i 's/ac_cv_func_strerror_r_char_p=no/ac_cv_func_strerror_r_char_p=yes/' "${COREUTILS_MK}"
-
-# Procps 3.3.17 treats an implicit pidfd_open declaration as a usable glibc
-# function. Let its existing __NR_pidfd_open fallback handle current glibc.
-printf '\nPROCPS_NG_CONF_ENV += ac_cv_func_pidfd_open=no\n' >> "${PROCPS_NG_MK}"
-
 # fakeroot preloads a host library built by Nix.  Preserve Buildroot's normal
 # /bin/sh shebang, but invoke its generated script through the Nix shell so
 # the preloaded library and the interpreter use the same glibc ABI.
 nix_bash="$(command -v bash)"
 sed -i 's|$$(HOST_DIR)/bin/fakeroot -- $$(FAKEROOT_SCRIPT)|$$(HOST_DIR)/bin/fakeroot -- '"${nix_bash}"' $$(FAKEROOT_SCRIPT)|' "${FAKEROOT_FS_COMMON_MK}"
-
-# FireMarshal keeps Linux, OpenSBI, Buildroot, and BusyBox as nested
-# submodules. This is idempotent and makes the command usable after a clone.
-(
-  cd "${FIREMARSHAL_DIR}"
-  ./init-submodules.sh
-)
 
 if [[ -n "${FIREMARSHAL_RISCV:-}" ]]; then
   export RISCV="${FIREMARSHAL_RISCV}"
@@ -184,7 +212,7 @@ fi
 # Buildroot's toolchain-wrapper embeds the absolute external-toolchain path.
 # Reconfigure it only when nix develop has supplied a different toolchain;
 # package and download caches remain intact.
-BUILDROOT_DIR="${FIREMARSHAL_DIR}/boards/default/distros/br/buildroot"
+BUILDROOT_DIR="${FIREMARSHAL_DIR}/boards/tape-env/distros/br/buildroot"
 BUILDROOT_WRAPPER="${BUILDROOT_DIR}/output/host/bin/toolchain-wrapper"
 if [[ -f "${BUILDROOT_DIR}/.config" && -x "${BUILDROOT_WRAPPER}" ]] \
   && ! grep -aFq -- "${RISCV}/bin/%s" "${BUILDROOT_WRAPPER}"; then
@@ -201,22 +229,18 @@ if [[ -f "${BUILDROOT_DIR}/.config" && -x "${BUILDROOT_WRAPPER}" ]] \
   )
 fi
 
-COREUTILS_BUILD_DIR="${BUILDROOT_DIR}/output/build/coreutils-9.3"
-if [[ -f "${COREUTILS_BUILD_DIR}/.stamp_configured" && ! -f "${COREUTILS_BUILD_DIR}/.stamp_built" ]]; then
-  echo "Refreshing incomplete Buildroot coreutils configuration..."
-  (
-    cd "${BUILDROOT_DIR}"
-    make coreutils-reconfigure
-  )
-fi
-
-PROCPS_NG_BUILD_DIR="${BUILDROOT_DIR}/output/build/procps-ng-3.3.17"
-if [[ -f "${PROCPS_NG_BUILD_DIR}/.stamp_configured" && ! -f "${PROCPS_NG_BUILD_DIR}/.stamp_built" ]]; then
-  echo "Refreshing incomplete Buildroot procps-ng configuration..."
-  (
-    cd "${BUILDROOT_DIR}"
-    make procps-ng-reconfigure
-  )
+# Early revisions of the Nix compatibility hook changed the loader's own
+# RPATH. The loader is self-relocating and must be restored from the external
+# toolchain before Buildroot repackages an existing output tree.
+TARGET_LOADER="${BUILDROOT_DIR}/output/target/lib/ld-linux-riscv64-lp64d.so.1"
+if [[ -f "${TARGET_LOADER}" ]] && readelf -d "${TARGET_LOADER}" 2>/dev/null | grep -qE 'RPATH|RUNPATH'; then
+  TOOLCHAIN_LOADER="$("${RISCV}/bin/riscv64-unknown-linux-gnu-gcc" -print-file-name=ld-linux-riscv64-lp64d.so.1)"
+  if [[ ! -f "${TOOLCHAIN_LOADER}" ]]; then
+    echo "Cannot restore dynamic loader from toolchain: ${TOOLCHAIN_LOADER}" >&2
+    exit 1
+  fi
+  echo "Restoring unmodified external-toolchain dynamic loader..."
+  install -m 0755 "${TOOLCHAIN_LOADER}" "${TARGET_LOADER}"
 fi
 
 if ! command -v guestmount >/dev/null 2>&1; then
@@ -227,7 +251,7 @@ fi
 
 mkdir -p "${OUTPUT_DIR}" "${OUTPUT_DIR}/logs" "${OUTPUT_DIR}/run-output"
 
-export MARSHAL_BOARD_DIR="${FIREMARSHAL_DIR}/boards/chipyard"
+export MARSHAL_BOARD_DIR="${FIREMARSHAL_DIR}/boards/tape-env"
 export MARSHAL_IMAGE_DIR="${OUTPUT_DIR}"
 export MARSHAL_LOG_DIR="${OUTPUT_DIR}/logs"
 export MARSHAL_RES_DIR="${OUTPUT_DIR}/run-output"
@@ -244,3 +268,24 @@ marshal_args+=(build "${CONFIG}")
 
 cd "${REPO_ROOT}"
 "${FIREMARSHAL_DIR}/marshal" "${marshal_args[@]}"
+
+if [[ "${HTIF_CONSOLE}" -eq 1 ]]; then
+  "${SCRIPT_DIR}/build-p2e-htif-dtb.sh" \
+    --output "${OUTPUT_DIR}/tape-env/tape-env-linux-htif-console/tape-env-linux-htif-console.dtb"
+fi
+
+if [[ "${FIRESIM}" -eq 1 ]]; then
+  "${FIREMARSHAL_DIR}/marshal" \
+    --workdir "$(dirname "${CONFIG}")" \
+    install "${CONFIG}"
+fi
+
+if [[ "${VERIFY_SPIKE}" -eq 1 ]]; then
+  if [[ "${NO_DISK}" -ne 1 ]]; then
+    echo "--verify-spike requires the default no-disk workload mode" >&2
+    exit 2
+  fi
+  "${FIREMARSHAL_DIR}/marshal" \
+    --workdir "$(dirname "${CONFIG}")" \
+    --no-disk launch --spike "${CONFIG}"
+fi

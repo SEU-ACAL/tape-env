@@ -28,16 +28,17 @@ files.
 
 ## Linux workloads
 
-`applications/firemarshal` is a pinned FireMarshal submodule for generating
-Buildroot Linux workloads. The default workload uses the Chipyard board
-configuration and embeds the root filesystem in an initramfs. This is required
-by the current Tapeout/P2E platform, which has no FireMarshal block-device
-path.
+`applications/linux-workloads/firemarshal` contains a trimmed, repository-owned
+FireMarshal script layer for generating Buildroot Linux workloads. Linux,
+OpenSBI, Buildroot, BusyBox, and FireSim drivers are pinned as direct
+submodules. The default workload embeds the root filesystem in an initramfs,
+which is required by the current Tapeout/P2E platform because it has no block
+device path.
 
-Initialize FireMarshal once after cloning:
+Initialize Linux workload dependencies once after cloning:
 
 ```bash
-./init-submodules.sh --firemarshal
+./init-submodules.sh --linux
 ```
 
 Build the default Linux smoke workload from the development shell:
@@ -49,11 +50,10 @@ nix develop --command applications/scripts/build-linux-workload.sh
 The resulting initramfs ELF, suitable as the P2E workload input, is:
 
 ```text
-applications/linux/build/chipyard/tape-env-linux-poweroff/tape-env-linux-poweroff-bin-nodisk
+applications/linux-workloads/build/tape-env/tape-env-linux-poweroff/tape-env-linux-poweroff-bin-nodisk
 ```
 
-Pass `--config PATH` to build another FireMarshal workload and `--output DIR`
-to place artifacts elsewhere. `--disk` produces the conventional boot ELF plus
-an ext2 image for a platform with a block device; it is not runnable on the
-current P2E harness. See [linux/README.md](linux/README.md) for workload layout
-and P2E invocation.
+Pass `--config PATH` to build another workload and `--output DIR` to place
+artifacts elsewhere. `--firesim` builds the disk image and installs its
+workload descriptor to FireSim. See [linux/README.md](linux/README.md) for
+workload layout and P2E invocation.

@@ -40,20 +40,20 @@ function usage
     echo "Usage: $0 <options>"
     echo "Initialize Chipyard submodules"
     echo "By default, this will only initialize minimally required submodules"
-    echo "Enable the full checkout or optional Gemmini, FireMarshal, and P2E sources"
+    echo "Enable the full checkout or optional Gemmini, Linux workload, and P2E sources"
     echo ""
     echo "Options:"
     echo "  -h            Display this help message"
     echo "  --full        Initialize all submodules"
     echo "  --gemmini     Initialize the optional Gemmini accelerator submodule"
-    echo "  --firemarshal Initialize FireMarshal and its Linux workload dependencies"
+    echo "  --linux       Initialize Linux workload build dependencies"
     echo "  --p2e         Initialize the optional P2E runner submodule"
     echo ""
 }
 
 ENABLE_FULL=0
 ENABLE_GEMMINI=0
-ENABLE_FIREMARSHAL=0
+ENABLE_LINUX=0
 ENABLE_P2E=0
 
 while test $# -gt 0
@@ -71,8 +71,8 @@ do
 	--gemmini)
 	    ENABLE_GEMMINI=1
 	    ;;
-        --firemarshal)
-            ENABLE_FIREMARSHAL=1
+        --linux|--firemarshal)
+            ENABLE_LINUX=1
             ;;
         --p2e)
             ENABLE_P2E=1
@@ -117,19 +117,23 @@ update_submodule() {
     fi
 }
 
-init_firemarshal() {
-    update_submodule applications/firemarshal
-    submodule_name="applications/firemarshal Linux workload dependencies"
-    (
-        cd applications/firemarshal
-        ./init-submodules.sh
+init_linux_workloads() {
+    local linux_submodules=(
+        applications/linux-workloads/buildroot
+        applications/linux-workloads/busybox
+        applications/linux-workloads/iceblk-driver
+        applications/linux-workloads/icenet-driver
+        applications/linux-workloads/linux
+        applications/linux-workloads/opensbi
     )
+    submodule_name="Linux workload build dependencies"
+    git submodule update --init "${linux_submodules[@]}"
 }
 
-# FireMarshal is self-contained. Keep the focused optional initialization from
-# updating unrelated Chipyard generator submodules in an existing workspace.
-if [[ "$ENABLE_FIREMARSHAL" -eq 1 && "$ENABLE_FULL" -eq 0 && "$ENABLE_GEMMINI" -eq 0 && "$ENABLE_P2E" -eq 0 ]]; then
-    init_firemarshal
+# Keep the focused optional initialization from updating unrelated generator
+# submodules in an existing workspace.
+if [[ "$ENABLE_LINUX" -eq 1 && "$ENABLE_FULL" -eq 0 && "$ENABLE_GEMMINI" -eq 0 && "$ENABLE_P2E" -eq 0 ]]; then
+    init_linux_workloads
     exit 0
 fi
 
@@ -141,7 +145,12 @@ else
         soc-generator/generator/gemmini
         soc-generator/generator/rocket-chip
         applications/zephyr
-        applications/firemarshal
+        applications/linux-workloads/buildroot
+        applications/linux-workloads/busybox
+        applications/linux-workloads/iceblk-driver
+        applications/linux-workloads/icenet-driver
+        applications/linux-workloads/linux
+        applications/linux-workloads/opensbi
         dependencies/p2e-runner
     )
 
@@ -164,8 +173,8 @@ else
         git -C soc-generator/generator/gemmini submodule update --init --recursive software/gemmini-rocc-tests
     fi
 
-    if [[ "$ENABLE_FIREMARSHAL" -eq 1 ]]; then
-        init_firemarshal
+    if [[ "$ENABLE_LINUX" -eq 1 ]]; then
+        init_linux_workloads
     fi
 
     if [[ "$ENABLE_P2E" -eq 1 ]]; then

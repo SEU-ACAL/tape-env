@@ -1,0 +1,14 @@
+# Tapeout's trimmed FireMarshal configuration. The workload wrapper overrides
+# these paths for P2E and FireSim builds when necessary.
+firesim-dir: '../../../soc-generator/sims/firesim'
+workload-dirs: []
+board-dir: 'boards/tape-env'
+image-dir: '../build'
+log-dir: '../build/logs'
+res-dir: '../build/run-output'
+mount-dir: '../build/mount'
+jlevel: null
+rootfs-margin: '256MiB'
+doitOpts:
+  verbosity: 2
+  dep_file: ''

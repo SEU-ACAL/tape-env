@@ -1,11 +1,11 @@
 {
   "name": "tape-env-linux-poweroff",
-  "base": "br-base.json",
+  "base": "p2e-br-base.json",
   "distro": {
     "name": "br",
     "opts": {
       "configs": ["buildroot-mirror.config"]
     }
   },
-  "command": "echo 'Tapeout FireMarshal Linux workload booted'; poweroff"
+  "command": "echo 'Tapeout FireMarshal Linux workload booted'"
 }
