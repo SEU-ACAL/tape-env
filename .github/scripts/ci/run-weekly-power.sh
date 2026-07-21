@@ -10,8 +10,8 @@ source "${SCRIPT_DIR}/lib.sh"
 
 SYNTHESIS_CONFIG="${SYNTHESIS_CONFIG:-TapeoutConfig}"
 TOP_MODULE="${TOP_MODULE:-ChipTop}"
-PT_SHELL_BIN="${PT_SHELL_BIN:-pt_shell}"
-FSDB2SAIF_BIN="${FSDB2SAIF_BIN:-fsdb2saif}"
+DC_CONTAINER="${DC_CONTAINER:-ci_env}"
+PT_SHELL_BIN="${PT_SHELL_BIN:-/data0/tools/Synopsys/ptpx/prime/W-2024.09-SP1/bin/pt_shell}"
 POWER_WORKLOAD="${POWER_WORKLOAD:-/data2/ci-workloads/hello.riscv}"
 POWER_RANDOM_SEED="${POWER_RANDOM_SEED:-1}"
 POWER_START_NS="${POWER_START_NS:-1000}"
@@ -51,7 +51,7 @@ write_power_summary() {
     echo "| Metric | Value |"
     echo "| --- | ---: |"
     echo "| Workload | \`${POWER_WORKLOAD##*/}\` |"
-    echo "| Activity source | Zero-delay GLS FSDB -> SAIF after ${POWER_START_NS} ns |"
+    echo "| Activity source | Zero-delay GLS FSDB after ${POWER_START_NS} ns |"
     if [[ -f "${power_report}" ]]; then
       internal_power="$(awk -F= '/^  Cell Internal Power/ { sub(/^[[:space:]]+/, "", $2); split($2, value, /[[:space:]]+/); print value[1]; exit }' "${power_report}")"
       switching_power="$(awk -F= '/^  Net Switching Power/ { sub(/^[[:space:]]+/, "", $2); split($2, value, /[[:space:]]+/); print value[1]; exit }' "${power_report}")"
@@ -93,16 +93,22 @@ mkdir -p "${POWER_FLOW_DIR}"
 cp -a "${SYNTHESIS_WORKBENCH}/3-Pre_PR_NETSIM" "${POWER_GLS_DIR}"
 cp -a "${SYNTHESIS_WORKBENCH}/4-Pre_PR_STA_POWER" "${POWER_PT_DIR}"
 
+power_sim_config="chipyard.harness.TestHarness.${SYNTHESIS_CONFIG}"
+power_gls_gen_dir="${POWER_GLS_DIR}/gen/${power_sim_config}/${run_label}"
+power_fsdb="${power_gls_gen_dir}/run-zero.fsdb"
+power_report_dir="${POWER_PT_DIR}/outputs/${run_label}/zero-fsdb"
+
+if [[ "$(docker inspect --format '{{.State.Running}}' "${DC_CONTAINER}" 2>/dev/null || true)" != "true" ]]; then
+  echo "The PrimeTime container is not running: ${DC_CONTAINER}" >&2
+  exit 1
+fi
+
 export POWER_GLS_DIR POWER_PT_DIR POWER_WORKLOAD POWER_RANDOM_SEED POWER_START_NS
-export STD_CELL_MODEL STD_CELL_DB SRAM_ROOT SRAM_CORNER PT_SHELL_BIN FSDB2SAIF_BIN
+export STD_CELL_MODEL STD_CELL_DB SRAM_ROOT SRAM_CORNER PT_SHELL_BIN
 export REPO_ROOT SYNTHESIS_CONFIG netlist constraint_sdc run_label
 
+set +e
 run_in_nix '
-  power_sim_config="chipyard.harness.TestHarness.${SYNTHESIS_CONFIG}"
-  power_gls_gen_dir="${POWER_GLS_DIR}/gen/${power_sim_config}/${run_label}"
-  power_fsdb="${power_gls_gen_dir}/run-zero.fsdb"
-  power_saif="${POWER_PT_DIR}/outputs/${run_label}/zero-fsdb/run-zero.saif"
-  power_report_dir="${POWER_PT_DIR}/outputs/${run_label}/zero-fsdb"
   dramsim_dir="${REPO_ROOT}/dependencies/tools/DRAMSim2"
 
   make -C "${dramsim_dir}" libdramsim.a
@@ -133,22 +139,55 @@ run_in_nix '
     BINARY="${POWER_WORKLOAD}" \
     run_zero
 
-  make -C "${POWER_PT_DIR}" \
-    NETLIST_RUN="${run_label}" \
-    NETLIST="${netlist}" \
-    SDC="${constraint_sdc}" \
-    FSDB="${power_fsdb}" \
-    SAIF="${power_saif}" \
-    POWER_OUT_DIR="${power_report_dir}" \
-    POWER_START_NS="${POWER_START_NS}" \
-    STD_CELL_DB="${STD_CELL_DB}" \
-    SRAM_ROOT="${SRAM_ROOT}" \
-    SRAM_CORNER="${SRAM_CORNER}" \
-    PT_SHELL="${PT_SHELL_BIN}" \
-    FSDB2SAIF="${FSDB2SAIF_BIN}" \
-    power
 ' 2>&1 | tee "${POWER_FLOW_DIR}/power.log"
+gls_status=${PIPESTATUS[0]}
+set -e
+
+if [[ "${gls_status}" -ne 0 ]]; then
+  echo "GLS power activity generation failed with exit status ${gls_status}" >&2
+  exit "${gls_status}"
+fi
+
+set +e
+docker exec -i \
+  -e POWER_PT_DIR="${POWER_PT_DIR}" \
+  -e NETLIST_RUN="${run_label}" \
+  -e NETLIST="${netlist}" \
+  -e SDC="${constraint_sdc}" \
+  -e FSDB="${power_fsdb}" \
+  -e POWER_OUT_DIR="${power_report_dir}" \
+  -e POWER_START_NS="${POWER_START_NS}" \
+  -e STD_CELL_DB="${STD_CELL_DB}" \
+  -e SRAM_ROOT="${SRAM_ROOT}" \
+  -e SRAM_CORNER="${SRAM_CORNER}" \
+  -e PT_SHELL="${PT_SHELL_BIN}" \
+  "${DC_CONTAINER}" bash -lc '
+    set -euo pipefail
+    if [[ -z "${SYNOPSYS_LC_ROOT:-}" && -n "${LC_HOME:-}" ]]; then
+      export SYNOPSYS_LC_ROOT="${LC_HOME}"
+    fi
+    pt_version="$("${PT_SHELL}" -version 2>&1)"
+    if [[ "${pt_version}" != *"W-2024."* ]]; then
+      echo "PrimeTime W-2024 is required, but PT_SHELL reports:" >&2
+      echo "${pt_version}" >&2
+      exit 1
+    fi
+    printf "%s\n" "${pt_version}"
+    make -C "${POWER_PT_DIR}" \
+      NETLIST_RUN="${NETLIST_RUN}" \
+      NETLIST="${NETLIST}" \
+      SDC="${SDC}" \
+      FSDB="${FSDB}" \
+      POWER_OUT_DIR="${POWER_OUT_DIR}" \
+      POWER_START_NS="${POWER_START_NS}" \
+      STD_CELL_DB="${STD_CELL_DB}" \
+      SRAM_ROOT="${SRAM_ROOT}" \
+      SRAM_CORNER="${SRAM_CORNER}" \
+      PT_SHELL="${PT_SHELL}" \
+      power
+  ' 2>&1 | tee -a "${POWER_FLOW_DIR}/power.log"
 power_status=${PIPESTATUS[0]}
+set -e
 
 if [[ "${power_status}" -ne 0 ]]; then
   echo "PrimeTime power analysis failed with exit status ${power_status}" >&2
