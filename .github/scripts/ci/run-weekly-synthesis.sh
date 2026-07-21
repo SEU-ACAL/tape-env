@@ -238,3 +238,7 @@ if [[ "${dc_status}" -ne 0 ]]; then
   echo "Design Compiler failed with exit status ${dc_status}" >&2
   exit "${dc_status}"
 fi
+
+if [[ -n "${GITHUB_ENV:-}" ]]; then
+  echo "CI_SYNTHESIS_RUN_LABEL=${run_label}" >> "${GITHUB_ENV}"
+fi

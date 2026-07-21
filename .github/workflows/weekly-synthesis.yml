@@ -15,9 +15,9 @@ concurrency:
 
 jobs:
   synthesis:
-    name: Synthesize TapeoutConfig
-    # The runner must have a valid Design Compiler license and the mounted
-    # TSMC28 PDK paths used by Tapeout-Workbench.
+    name: Synthesize TapeoutConfig and report PT power
+    # The runner must have valid Design Compiler, VCS, PrimeTime, and Verdi
+    # licenses plus the TSMC28 PDK paths used by Tapeout-Workbench.
     runs-on: [self-hosted, linux, builder]
     timeout-minutes: 720
     env:
@@ -57,3 +57,11 @@ jobs:
             SYNTHESIS_WORKBENCH="${CI_TAPEOUT_WORKBENCH}" \
             CI_SYNTHESIS_RUN_ROOT="${CI_SYNTHESIS_RUN_ROOT}" \
             "${CI_CHIPYARD_WORKSPACE}/.github/scripts/ci/run-weekly-synthesis.sh"
+
+      - name: Run PrimeTime power analysis
+        run: |
+          env \
+            GITHUB_WORKSPACE="${CI_CHIPYARD_WORKSPACE}" \
+            SYNTHESIS_WORKBENCH="${CI_TAPEOUT_WORKBENCH}" \
+            CI_SYNTHESIS_RUN_ROOT="${CI_SYNTHESIS_RUN_ROOT}" \
+            "${CI_CHIPYARD_WORKSPACE}/.github/scripts/ci/run-weekly-power.sh"
