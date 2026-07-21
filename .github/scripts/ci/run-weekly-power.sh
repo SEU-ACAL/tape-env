@@ -105,7 +105,7 @@ fi
 
 export POWER_GLS_DIR POWER_PT_DIR POWER_WORKLOAD POWER_RANDOM_SEED POWER_START_NS
 export STD_CELL_MODEL STD_CELL_DB SRAM_ROOT SRAM_CORNER PT_SHELL_BIN
-export REPO_ROOT SYNTHESIS_CONFIG netlist constraint_sdc run_label
+export REPO_ROOT SYNTHESIS_CONFIG power_sim_config netlist constraint_sdc run_label
 
 set +e
 run_in_nix '
