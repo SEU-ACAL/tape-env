@@ -103,6 +103,10 @@ run_in_nix '
   power_fsdb="${power_gls_gen_dir}/run-zero.fsdb"
   power_saif="${POWER_PT_DIR}/outputs/${run_label}/zero-fsdb/run-zero.saif"
   power_report_dir="${POWER_PT_DIR}/outputs/${run_label}/zero-fsdb"
+  dramsim_dir="${REPO_ROOT}/dependencies/tools/DRAMSim2"
+
+  make -C "${dramsim_dir}" libdramsim.a
+  test -f "${dramsim_dir}/libdramsim.a"
 
   make -C "${POWER_GLS_DIR}" \
     TAPE_ENV="${REPO_ROOT}" \
