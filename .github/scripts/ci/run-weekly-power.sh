@@ -95,7 +95,7 @@ cp -a "${SYNTHESIS_WORKBENCH}/4-Pre_PR_STA_POWER" "${POWER_PT_DIR}"
 
 export POWER_GLS_DIR POWER_PT_DIR POWER_WORKLOAD POWER_RANDOM_SEED POWER_START_NS
 export STD_CELL_MODEL STD_CELL_DB SRAM_ROOT SRAM_CORNER PT_SHELL_BIN FSDB2SAIF_BIN
-export netlist constraint_sdc run_label
+export REPO_ROOT SYNTHESIS_CONFIG netlist constraint_sdc run_label
 
 run_in_nix '
   power_sim_config="chipyard.harness.TestHarness.${SYNTHESIS_CONFIG}"
