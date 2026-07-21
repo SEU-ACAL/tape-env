@@ -67,25 +67,6 @@ write_power_summary() {
   } >> "${GITHUB_STEP_SUMMARY}"
 }
 
-patch_gls_vcs_paths() {
-  local gls_makefile="${POWER_GLS_DIR}/Makefile"
-  local zero_rule=$'\t$(VCS) $(VCS_FLAGS) $(ZERO_VCS_FLAGS) $(WAVEFORM_VCS_FLAGS) -o $@ -Mdir=$(GEN_DIR)/$(ZERO_MDIR) -l $@.compile.log'
-  local sdf_rule=$'\t$(VCS) $(VCS_FLAGS) $(SDF_VCS_FLAGS) $(WAVEFORM_VCS_FLAGS) -o $@ -Mdir=$(GEN_DIR)/$(SDF_MDIR) -l $@.compile.log'
-
-  if [[ ! -f "${gls_makefile}" ]] \
-    || ! grep -Fqx "${zero_rule}" "${gls_makefile}" \
-    || ! grep -Fqx "${sdf_rule}" "${gls_makefile}"; then
-    echo "Unexpected GLS Makefile layout: ${gls_makefile}" >&2
-    exit 1
-  fi
-
-  # VCS W-2024 emits a self-referential archive symlink when these are absolute.
-  sed -i \
-    -e 's|^\t$(VCS) $(VCS_FLAGS) $(ZERO_VCS_FLAGS) $(WAVEFORM_VCS_FLAGS) -o $@ -Mdir=$(GEN_DIR)/$(ZERO_MDIR) -l $@.compile.log$|\tcd $(GEN_DIR) \&\& $(VCS) $(VCS_FLAGS) $(ZERO_VCS_FLAGS) $(WAVEFORM_VCS_FLAGS) -o $(notdir $@) -Mdir=$(ZERO_MDIR) -l $(notdir $@).compile.log|' \
-    -e 's|^\t$(VCS) $(VCS_FLAGS) $(SDF_VCS_FLAGS) $(WAVEFORM_VCS_FLAGS) -o $@ -Mdir=$(GEN_DIR)/$(SDF_MDIR) -l $@.compile.log$|\tcd $(GEN_DIR) \&\& $(VCS) $(VCS_FLAGS) $(SDF_VCS_FLAGS) $(WAVEFORM_VCS_FLAGS) -o $(notdir $@) -Mdir=$(SDF_MDIR) -l $(notdir $@).compile.log|' \
-    "${gls_makefile}"
-}
-
 trap write_power_summary EXIT
 
 for required_directory in 3-Pre_PR_NETSIM 4-Pre_PR_STA_POWER; do
@@ -111,7 +92,6 @@ rm -rf "${POWER_FLOW_DIR}"
 mkdir -p "${POWER_FLOW_DIR}"
 cp -a "${SYNTHESIS_WORKBENCH}/3-Pre_PR_NETSIM" "${POWER_GLS_DIR}"
 cp -a "${SYNTHESIS_WORKBENCH}/4-Pre_PR_STA_POWER" "${POWER_PT_DIR}"
-patch_gls_vcs_paths
 
 export POWER_GLS_DIR POWER_PT_DIR POWER_WORKLOAD POWER_RANDOM_SEED POWER_START_NS
 export STD_CELL_MODEL STD_CELL_DB SRAM_ROOT SRAM_CORNER PT_SHELL_BIN FSDB2SAIF_BIN
