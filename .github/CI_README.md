@@ -45,11 +45,21 @@ not CI validation.
 
 `Weekly Synthesis` runs at 02:00 Asia/Shanghai every Monday (18:00 UTC on
 Sunday), or manually through GitHub Actions. It generates
-`TapeoutConfig` with the TSMC28 SRAM macro mapping and runs the pinned
+`TapeoutConfig` with the TSMC28 SRAM macro mapping and runs the current
 `SEU-ACAL/Tapeout-Workbench` Design Compiler flow. The job must run on a
-self-hosted runner labeled `builder`, with an available Design
-Compiler license and the PDK mounts expected by the pinned flow. Design
+self-hosted runner labeled `builder`, with available Design Compiler, VCS,
+PrimeTime, and Verdi licenses and the PDK mounts expected by the flow. Design
 Compiler runs in the `ci_env` container through `docker exec -i ci_env bash -lc`;
-GitHub Actions has no TTY, so `-i` is used in place of `-it`. It does not upload
-implementation files. Its job summary reports total cell area and the worst
-setup slack for I2R, R2R, R2O, and I2O paths.
+GitHub Actions has no TTY, so `-i` is used in place of `-it`.
+
+The job has separate `Generate RTL and run Design Compiler` and `Run PrimeTime
+power analysis` steps. The latter runs a zero-delay VCS gate-level simulation
+of the default `/data2/ci-workloads/hello.riscv` workload, converts its FSDB to
+SAIF after the first 1000 ns, and reports averaged PrimeTime power. The
+workload, activity start time, tool binaries, and technology paths can be
+overridden with `POWER_WORKLOAD`, `POWER_START_NS`, `PT_SHELL_BIN`,
+`FSDB2SAIF_BIN`, `STD_CELL_MODEL`, `STD_CELL_DB`, `SRAM_ROOT`, and
+`SRAM_CORNER`. The power result is a workload-based pre-layout estimate, not a
+signoff result. The job does not upload implementation files. Its job summary
+reports total cell area, the worst setup slack for I2R, R2R, R2O, and I2O paths,
+and PrimeTime internal, switching, leakage, and total power.
