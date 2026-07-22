@@ -9,6 +9,7 @@ source "${SCRIPT_DIR}/lib.sh"
 : "${CI_SYNTHESIS_RUN_ROOT:?CI_SYNTHESIS_RUN_ROOT must be set}"
 
 SYNTHESIS_CONFIG="${SYNTHESIS_CONFIG:-TapeoutConfig}"
+SYNTHESIS_TECH="${SYNTHESIS_TECH:-smic180}"
 TOP_MODULE="${TOP_MODULE:-ChipTop}"
 DC_CONTAINER="${DC_CONTAINER:-ci_env}"
 DC_SHELL_BIN="${DC_SHELL_BIN:-dc_shell}"
@@ -20,6 +21,19 @@ SBT_CACHE_ROOT="${CI_CACHE_ROOT}/sbt/synthesis/${CI_CACHE_KEY}"
 CI_COURSIER_CACHE="${CI_CACHE_ROOT}/coursier/synthesis/${CI_CACHE_KEY}"
 CI_SBT_OPTS="-Dsbt.ivy.home=${SBT_CACHE_ROOT}/ivy -Dsbt.global.base=${SBT_CACHE_ROOT}/global -Dsbt.boot.directory=${SBT_CACHE_ROOT}/boot -Dsbt.color=always -Dsbt.supershell=false -Dsbt.server.forcestart=true"
 FLOW_DIR="${CI_SYNTHESIS_RUN_ROOT}/dc-flow"
+
+case "${SYNTHESIS_TECH}" in
+  smic180)
+    CLOCK_PERIOD="${CLOCK_PERIOD:-2.0}"
+    ;;
+  tsmc28)
+    CLOCK_PERIOD="${CLOCK_PERIOD:-1.0}"
+    ;;
+  *)
+    echo "Unsupported SYNTHESIS_TECH: ${SYNTHESIS_TECH}" >&2
+    exit 1
+    ;;
+esac
 
 extract_sdc_values() {
   local command="$1" sdc_file="$2"
@@ -156,6 +170,10 @@ if [[ ! -d "${SYNTHESIS_WORKBENCH}/2-SYN" ]]; then
   echo "Tapeout-Workbench does not contain 2-SYN: ${SYNTHESIS_WORKBENCH}" >&2
   exit 1
 fi
+if [[ ! -f "${SYNTHESIS_WORKBENCH}/2-SYN/scripts/tech/${SYNTHESIS_TECH}.tcl" ]]; then
+  echo "Tapeout-Workbench does not provide the ${SYNTHESIS_TECH} technology setup" >&2
+  exit 1
+fi
 
 git -C "${REPO_ROOT}" submodule sync --recursive
 git -C "${REPO_ROOT}" submodule update --init soc-generator/generator/gemmini
@@ -163,7 +181,7 @@ git -C "${REPO_ROOT}" submodule update --init soc-generator/generator/gemmini
 mkdir -p "${CI_CLASSPATH_CACHE}" "${CI_COURSIER_CACHE}" \
   "${SBT_CACHE_ROOT}/ivy" "${SBT_CACHE_ROOT}/global" "${SBT_CACHE_ROOT}/boot"
 
-export CI_CLASSPATH_CACHE CI_COURSIER_CACHE SBT_CACHE_ROOT CI_SBT_OPTS SYNTHESIS_CONFIG
+export CI_CLASSPATH_CACHE CI_COURSIER_CACHE SBT_CACHE_ROOT CI_SBT_OPTS SYNTHESIS_CONFIG SYNTHESIS_TECH
 JAVA_TMP_DIR="${CI_SHARED_ROOT}/java/synthesis-${CI_RUN_ID}"
 export JAVA_TMP_DIR
 mkdir -p "${JAVA_TMP_DIR}"
@@ -174,9 +192,20 @@ run_in_nix '
   export CLASSPATH_CACHE="${CI_CLASSPATH_CACHE}"
   export SBT_OPTS="${CI_SBT_OPTS}"
   ./init-submodules.sh
-  make -C soc-generator SIM=vcs CONFIG="${SYNTHESIS_CONFIG}" \
-    USE_TSMC28_SRAM=1 \
-    verilog
+  case "${SYNTHESIS_TECH}" in
+    smic180)
+      make -C soc-generator SIM=vcs CONFIG="${SYNTHESIS_CONFIG}" \
+        USE_SMIC180_SRAM=1 \
+        SMIC180_SRAM_ROOT="${SMIC180_SRAM_ROOT:-/data2/smic180/SRAM/S018SP_v0p1pc_CDK/SMIC180_S018SP_v0p1c_20260722}" \
+        verilog
+      ;;
+    tsmc28)
+      make -C soc-generator SIM=vcs CONFIG="${SYNTHESIS_CONFIG}" \
+        USE_TSMC28_SRAM=1 \
+        TSMC28_SRAM_ROOT="${TSMC28_SRAM_ROOT:-/data2/TSMC28/Memory/SRAM}" \
+        verilog
+      ;;
+  esac
 '
 
 SOURCE_CODE_HOME="${REPO_ROOT}/soc-generator/sims/vcs/generated-src/chipyard.harness.TestHarness.${SYNTHESIS_CONFIG}"
@@ -190,15 +219,6 @@ for required_file in "${HDL_FILELIST}" "${SRAM_WRAPPER_FILE}"; do
   fi
 done
 
-# The Workbench DC setup pins the SRAM timing libraries. Fail before synthesis
-# if a generated wrapper uses a macro not represented in that pinned library set.
-while IFS= read -r macro; do
-  if ! grep -Fq "${macro}" "${SYNTHESIS_WORKBENCH}/2-SYN/scripts/dc_setup.tcl"; then
-    echo "Missing SRAM timing library in Tapeout-Workbench dc_setup.tcl: ${macro}" >&2
-    exit 1
-  fi
-done < <(sed -nE 's/^[[:space:]]*(chipyard_sram_[[:alnum:]_]+)[[:space:]]+[[:alnum:]_]+[[:space:]]*\(.*/\1/p' "${SRAM_WRAPPER_FILE}" | sort -u)
-
 rm -rf "${FLOW_DIR}"
 mkdir -p "${FLOW_DIR}"
 cp -a "${SYNTHESIS_WORKBENCH}/2-SYN/." "${FLOW_DIR}/"
@@ -208,7 +228,7 @@ tcl_escape() {
 }
 
 run_label="$(date +%m%d)_$(date +%H%M)"
-tcl_command="set data {$(tcl_escape "${run_label}")}; set SOURCE_CODE_HOME {$(tcl_escape "${SOURCE_CODE_HOME}")}; set HDL_FILELIST {$(tcl_escape "${HDL_FILELIST}")}; set TOP_MODULE {$(tcl_escape "${TOP_MODULE}")}; set SRAM_WRAPPER_FILE {$(tcl_escape "${SRAM_WRAPPER_FILE}")}"
+tcl_command="set data {$(tcl_escape "${run_label}")}; set SOURCE_CODE_HOME {$(tcl_escape "${SOURCE_CODE_HOME}")}; set HDL_FILELIST {$(tcl_escape "${HDL_FILELIST}")}; set TOP_MODULE {$(tcl_escape "${TOP_MODULE}")}; set SRAM_WRAPPER_FILE {$(tcl_escape "${SRAM_WRAPPER_FILE}")}; set TECH_CONFIG {$(tcl_escape "${SYNTHESIS_TECH}")}; set CLOCK_PERIOD {$(tcl_escape "${CLOCK_PERIOD}")}"
 
 pushd "${FLOW_DIR}" >/dev/null
 mkdir -p alib elab log "outputs/${run_label}" "rpt/${run_label}"
