@@ -45,12 +45,15 @@ not CI validation.
 
 `Weekly Synthesis` runs at 02:00 Asia/Shanghai every Monday (18:00 UTC on
 Sunday), or manually through GitHub Actions. It generates
-`TapeoutConfig` with the TSMC28 SRAM macro mapping and runs the current
+`TapeoutConfig` with the selected SMIC180 (default) or TSMC28 SRAM macro mapping and runs the current
 `SEU-ACAL/Tapeout-Workbench` Design Compiler flow. The job must run on a
 self-hosted runner labeled `builder`, with available Design Compiler, VCS,
 PrimeTime, and Verdi licenses and the PDK mounts expected by the flow. Design
 Compiler and PrimeTime run in the `ci_env` container through `docker exec -i
 ci_env bash -lc`; GitHub Actions has no TTY, so `-i` is used in place of `-it`.
+Manual runs select `smic180` or `tsmc28`; scheduled runs use `smic180`.
+The SMIC180 default clock period is 2.0 ns (500 MHz), overridable through
+`CLOCK_PERIOD` in nanoseconds.
 
 The job has separate `Generate RTL and run Design Compiler` and `Run PrimeTime
 power analysis` steps. The latter runs a zero-delay VCS gate-level simulation
@@ -58,7 +61,9 @@ of the default `/data2/ci-workloads/hello.riscv` workload, reads its FSDB after
 the first 1000 ns directly in PrimeTime, and reports averaged power. The
 workload, activity start time, and technology paths can be overridden with
 `POWER_WORKLOAD`, `POWER_START_NS`,
-`STD_CELL_MODEL`, `STD_CELL_DB`, `SRAM_ROOT`, and `SRAM_CORNER`. The power
+`STD_CELL_MODEL`, `STD_CELL_DB`, `SRAM_ROOT`, and `SRAM_CORNER`. For SMIC180,
+the standard-cell and SRAM libraries use the same SS, 125C process and voltage
+corner. The power
 step requires PrimeTime W-2024 and defaults to W-2024.09-SP1. The power result
 is a workload-based pre-layout estimate, not a
 signoff result. The job does not upload implementation files. Its job summary

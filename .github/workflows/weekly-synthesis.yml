@@ -5,6 +5,15 @@ on:
     # Sunday 18:00 UTC is Monday 02:00 in Asia/Shanghai (UTC+8).
     - cron: '0 18 * * 0'
   workflow_dispatch:
+    inputs:
+      technology:
+        description: Standard-cell and SRAM technology
+        required: true
+        default: smic180
+        type: choice
+        options:
+          - smic180
+          - tsmc28
 
 permissions:
   contents: read
@@ -17,7 +26,7 @@ jobs:
   synthesis:
     name: Synthesize TapeoutConfig and report PT power
     # The runner must have valid Design Compiler, VCS, PrimeTime, and Verdi
-    # licenses plus the TSMC28 PDK paths used by Tapeout-Workbench.
+    # licenses plus the PDK paths used by the selected synthesis technology.
     runs-on: [self-hosted, linux, builder]
     timeout-minutes: 720
     env:
@@ -26,6 +35,7 @@ jobs:
       HTTP_PROXY: http://127.0.0.1:12000
       HTTPS_PROXY: http://127.0.0.1:12000
       NO_PROXY: localhost,127.0.0.1
+      SYNTHESIS_TECH: ${{ inputs.technology || 'smic180' }}
     steps:
       - name: Checkout Chipyard
         uses: actions/checkout@v4

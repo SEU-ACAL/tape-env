@@ -9,16 +9,13 @@ source "${SCRIPT_DIR}/lib.sh"
 : "${CI_SYNTHESIS_RUN_ROOT:?CI_SYNTHESIS_RUN_ROOT must be set}"
 
 SYNTHESIS_CONFIG="${SYNTHESIS_CONFIG:-TapeoutConfig}"
+SYNTHESIS_TECH="${SYNTHESIS_TECH:-smic180}"
 TOP_MODULE="${TOP_MODULE:-ChipTop}"
 DC_CONTAINER="${DC_CONTAINER:-ci_env}"
 PT_SHELL_BIN="${PT_SHELL_BIN:-/data0/tools/Synopsys/ptpx/prime/W-2024.09-SP1/bin/pt_shell}"
 POWER_WORKLOAD="${POWER_WORKLOAD:-/data2/ci-workloads/hello.riscv}"
 POWER_RANDOM_SEED="${POWER_RANDOM_SEED:-1}"
 POWER_START_NS="${POWER_START_NS:-1000}"
-STD_CELL_MODEL="${STD_CELL_MODEL:-/data2/TSMC28/logic/tcbn28hpcplusbwp7t40p140lvt_180b/AN61001_20180509/TSMCHOME/digital/Front_End/verilog/tcbn28hpcplusbwp7t40p140lvt_110a/tcbn28hpcplusbwp7t40p140lvt.v}"
-STD_CELL_DB="${STD_CELL_DB:-/data2/TSMC28/logic/tcbn28hpcplusbwp7t40p140lvt_180b/AN61001_20180509/TSMCHOME/digital/Front_End/timing_power_noise/CCS/tcbn28hpcplusbwp7t40p140lvt_180a/tcbn28hpcplusbwp7t40p140lvtssg0p81v125c_ccs.db}"
-SRAM_ROOT="${SRAM_ROOT:-/data2/TSMC28/Memory/SRAM}"
-SRAM_CORNER="${SRAM_CORNER:-ssg0p81v125c}"
 FLOW_DIR="${CI_SYNTHESIS_RUN_ROOT}/dc-flow"
 POWER_FLOW_DIR="${CI_SYNTHESIS_RUN_ROOT}/power-flow"
 POWER_GLS_DIR="${POWER_FLOW_DIR}/3-Pre_PR_NETSIM"
@@ -76,17 +73,12 @@ for required_directory in 3-Pre_PR_NETSIM 4-Pre_PR_STA_POWER; do
   fi
 done
 
-for required_file in "${netlist}" "${constraint_sdc}" "${POWER_WORKLOAD}" "${STD_CELL_MODEL}" "${STD_CELL_DB}"; do
+for required_file in "${netlist}" "${constraint_sdc}" "${POWER_WORKLOAD}"; do
   if [[ ! -f "${required_file}" ]]; then
     echo "Missing PrimeTime power input: ${required_file}" >&2
     exit 1
   fi
 done
-
-if [[ ! -d "${SRAM_ROOT}" ]]; then
-  echo "Missing SRAM library root for PrimeTime power: ${SRAM_ROOT}" >&2
-  exit 1
-fi
 
 rm -rf "${POWER_FLOW_DIR}"
 mkdir -p "${POWER_FLOW_DIR}"
@@ -104,8 +96,8 @@ if [[ "$(docker inspect --format '{{.State.Running}}' "${DC_CONTAINER}" 2>/dev/n
 fi
 
 export POWER_GLS_DIR POWER_PT_DIR POWER_WORKLOAD POWER_RANDOM_SEED POWER_START_NS
-export STD_CELL_MODEL STD_CELL_DB SRAM_ROOT SRAM_CORNER PT_SHELL_BIN
-export REPO_ROOT SYNTHESIS_CONFIG power_sim_config netlist constraint_sdc run_label
+export PT_SHELL_BIN
+export REPO_ROOT SYNTHESIS_CONFIG SYNTHESIS_TECH power_sim_config netlist constraint_sdc run_label
 
 set +e
 run_in_nix '
@@ -117,11 +109,9 @@ run_in_nix '
   make -C "${POWER_GLS_DIR}" \
     TAPE_ENV="${REPO_ROOT}" \
     CONFIG="${power_sim_config}" \
+    TECH="${SYNTHESIS_TECH}" \
     NETLIST_RUN="${run_label}" \
     NETLIST="${netlist}" \
-    STD_CELL_MODEL="${STD_CELL_MODEL}" \
-    SRAM_ROOT="${SRAM_ROOT}" \
-    SRAM_CORNER="${SRAM_CORNER}" \
     RANDOM_SEED="${POWER_RANDOM_SEED}" \
     WAVEFORM=1 \
     gls_zero
@@ -129,11 +119,9 @@ run_in_nix '
   make -C "${POWER_GLS_DIR}" \
     TAPE_ENV="${REPO_ROOT}" \
     CONFIG="${power_sim_config}" \
+    TECH="${SYNTHESIS_TECH}" \
     NETLIST_RUN="${run_label}" \
     NETLIST="${netlist}" \
-    STD_CELL_MODEL="${STD_CELL_MODEL}" \
-    SRAM_ROOT="${SRAM_ROOT}" \
-    SRAM_CORNER="${SRAM_CORNER}" \
     RANDOM_SEED="${POWER_RANDOM_SEED}" \
     WAVEFORM=1 \
     BINARY="${POWER_WORKLOAD}" \
@@ -157,9 +145,6 @@ docker exec -i \
   -e FSDB="${power_fsdb}" \
   -e POWER_OUT_DIR="${power_report_dir}" \
   -e POWER_START_NS="${POWER_START_NS}" \
-  -e STD_CELL_DB="${STD_CELL_DB}" \
-  -e SRAM_ROOT="${SRAM_ROOT}" \
-  -e SRAM_CORNER="${SRAM_CORNER}" \
   -e PT_SHELL="${PT_SHELL_BIN}" \
   "${DC_CONTAINER}" bash -lc '
     set -euo pipefail
@@ -174,15 +159,13 @@ docker exec -i \
     fi
     printf "%s\n" "${pt_version}"
     make -C "${POWER_PT_DIR}" \
+      TECH="${SYNTHESIS_TECH}" \
       NETLIST_RUN="${NETLIST_RUN}" \
       NETLIST="${NETLIST}" \
       SDC="${SDC}" \
       FSDB="${FSDB}" \
       POWER_OUT_DIR="${POWER_OUT_DIR}" \
       POWER_START_NS="${POWER_START_NS}" \
-      STD_CELL_DB="${STD_CELL_DB}" \
-      SRAM_ROOT="${SRAM_ROOT}" \
-      SRAM_CORNER="${SRAM_CORNER}" \
       PT_SHELL="${PT_SHELL}" \
       power
   ' 2>&1 | tee -a "${POWER_FLOW_DIR}/power.log"
