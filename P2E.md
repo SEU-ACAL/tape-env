@@ -31,3 +31,9 @@ dependencies/fpga/generated-src/chipyard.p2e.hpec.P2ETop.HpecP2ETapeoutConfig/ge
 
 `p2e` 命令和对应的 Cargo、Rust、SSH、rsync、sshpass 环境均由
 `dependencies/p2e-runner` 管理；父仓库的 `nix develop` 仅用于 Chisel RTL 生成。
+
+Linux 在当前 HPEC wrapper 中的物理 UART TX 没有连接至宿主机。需要观察 Linux
+bring-up 时，使用 `applications/scripts/build-linux-workload.sh --htif-console` 生成
+HTIF-console ELF 和 DTB，再按 [applications/linux-workloads/README.md](applications/linux-workloads/README.md)
+的 `p2e run --dtb ... --dtb-address 0x8ff00000` 命令运行。该调试模式不替代默认 UART
+配置。
