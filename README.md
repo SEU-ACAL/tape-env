@@ -37,7 +37,7 @@ cd chipyard
 
 ```sh
 ./init-submodules.sh --gemmini  # Gemmini 及其 RoCC 测试工作负载
-./init-submodules.sh --firemarshal # FireMarshal Linux workload 依赖
+./init-submodules.sh --linux    # Linux workload 构建依赖（兼容 --firemarshal）
 ./init-submodules.sh --p2e      # HPEC P2E runner
 ./init-submodules.sh --full     # 所有已登记子模块
 ```
