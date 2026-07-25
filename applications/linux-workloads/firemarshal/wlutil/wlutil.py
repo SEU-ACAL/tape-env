@@ -413,13 +413,19 @@ def initialize():
 
     ctx['mount-dir'].mkdir(parents=True, exist_ok=True)
 
-    # Directories that must be initialized for disk-based initramfs
+    # Directories that must be initialized for disk-based initramfs.
     initramfs_disk_dirs = ["bin", 'dev', 'etc', 'proc', 'root', 'sbin', 'sys', 'usr/bin', 'usr/sbin', 'mnt/root']
+    # The nodisk archive is appended after the distro rootfs. Do not create
+    # /bin, /lib, or /sbin here: on merged-/usr distros, the rootfs supplies
+    # them as symlinks and an empty later CPIO entry replaces the link. Keep
+    # FireMarshal's private BusyBox outside the distro hierarchy instead.
+    initramfs_nodisk_dirs = ['dev', 'etc', 'fm-init', 'proc', 'root', 'sys', 'mnt/root']
 
-    # Setup disk initramfs dirs
+    # Set up the initramfs overlays.
     for d in initramfs_disk_dirs:
         if not (ctx['initramfs-dir'] / 'disk' / d).exists():
             (ctx['initramfs-dir'] / 'disk' / d).mkdir(parents=True)
+    for d in initramfs_nodisk_dirs:
         if not (ctx['initramfs-dir'] / 'nodisk' / d).exists():
             (ctx['initramfs-dir'] / 'nodisk' / d).mkdir(parents=True)
 

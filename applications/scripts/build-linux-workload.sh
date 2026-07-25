@@ -182,11 +182,14 @@ sed -i \
   "${BUILDROOT_DISTRO}"
 export FIREMARSHAL_DISABLE_PUBLIC_CACHE=1
 
-# FireMarshal's Buildroot integration unconditionally fetches its pinned
-# fakeroot tarball.  Reuse the local copy when it already exists so a rebuild
-# is not blocked by the Debian snapshot service.
-perl -0pi -e 's{        urllib\.request\.urlretrieve\(fakerootSite \+ "/" \+ fakerootTarFile, fakerootTar\)}{        if not fakerootTar.exists():\n            urllib.request.urlretrieve(fakerootSite + "/" + fakerootTarFile, fakerootTar)}' \
-  "${BUILDROOT_DISTRO}"
+# Older FireMarshal revisions fetch the pinned fakeroot archive unconditionally.
+# Patch only that original top-level form. The local source already has the
+# guarded form, and applying the replacement a second time corrupts Python
+# indentation.
+if grep -q '^        urllib\.request\.urlretrieve(fakerootSite + "/" + fakerootTarFile, fakerootTar)$' "${BUILDROOT_DISTRO}"; then
+  perl -0pi -e 's{        urllib\.request\.urlretrieve\(fakerootSite \+ "/" \+ fakerootTarFile, fakerootTar\)}{        if not fakerootTar.exists():\n            urllib.request.urlretrieve(fakerootSite + "/" + fakerootTarFile, fakerootTar)}' \
+    "${BUILDROOT_DISTRO}"
+fi
 
 # Buildroot 2024.05 knows GCC through 14, while the Tapeout Nix toolchain is
 # GCC 15.  For a custom external toolchain, a newer compiler satisfies the
