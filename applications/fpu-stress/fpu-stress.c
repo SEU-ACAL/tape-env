@@ -5,8 +5,8 @@
 #include <stdlib.h>
 
 // Eight independent dependency chains keep a pipelined scalar FPU busy.
-// At one FMA per cycle this is at least eight million FP64 operations.
-#define FPU_STRESS_ITERATIONS 1000000ULL
+// This executes 8000 FP64 FMAs for a compact FPU-sensitive smoke workload.
+#define FPU_STRESS_ITERATIONS 1000ULL
 
 static volatile double fpu_stress_checksum;
 

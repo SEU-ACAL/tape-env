@@ -59,9 +59,9 @@ The SMIC180 default clock period is 2.0 ns (500 MHz), overridable through
 
 The job has separate `Generate RTL and run Design Compiler` and `Run PrimeTime
 power analysis` steps. A manually dispatched run offers `dhrystone` (default)
-and `fpu-stress` workload choices. The latter runs a sustained scalar FP64 FMA
-loop. Both default to the 673046 ns to 4470574 ns steady-state FSDB window;
-`fpu-stress` runs throughout that post-boot interval. PrimeTime reports
+and `fpu-stress` workload choices. The latter runs a compact scalar FP64 FMA
+smoke workload. Both default to the 673046 ns to 4470574 ns steady-state FSDB
+window. PrimeTime reports
 averaged power in watts. The workload, activity window, and technology paths
 can be overridden with `POWER_BENCHMARK`, `POWER_WORKLOAD`, `POWER_START_NS`,
 `POWER_END_NS`,

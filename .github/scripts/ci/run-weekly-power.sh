@@ -30,7 +30,7 @@ case "${POWER_BENCHMARK}" in
     ;;
   fpu-stress)
     default_power_workload="${POWER_WORKLOAD_ROOT}/fpu-stress.riscv"
-    # The FMA loop runs continuously beyond this common post-boot window.
+    # Use the common post-boot measurement interval for benchmark selection.
     default_power_start_ns=673046
     default_power_end_ns=4470574
     ;;
