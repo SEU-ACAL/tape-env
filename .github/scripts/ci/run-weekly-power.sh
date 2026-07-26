@@ -13,13 +13,24 @@ SYNTHESIS_TECH="${SYNTHESIS_TECH:-smic180}"
 TOP_MODULE="${TOP_MODULE:-ChipTop}"
 DC_CONTAINER="${DC_CONTAINER:-ci_env}"
 PT_SHELL_BIN="${PT_SHELL_BIN:-/data0/tools/Synopsys/ptpx/prime/W-2024.09-SP1/bin/pt_shell}"
-POWER_WORKLOAD="${POWER_WORKLOAD:-/data2/ci-workloads/hello.riscv}"
+POWER_WORKLOAD="${POWER_WORKLOAD:-/data2/ci-workloads/riscv-tests/riscv64-unknown-elf/share/riscv-tests/benchmarks/dhrystone.riscv}"
 POWER_RANDOM_SEED="${POWER_RANDOM_SEED:-1}"
-POWER_START_NS="${POWER_START_NS:-1000}"
+POWER_START_NS="${POWER_START_NS:-673046}"
+POWER_END_NS="${POWER_END_NS:-4470574}"
 FLOW_DIR="${CI_SYNTHESIS_RUN_ROOT}/dc-flow"
 POWER_FLOW_DIR="${CI_SYNTHESIS_RUN_ROOT}/power-flow"
 POWER_GLS_DIR="${POWER_FLOW_DIR}/3-Pre_PR_NETSIM"
 POWER_PT_DIR="${POWER_FLOW_DIR}/4-Pre_PR_STA_POWER"
+
+if ! awk -v start="${POWER_START_NS}" -v end="${POWER_END_NS}" '
+  BEGIN {
+    valid = "^[0-9]+([.][0-9]+)?$"
+    exit !(start ~ valid && end ~ valid && start + 0 < end + 0)
+  }
+'; then
+  echo "POWER_START_NS and POWER_END_NS must be non-negative numbers with POWER_START_NS < POWER_END_NS" >&2
+  exit 1
+fi
 
 run_label="${CI_SYNTHESIS_RUN_LABEL:-}"
 if [[ -z "${run_label}" ]]; then
@@ -48,16 +59,16 @@ write_power_summary() {
     echo "| Metric | Value |"
     echo "| --- | ---: |"
     echo "| Workload | \`${POWER_WORKLOAD##*/}\` |"
-    echo "| Activity source | Zero-delay GLS FSDB after ${POWER_START_NS} ns |"
+    echo "| Activity source | Zero-delay GLS FSDB from ${POWER_START_NS} ns to ${POWER_END_NS} ns |"
     if [[ -f "${power_report}" ]]; then
       internal_power="$(awk -F= '/^  Cell Internal Power/ { sub(/^[[:space:]]+/, "", $2); split($2, value, /[[:space:]]+/); print value[1]; exit }' "${power_report}")"
       switching_power="$(awk -F= '/^  Net Switching Power/ { sub(/^[[:space:]]+/, "", $2); split($2, value, /[[:space:]]+/); print value[1]; exit }' "${power_report}")"
       leakage_power="$(awk -F= '/^  Cell Leakage Power/ { sub(/^[[:space:]]+/, "", $2); split($2, value, /[[:space:]]+/); print value[1]; exit }' "${power_report}")"
       total_power="$(awk -F= '/^Total Power/ { sub(/^[[:space:]]+/, "", $2); split($2, value, /[[:space:]]+/); print value[1]; exit }' "${power_report}")"
-      echo "| Internal power | ${internal_power:-unavailable} mW |"
-      echo "| Switching power | ${switching_power:-unavailable} mW |"
-      echo "| Leakage power | ${leakage_power:-unavailable} mW |"
-      echo "| Total power | ${total_power:-unavailable} mW |"
+      echo "| Internal power | ${internal_power:-unavailable} W |"
+      echo "| Switching power | ${switching_power:-unavailable} W |"
+      echo "| Leakage power | ${leakage_power:-unavailable} W |"
+      echo "| Total power | ${total_power:-unavailable} W |"
     else
       echo "| Status | No PrimeTime power report was produced |"
     fi
@@ -80,10 +91,66 @@ for required_file in "${netlist}" "${constraint_sdc}" "${POWER_WORKLOAD}"; do
   fi
 done
 
+configure_power_window() {
+  local power_makefile="${POWER_PT_DIR}/Makefile"
+  local power_tcl="${POWER_PT_DIR}/scripts/pt_chiptop_power.tcl"
+  local temp_file
+
+  if rg -q '\bPOWER_END_NS\b' "${power_makefile}" && rg -q '\bPOWER_END_NS\b' "${power_tcl}"; then
+    return
+  fi
+  if rg -q '\bPOWER_END_NS\b' "${power_makefile}" || rg -q '\bPOWER_END_NS\b' "${power_tcl}"; then
+    echo "Tapeout-Workbench power flow has incomplete POWER_END_NS support" >&2
+    exit 1
+  fi
+
+  # Apply this only to the isolated flow copy until the upstream flow supports
+  # a bounded FSDB window natively.
+  temp_file="$(mktemp "${POWER_PT_DIR}/Makefile.XXXXXX")"
+  awk '
+    /^POWER_START_NS \?=/ {
+      print
+      print "POWER_END_NS ?= -1"
+      next
+    }
+    /POWER_START_NS=/ {
+      print
+      line = $0
+      gsub("POWER_START_NS", "POWER_END_NS", line)
+      print line
+      next
+    }
+    { print }
+  ' "${power_makefile}" > "${temp_file}"
+  mv "${temp_file}" "${power_makefile}"
+
+  temp_file="$(mktemp "${POWER_PT_DIR}/scripts/pt_chiptop_power.tcl.XXXXXX")"
+  awk '
+    /^set power_start_ns \[require_env POWER_START_NS\]$/ {
+      print
+      print "set power_end_ns [require_env POWER_END_NS]"
+      next
+    }
+    {
+      sub(/\$power_start_ns -1/, "$power_start_ns $power_end_ns")
+      print
+    }
+  ' "${power_tcl}" > "${temp_file}"
+  mv "${temp_file}" "${power_tcl}"
+
+  if ! rg -q '\bPOWER_END_NS\b' "${power_makefile}" ||
+    ! rg -q '\bPOWER_END_NS\b' "${power_tcl}" ||
+    ! rg -Fq -- '-time [list $power_start_ns $power_end_ns]' "${power_tcl}"; then
+    echo "Unable to add bounded FSDB window support to Tapeout-Workbench" >&2
+    exit 1
+  fi
+}
+
 rm -rf "${POWER_FLOW_DIR}"
 mkdir -p "${POWER_FLOW_DIR}"
 cp -a "${SYNTHESIS_WORKBENCH}/3-Pre_PR_NETSIM" "${POWER_GLS_DIR}"
 cp -a "${SYNTHESIS_WORKBENCH}/4-Pre_PR_STA_POWER" "${POWER_PT_DIR}"
+configure_power_window
 
 power_sim_config="chipyard.harness.TestHarness.${SYNTHESIS_CONFIG}"
 power_gls_gen_dir="${POWER_GLS_DIR}/gen/${power_sim_config}/${run_label}"
@@ -95,7 +162,7 @@ if [[ "$(docker inspect --format '{{.State.Running}}' "${DC_CONTAINER}" 2>/dev/n
   exit 1
 fi
 
-export POWER_GLS_DIR POWER_PT_DIR POWER_WORKLOAD POWER_RANDOM_SEED POWER_START_NS
+export POWER_GLS_DIR POWER_PT_DIR POWER_WORKLOAD POWER_RANDOM_SEED POWER_START_NS POWER_END_NS
 export PT_SHELL_BIN
 export REPO_ROOT SYNTHESIS_CONFIG SYNTHESIS_TECH power_sim_config netlist constraint_sdc run_label
 
@@ -146,6 +213,7 @@ docker exec -i \
   -e FSDB="${power_fsdb}" \
   -e POWER_OUT_DIR="${power_report_dir}" \
   -e POWER_START_NS="${POWER_START_NS}" \
+  -e POWER_END_NS="${POWER_END_NS}" \
   -e PT_SHELL="${PT_SHELL_BIN}" \
   "${DC_CONTAINER}" bash -lc '
     set -euo pipefail
@@ -167,6 +235,7 @@ docker exec -i \
       FSDB="${FSDB}" \
       POWER_OUT_DIR="${POWER_OUT_DIR}" \
       POWER_START_NS="${POWER_START_NS}" \
+      POWER_END_NS="${POWER_END_NS}" \
       PT_SHELL="${PT_SHELL}" \
       power
   ' 2>&1 | tee -a "${POWER_FLOW_DIR}/power.log"
