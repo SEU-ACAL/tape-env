@@ -14,6 +14,14 @@ on:
         options:
           - smic180
           - tsmc28
+      benchmark:
+        description: Power-analysis workload
+        required: true
+        default: dhrystone
+        type: choice
+        options:
+          - dhrystone
+          - fpu-stress
 
 permissions:
   contents: read
@@ -36,6 +44,7 @@ jobs:
       HTTPS_PROXY: http://127.0.0.1:12000
       NO_PROXY: localhost,127.0.0.1
       SYNTHESIS_TECH: ${{ inputs.technology || 'smic180' }}
+      POWER_BENCHMARK: ${{ inputs.benchmark || 'dhrystone' }}
     steps:
       - name: Checkout Chipyard
         uses: actions/checkout@v4

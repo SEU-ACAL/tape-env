@@ -9,6 +9,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(git -C "${SCRIPT_DIR}/../.." rev-parse --show-toplevel)"
 TESTS_DIR="${REPO_ROOT}/applications/riscv-tests"
+FPU_STRESS_SOURCE="${REPO_ROOT}/applications/fpu-stress/fpu-stress.c"
 DEFAULT_OUTPUT="${TESTS_DIR}/build/install"
 OUTPUT_DIR="${RISCV_TESTS_OUTPUT:-${DEFAULT_OUTPUT}}"
 
@@ -60,6 +61,11 @@ if [[ ! -f "${TESTS_DIR}/benchmarks/Makefile" || ! -f "${TESTS_DIR}/isa/Makefile
   exit 1
 fi
 
+if [[ ! -f "${FPU_STRESS_SOURCE}" ]]; then
+  echo "FPU stress benchmark source is unavailable: ${FPU_STRESS_SOURCE}" >&2
+  exit 1
+fi
+
 if ! command -v riscv64-none-elf-gcc >/dev/null 2>&1; then
   echo "riscv64-none-elf-gcc is unavailable; enter the Chipyard Nix development shell." >&2
   exit 1
@@ -84,6 +90,11 @@ trap 'rm -rf "${BUILD_DIR}" "${STAGING_DIR}"' EXIT
 cp -a "${TESTS_DIR}/." "${BUILD_DIR}/"
 rm -f "${BUILD_DIR}/.git"
 
+# Keep Chipyard-owned benchmarks outside the pinned riscv-tests submodule, but
+# inject them into the ephemeral source tree so they share its runtime and ABI.
+install -d "${BUILD_DIR}/benchmarks/fpu-stress"
+install -m 0644 "${FPU_STRESS_SOURCE}" "${BUILD_DIR}/benchmarks/fpu-stress/fpu-stress.c"
+
 # This revision predates the privileged-spec CSR renames, and its benchmark
 # Makefile needs to target scalar Rocket and BOOM configurations. Keep these
 # compatibility changes out of the official submodule checkout.
@@ -91,6 +102,8 @@ sed -i '/^RISCV_GCC_OPTS ?=/a RISCV_GCC_OPTS += -Wno-error=implicit-int -Wno-err
   "${BUILD_DIR}/benchmarks/Makefile"
 sed -i 's/-march=rv$(XLEN)gcv/-march=rv$(XLEN)imafd/' \
   "${BUILD_DIR}/benchmarks/Makefile"
+sed -i '/^bmarks = \\/a\
+\tfpu-stress \\' "${BUILD_DIR}/benchmarks/Makefile"
 find "${BUILD_DIR}/isa" -name '*.S' -exec sed -i \
   -e 's/\<sptbr\>/satp/g' \
   -e 's/\<mbadaddr\>/mtval/g' \
@@ -99,7 +112,7 @@ find "${BUILD_DIR}/isa" -name '*.S' -exec sed -i \
 benchmark_targets=(
   mm.riscv spmv.riscv mt-vvadd.riscv median.riscv multiply.riscv
   qsort.riscv rsort.riscv pmp.riscv towers.riscv vvadd.riscv
-  dhrystone.riscv mt-matmul.riscv
+  dhrystone.riscv fpu-stress.riscv mt-matmul.riscv
 )
 isa_targets=(
   rv64ui rv64uc rv64um rv64ua rv64uf rv64ud rv64uzfh
