@@ -35,6 +35,16 @@ case "${SYNTHESIS_TECH}" in
     ;;
 esac
 
+if ! awk -v period="${CLOCK_PERIOD}" '
+  BEGIN {
+    valid = "^[0-9]+([.][0-9]+)?$"
+    exit !(period ~ valid && period + 0 > 0)
+  }
+'; then
+  echo "CLOCK_PERIOD must be a positive number of nanoseconds: ${CLOCK_PERIOD}" >&2
+  exit 1
+fi
+
 extract_sdc_values() {
   local command="$1" sdc_file="$2"
 

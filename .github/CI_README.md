@@ -54,8 +54,10 @@ PrimeTime, and Verdi licenses and the PDK mounts expected by the flow. Design
 Compiler and PrimeTime run in the `ci_env` container through `docker exec -i
 ci_env bash -lc`; GitHub Actions has no TTY, so `-i` is used in place of `-it`.
 Manual runs select `smic180` or `tsmc28`; scheduled runs use `smic180`.
-The SMIC180 default clock period is 2.0 ns (500 MHz), overridable through
-`CLOCK_PERIOD` in nanoseconds.
+The SMIC180 default clock period is 2.0 ns (500 MHz), while TSMC28 defaults to
+1.0 ns (1 GHz). A manual `Weekly Synthesis` run provides an optional `Clock
+period in ns` field; leave it blank to use the selected technology's default.
+It can also be overridden through `CLOCK_PERIOD` in nanoseconds.
 
 The job has separate `Generate RTL and run Design Compiler` and `Run PrimeTime
 power analysis` steps. A manually dispatched run offers `dhrystone` (default)
