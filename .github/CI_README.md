@@ -72,4 +72,6 @@ step requires PrimeTime W-2024 and defaults to W-2024.09-SP1. The power result
 is a workload-based pre-layout estimate, not a
 signoff result. The job does not upload implementation files. Its job summary
 reports total cell area, the worst setup slack for I2R, R2R, R2O, and I2O paths,
-and PrimeTime internal, switching, leakage, and total power.
+the synthesized hard-SRAM instance count by macro type and MDF port family (for
+example, `1rw` for one read/write port), and PrimeTime internal,
+switching, leakage, and total power.
