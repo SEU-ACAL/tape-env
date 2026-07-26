@@ -13,14 +13,36 @@ SYNTHESIS_TECH="${SYNTHESIS_TECH:-smic180}"
 TOP_MODULE="${TOP_MODULE:-ChipTop}"
 DC_CONTAINER="${DC_CONTAINER:-ci_env}"
 PT_SHELL_BIN="${PT_SHELL_BIN:-/data0/tools/Synopsys/ptpx/prime/W-2024.09-SP1/bin/pt_shell}"
-POWER_WORKLOAD="${POWER_WORKLOAD:-/data2/ci-workloads/riscv-tests/riscv64-unknown-elf/share/riscv-tests/benchmarks/dhrystone.riscv}"
+POWER_BENCHMARK="${POWER_BENCHMARK:-dhrystone}"
+POWER_WORKLOAD_ROOT="${POWER_WORKLOAD_ROOT:-/data2/ci-workloads/riscv-tests/riscv64-unknown-elf/share/riscv-tests/benchmarks}"
+POWER_WORKLOAD="${POWER_WORKLOAD:-}"
 POWER_RANDOM_SEED="${POWER_RANDOM_SEED:-1}"
-POWER_START_NS="${POWER_START_NS:-673046}"
-POWER_END_NS="${POWER_END_NS:-4470574}"
 FLOW_DIR="${CI_SYNTHESIS_RUN_ROOT}/dc-flow"
 POWER_FLOW_DIR="${CI_SYNTHESIS_RUN_ROOT}/power-flow"
 POWER_GLS_DIR="${POWER_FLOW_DIR}/3-Pre_PR_NETSIM"
 POWER_PT_DIR="${POWER_FLOW_DIR}/4-Pre_PR_STA_POWER"
+
+case "${POWER_BENCHMARK}" in
+  dhrystone)
+    default_power_workload="${POWER_WORKLOAD_ROOT}/dhrystone.riscv"
+    default_power_start_ns=673046
+    default_power_end_ns=4470574
+    ;;
+  fpu-stress)
+    default_power_workload="${POWER_WORKLOAD_ROOT}/fpu-stress.riscv"
+    # Use the common post-boot measurement interval for benchmark selection.
+    default_power_start_ns=673046
+    default_power_end_ns=4470574
+    ;;
+  *)
+    echo "Unsupported POWER_BENCHMARK: ${POWER_BENCHMARK}. Supported values: dhrystone, fpu-stress" >&2
+    exit 2
+    ;;
+esac
+
+POWER_WORKLOAD="${POWER_WORKLOAD:-${default_power_workload}}"
+POWER_START_NS="${POWER_START_NS:-${default_power_start_ns}}"
+POWER_END_NS="${POWER_END_NS:-${default_power_end_ns}}"
 
 if ! awk -v start="${POWER_START_NS}" -v end="${POWER_END_NS}" '
   BEGIN {
@@ -58,6 +80,7 @@ write_power_summary() {
     echo
     echo "| Metric | Value |"
     echo "| --- | ---: |"
+    echo "| Benchmark | \`${POWER_BENCHMARK}\` |"
     echo "| Workload | \`${POWER_WORKLOAD##*/}\` |"
     echo "| Activity source | Zero-delay GLS FSDB from ${POWER_START_NS} ns to ${POWER_END_NS} ns |"
     if [[ -f "${power_report}" ]]; then

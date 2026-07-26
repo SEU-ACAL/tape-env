@@ -31,8 +31,10 @@ ci-workloads/
 ```
 
 Create this directory with `nix develop --command
-applications/scripts/build-ci-workloads.sh`. The publisher initializes the
-pinned `applications/zephyr` submodule, uses its `west-riscv.yml` manifest to
+applications/scripts/build-ci-workloads.sh`. This includes `dhrystone.riscv`
+and `fpu-stress.riscv`; the latter runs sustained scalar FP64 fused
+multiply-add operations for FPU-sensitive power measurement. The publisher
+initializes the pinned `applications/zephyr` submodule, uses its `west-riscv.yml` manifest to
 fetch fixed Zephyr dependencies, and compiles with the Nix-provided Python,
 West, and `riscv64-unknown-elf-` toolchain. CI deliberately validates only the
 workload required by each testcase and never compiles workload software during
@@ -52,15 +54,19 @@ PrimeTime, and Verdi licenses and the PDK mounts expected by the flow. Design
 Compiler and PrimeTime run in the `ci_env` container through `docker exec -i
 ci_env bash -lc`; GitHub Actions has no TTY, so `-i` is used in place of `-it`.
 Manual runs select `smic180` or `tsmc28`; scheduled runs use `smic180`.
-The SMIC180 default clock period is 2.0 ns (500 MHz), overridable through
-`CLOCK_PERIOD` in nanoseconds.
+The SMIC180 default clock period is 2.0 ns (500 MHz), while TSMC28 defaults to
+1.0 ns (1 GHz). A manual `Weekly Synthesis` run provides an optional `Clock
+period in ns` field; leave it blank to use the selected technology's default.
+It can also be overridden through `CLOCK_PERIOD` in nanoseconds.
 
 The job has separate `Generate RTL and run Design Compiler` and `Run PrimeTime
-power analysis` steps. The latter runs a zero-delay VCS gate-level simulation
-of the default Dhrystone workload, then reads the 673046 ns to 4470574 ns
-steady-state FSDB window directly in PrimeTime and reports averaged power in
-watts. The workload, activity window, and technology paths can be overridden
-with `POWER_WORKLOAD`, `POWER_START_NS`, `POWER_END_NS`,
+power analysis` steps. A manually dispatched run offers `dhrystone` (default)
+and `fpu-stress` workload choices. The latter runs a compact scalar FP64 FMA
+smoke workload. Both default to the 673046 ns to 4470574 ns steady-state FSDB
+window. PrimeTime reports
+averaged power in watts. The workload, activity window, and technology paths
+can be overridden with `POWER_BENCHMARK`, `POWER_WORKLOAD`, `POWER_START_NS`,
+`POWER_END_NS`,
 `STD_CELL_MODEL`, `STD_CELL_DB`, `SRAM_ROOT`, and `SRAM_CORNER`. For SMIC180,
 the standard-cell and SRAM libraries use the same SS, 125C process and voltage
 corner. The power
@@ -68,4 +74,6 @@ step requires PrimeTime W-2024 and defaults to W-2024.09-SP1. The power result
 is a workload-based pre-layout estimate, not a
 signoff result. The job does not upload implementation files. Its job summary
 reports total cell area, the worst setup slack for I2R, R2R, R2O, and I2O paths,
-and PrimeTime internal, switching, leakage, and total power.
+the synthesized hard-SRAM instance count by macro type and MDF port family (for
+example, `1rw` for one read/write port), and PrimeTime internal,
+switching, leakage, and total power.

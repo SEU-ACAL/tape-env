@@ -14,6 +14,19 @@ on:
         options:
           - smic180
           - tsmc28
+      benchmark:
+        description: Power-analysis workload
+        required: true
+        default: dhrystone
+        type: choice
+        options:
+          - dhrystone
+          - fpu-stress
+      clock_period_ns:
+        description: Clock period in ns (optional; blank uses the technology default)
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -36,6 +49,8 @@ jobs:
       HTTPS_PROXY: http://127.0.0.1:12000
       NO_PROXY: localhost,127.0.0.1
       SYNTHESIS_TECH: ${{ inputs.technology || 'smic180' }}
+      POWER_BENCHMARK: ${{ inputs.benchmark || 'dhrystone' }}
+      CLOCK_PERIOD: ${{ inputs.clock_period_ns || '' }}
     steps:
       - name: Checkout Chipyard
         uses: actions/checkout@v4

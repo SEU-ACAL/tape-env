@@ -35,6 +35,16 @@ case "${SYNTHESIS_TECH}" in
     ;;
 esac
 
+if ! awk -v period="${CLOCK_PERIOD}" '
+  BEGIN {
+    valid = "^[0-9]+([.][0-9]+)?$"
+    exit !(period ~ valid && period + 0 > 0)
+  }
+'; then
+  echo "CLOCK_PERIOD must be a positive number of nanoseconds: ${CLOCK_PERIOD}" >&2
+  exit 1
+fi
+
 extract_sdc_values() {
   local command="$1" sdc_file="$2"
 
@@ -164,7 +174,65 @@ write_qor_summary() {
   } >> "${GITHUB_STEP_SUMMARY}"
 }
 
-trap write_qor_summary EXIT
+write_sram_summary() {
+  local netlist macro_counts macro_name macro_count macro_family sram_mdf total_instances
+
+  if [[ -z "${GITHUB_STEP_SUMMARY:-}" ]]; then
+    return
+  fi
+
+  netlist="$(find "${FLOW_DIR}/outputs" -type f -name "${TOP_MODULE}.v" -print 2>/dev/null | sort | tail -n 1 || true)"
+  {
+    echo
+    echo "## SRAM Macro Usage"
+    echo
+    if [[ -z "${netlist}" ]]; then
+      echo "| Status | Value |"
+      echo "| --- | ---: |"
+      echo "| Result | No synthesized ${TOP_MODULE} netlist was produced |"
+      return
+    fi
+
+    # Count instantiations, rather than declarations, in the final DC netlist.
+    macro_counts="$(rg -o -P '^\s*\Kchipyard_sram_\d+x\d+(?=\s+[A-Za-z_]\w*\s*\()' "${netlist}" | sort | uniq -c || true)"
+    if [[ -z "${macro_counts}" ]]; then
+      echo "| Status | Value |"
+      echo "| --- | ---: |"
+      echo "| Result | No chipyard SRAM instances found |"
+      return
+    fi
+
+    case "${SYNTHESIS_TECH}" in
+      smic180)
+        sram_mdf="${SMIC180_SRAM_MDF:-${REPO_ROOT}/soc-generator/generator/chipyard/vlsi/smic180_sram_library.mdf.json}"
+        ;;
+      tsmc28)
+        sram_mdf="${TSMC28_SRAM_MDF:-${REPO_ROOT}/soc-generator/generator/chipyard/vlsi/tsmc28_sram_library.mdf.json}"
+        ;;
+    esac
+
+    echo "| Macro | Port family | Instances |"
+    echo "| --- | --- | ---: |"
+    total_instances=0
+    while read -r macro_count macro_name; do
+      [[ -n "${macro_name:-}" ]] || continue
+      macro_family=""
+      if [[ -f "${sram_mdf}" ]] && command -v jq >/dev/null 2>&1; then
+        macro_family="$(jq -r --arg name "${macro_name}" '.[] | select(.name == $name) | .family' "${sram_mdf}" | head -n 1)"
+      fi
+      echo "| \`${macro_name}\` | \`${macro_family:-unavailable}\` | ${macro_count} |"
+      total_instances=$((total_instances + macro_count))
+    done <<< "${macro_counts}"
+    echo "| Total | ${total_instances} |"
+  } >> "${GITHUB_STEP_SUMMARY}"
+}
+
+write_ci_summary() {
+  write_qor_summary
+  write_sram_summary
+}
+
+trap write_ci_summary EXIT
 
 if [[ ! -d "${SYNTHESIS_WORKBENCH}/2-SYN" ]]; then
   echo "Tapeout-Workbench does not contain 2-SYN: ${SYNTHESIS_WORKBENCH}" >&2
@@ -185,7 +253,7 @@ export CI_CLASSPATH_CACHE CI_COURSIER_CACHE SBT_CACHE_ROOT CI_SBT_OPTS SYNTHESIS
 JAVA_TMP_DIR="${CI_SHARED_ROOT}/java/synthesis-${CI_RUN_ID}"
 export JAVA_TMP_DIR
 mkdir -p "${JAVA_TMP_DIR}"
-trap 'write_qor_summary; rm -rf "${JAVA_TMP_DIR}"' EXIT
+trap 'write_ci_summary; rm -rf "${JAVA_TMP_DIR}"' EXIT
 
 run_in_nix '
   export COURSIER_CACHE="${CI_COURSIER_CACHE}"
