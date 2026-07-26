@@ -57,10 +57,10 @@ The SMIC180 default clock period is 2.0 ns (500 MHz), overridable through
 
 The job has separate `Generate RTL and run Design Compiler` and `Run PrimeTime
 power analysis` steps. The latter runs a zero-delay VCS gate-level simulation
-of the default `/data2/ci-workloads/hello.riscv` workload, reads its FSDB after
-the first 1000 ns directly in PrimeTime, and reports averaged power. The
-workload, activity start time, and technology paths can be overridden with
-`POWER_WORKLOAD`, `POWER_START_NS`,
+of the default Dhrystone workload, then reads the 673046 ns to 4470574 ns
+steady-state FSDB window directly in PrimeTime and reports averaged power in
+watts. The workload, activity window, and technology paths can be overridden
+with `POWER_WORKLOAD`, `POWER_START_NS`, `POWER_END_NS`,
 `STD_CELL_MODEL`, `STD_CELL_DB`, `SRAM_ROOT`, and `SRAM_CORNER`. For SMIC180,
 the standard-cell and SRAM libraries use the same SS, 125C process and voltage
 corner. The power
