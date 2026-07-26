@@ -139,6 +139,7 @@ fi
 set +e
 docker exec -i \
   -e POWER_PT_DIR="${POWER_PT_DIR}" \
+  -e SYNTHESIS_TECH="${SYNTHESIS_TECH}" \
   -e NETLIST_RUN="${run_label}" \
   -e NETLIST="${netlist}" \
   -e SDC="${constraint_sdc}" \
