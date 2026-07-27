@@ -154,8 +154,32 @@ else
         dependencies/p2e-runner
     )
 
-    skip_submodule() { git config --local "submodule.$1.update" none; }
-    unskip_submodule() { git config --local --unset-all "submodule.$1.update" || :; }
+    # Git reads submodule.<name>.update using the section name from
+    # .gitmodules, which is not necessarily the checkout path. In particular,
+    # the Linux workload submodules use applications_linux_* names.
+    submodule_name_for_path() {
+        local path="$1"
+        local name
+        name="$(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' | \
+            awk -v path="$path" '$2 == path { name = $1; sub(/^submodule\./, "", name); sub(/\.path$/, "", name); print name; exit }')"
+        if [[ -z "$name" ]]; then
+            echo "No submodule name registered for path: $path" >&2
+            return 1
+        fi
+        echo "$name"
+    }
+
+    skip_submodule() {
+        local name
+        name="$(submodule_name_for_path "$1")"
+        git config --local "submodule.$name.update" none
+    }
+
+    unskip_submodule() {
+        local name
+        name="$(submodule_name_for_path "$1")"
+        git config --local --unset-all "submodule.$name.update" || :
+    }
 
     (
         trap 'for path in "${excluded_submodules[@]}"; do unskip_submodule "$path"; done' EXIT INT TERM
