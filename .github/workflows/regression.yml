@@ -157,6 +157,21 @@ jobs:
           wait "${vcs_pid}" || status=1
           exit "${status}"
 
+      - name: Generate TapeoutConfig register map
+        if: always()
+        run: |
+          regmap_dir="${CI_RUN_DIR}/tapeoutconfig-regmap"
+          generated_src="${CI_VCS_WORKSPACE}/soc-generator/sims/vcs/generated-src/chipyard.harness.TestHarness.TapeoutConfig"
+          mkdir -p "${regmap_dir}"
+          if [[ -f "${generated_src}/chipyard.harness.TestHarness.TapeoutConfig.dts" ]]; then
+            python3 "${CI_VCS_WORKSPACE}/.github/scripts/ci/generate-tapeout-regmap.py" \
+              --generated-src "${generated_src}" \
+              --output-dir "${regmap_dir}"
+          else
+            printf 'TapeoutConfig elaboration did not produce a DTS; register map is unavailable.\n' \
+              > "${regmap_dir}/unavailable.txt"
+          fi
+
       - name: Write regression summary
         if: always()
         run: |
@@ -178,3 +193,18 @@ jobs:
               echo "No result was produced for ${testcase}." >> "$GITHUB_STEP_SUMMARY"
             fi
           done
+          regmap_summary="${CI_RUN_DIR}/tapeoutconfig-regmap/tapeout-regmap-summary.md"
+          if [[ -f "${regmap_summary}" ]]; then
+            cat "${regmap_summary}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## TapeoutConfig Register Map" >> "$GITHUB_STEP_SUMMARY"
+            echo "Register map unavailable because TapeoutConfig elaboration did not complete." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload TapeoutConfig register map
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tapeoutconfig-regmap
+          path: "${{ env.CI_RUN_DIR }}/tapeoutconfig-regmap"
+          if-no-files-found: warn

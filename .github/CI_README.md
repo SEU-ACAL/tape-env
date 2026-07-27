@@ -41,6 +41,11 @@ workload required by each testcase and never compiles workload software during
 a regression. The generated Verilator emulator and its configuration-specific
 `test-rules.d` remain artifacts of each CI run.
 
+The regression summary also includes a `TapeoutConfig` address map generated
+from the VCS elaboration output. The `tapeoutconfig-regmap` artifact contains
+the complete Markdown register-field map, normalized JSON, DTS, memmap, and
+the raw generated regmap JSON files.
+
 `Rocket Chip Logrotate` is maintenance automation for the regression artifacts;
 it does not run validation tests. Release-note generation is release automation,
 not CI validation.
