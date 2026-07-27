@@ -211,6 +211,37 @@ class WithI2CPunchthrough extends OverrideIOBinder({
   }
 })
 
+/**
+  * Expose each I2C signal through a bidirectional IO cell instead of the
+  * controller's split in/out/oe interface. The controller always drives zero
+  * when enabled, so this implements the required open-drain low/release
+  * behavior with the generic cell model.
+  *
+  * The GenericDigitalGPIOCell is a simulation implementation. A tapeout flow
+  * must override IOCellKey with the PDK General IO implementation.
+  */
+class WithI2CIOCells extends OverrideIOBinder({
+  (system: HasPeripheryI2C) => {
+    val cells = system.i2c.zipWithIndex.flatMap { case (i2c, i) =>
+      Seq(("scl", i2c.scl), ("sda", i2c.sda)).map { case (signalName, pin) =>
+        val p = system.asInstanceOf[BaseSubsystem].p
+        val pad = IO(Analog(1.W)).suggestName(s"i2c_${i}_${signalName}")
+        val iocell = p(IOCellKey).gpio().suggestName(s"iocell_i2c_${i}_${signalName}")
+
+        iocell.io.o := pin.out
+        iocell.io.oe := pin.oe
+        iocell.io.ie := true.B
+        pin.in := iocell.io.i
+        iocell.io.pad <> pad
+        iocell
+      }
+    }
+    // The pads themselves are physical-chip IO. Do not expose the controller
+    // signals to simulation harness binders as a second logical interface.
+    (Nil, cells)
+  }
+})
+
 // DOC include start: WithUARTIOCells
 class WithUARTIOCells extends OverrideIOBinder({
   (system: HasPeripheryUART) => {
@@ -241,6 +272,57 @@ class WithSPIIOPunchthrough extends OverrideLazyIOBinder({
         SPIPort(() => io_spi)
       })
       (ports, Nil)
+    }
+  }
+})
+
+/**
+  * Map every SPI signal to a General IO cell. SCK and CS use a General IO in
+  * output mode; DQ uses its bidirectional mode. This deliberately uses the
+  * same IO-cell family for all SPI pins so a PDK can replace it uniformly via
+  * IOCellKey.
+  */
+class WithSPIIOCells extends OverrideLazyIOBinder({
+  (system: HasPeripherySPI) => {
+    if (system.tlSpiNodes.size > 0) ResourceBinding {
+      Resource(new MMCDevice(system.tlSpiNodes.head.device, 1), "reg").bind(ResourceAddress(0))
+    }
+    InModuleBody {
+      val p = system.asInstanceOf[BaseSubsystem].p
+      val cells = system.spi.zipWithIndex.flatMap { case (spi, i) =>
+        val sckPad = IO(Analog(1.W)).suggestName(s"spi_${i}_sck")
+        val sckCell = p(IOCellKey).gpio().suggestName(s"iocell_spi_${i}_sck")
+        sckCell.io.o := spi.sck
+        sckCell.io.oe := true.B
+        sckCell.io.ie := false.B
+        sckCell.io.pad <> sckPad
+
+        val csCells = spi.cs.zipWithIndex.map { case (cs, j) =>
+          val csPad = IO(Analog(1.W)).suggestName(s"spi_${i}_cs_${j}")
+          val csCell = p(IOCellKey).gpio().suggestName(s"iocell_spi_${i}_cs_${j}")
+          csCell.io.o := cs
+          csCell.io.oe := true.B
+          csCell.io.ie := false.B
+          csCell.io.pad <> csPad
+          csCell
+        }
+
+        val dqCells = spi.dq.zipWithIndex.map { case (dq, j) =>
+          val dqPad = IO(Analog(1.W)).suggestName(s"spi_${i}_dq_${j}")
+          val dqCell = p(IOCellKey).gpio().suggestName(s"iocell_spi_${i}_dq_${j}")
+          dqCell.io.o := dq.o
+          dqCell.io.oe := dq.oe
+          dqCell.io.ie := dq.ie
+          dq.i := dqCell.io.i
+          dqCell.io.pad <> dqPad
+          dqCell
+        }
+
+        Seq(sckCell) ++ csCells ++ dqCells
+      }
+      // As with I2C, the analog pads are the external interface and should not
+      // be tied off through the logical SPIPort harness binder.
+      (Nil, cells)
     }
   }
 })
