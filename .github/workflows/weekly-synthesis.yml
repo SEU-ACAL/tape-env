@@ -83,6 +83,20 @@ jobs:
             CI_SYNTHESIS_RUN_ROOT="${CI_SYNTHESIS_RUN_ROOT}" \
             "${CI_CHIPYARD_WORKSPACE}/.github/scripts/ci/run-weekly-synthesis.sh"
 
+      - name: Publish synthesis summary
+        if: always()
+        run: |
+          summary_file="${CI_SYNTHESIS_RUN_ROOT}/synthesis-summary.md"
+          if [[ -s "${summary_file}" ]]; then
+            cat "${summary_file}" >> "${GITHUB_STEP_SUMMARY}"
+          else
+            {
+              echo "## Weekly synthesis"
+              echo
+              echo "Synthesis summary was not produced. Check the Generate RTL and run Design Compiler logs."
+            } >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
       - name: Run PrimeTime power analysis
         run: |
           env \

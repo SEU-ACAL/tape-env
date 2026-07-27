@@ -21,6 +21,7 @@ SBT_CACHE_ROOT="${CI_CACHE_ROOT}/sbt/synthesis/${CI_CACHE_KEY}"
 CI_COURSIER_CACHE="${CI_CACHE_ROOT}/coursier/synthesis/${CI_CACHE_KEY}"
 CI_SBT_OPTS="-Dsbt.ivy.home=${SBT_CACHE_ROOT}/ivy -Dsbt.global.base=${SBT_CACHE_ROOT}/global -Dsbt.boot.directory=${SBT_CACHE_ROOT}/boot -Dsbt.color=always -Dsbt.supershell=false -Dsbt.server.forcestart=true"
 FLOW_DIR="${CI_SYNTHESIS_RUN_ROOT}/dc-flow"
+CI_SUMMARY_FILE="${CI_SYNTHESIS_RUN_ROOT}/synthesis-summary.md"
 
 case "${SYNTHESIS_TECH}" in
   smic180)
@@ -75,10 +76,11 @@ clock_frequency_mhz() {
 }
 
 write_qor_summary() {
-  local report_dir area_report group_report slack constraint_sdc time_unit workbench_revision
+  local report_dir area_report group_report slack constraint_sdc time_unit workbench_revision summary_file
   local clock_period clock_frequency input_delay output_delay clock_uncertainty
 
-  if [[ -z "${GITHUB_STEP_SUMMARY:-}" ]]; then
+  summary_file="${CI_SUMMARY_FILE:-}"
+  if [[ -z "${summary_file}" ]]; then
     return
   fi
 
@@ -171,13 +173,14 @@ write_qor_summary() {
 
     echo
     echo "Configuration: \`${SYNTHESIS_CONFIG}\`; top module: \`${TOP_MODULE}\`."
-  } >> "${GITHUB_STEP_SUMMARY}"
+  } >> "${summary_file}"
 }
 
 write_sram_summary() {
-  local netlist macro_counts macro_name macro_count macro_family sram_mdf total_instances
+  local netlist macro_counts macro_name macro_count macro_family sram_mdf total_instances summary_file
 
-  if [[ -z "${GITHUB_STEP_SUMMARY:-}" ]]; then
+  summary_file="${CI_SUMMARY_FILE:-}"
+  if [[ -z "${summary_file}" ]]; then
     return
   fi
 
@@ -224,10 +227,12 @@ write_sram_summary() {
       total_instances=$((total_instances + macro_count))
     done <<< "${macro_counts}"
     echo "| Total | ${total_instances} |"
-  } >> "${GITHUB_STEP_SUMMARY}"
+  } >> "${summary_file}"
 }
 
 write_ci_summary() {
+  mkdir -p "$(dirname "${CI_SUMMARY_FILE}")"
+  : > "${CI_SUMMARY_FILE}"
   write_qor_summary
   write_sram_summary
 }

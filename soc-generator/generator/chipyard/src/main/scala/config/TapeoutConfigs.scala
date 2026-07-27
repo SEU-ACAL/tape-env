@@ -22,6 +22,25 @@ class TapeoutConfig extends Config(
   new WithTapeoutSingleClock(100) ++
   new chipyard.harness.WithSimTSIOverSerialTL(fast = true) ++
   new chipyard.WithSerialConnect ++
+
+  // Replace AbstractConfig's SPI/I2C punchthrough ports with General IO cells.
+  // IOCellKey remains GenericIOCellParams for simulation and must be replaced
+  // with the PDK General IO implementation before physical tapeout.
+  new chipyard.iobinders.WithSPIIOCells ++
+  new chipyard.iobinders.WithI2CIOCells ++
+
+  // MMIO peripherals.  AbstractConfig supplies a default UART; replace it
+  // here so this tapeout configuration owns the complete peripheral map.
+  new chipyard.config.WithUART(
+    baudrate = 115200,
+    address = 0x10020000,
+    txEntries = 8,
+    rxEntries = 8) ++
+  new chipyard.config.WithNoUART ++
+  new chipyard.config.WithSPI(address = 0x10031000) ++
+  new chipyard.config.WithI2C(address = 0x10040000) ++
+  new chipyard.config.WithGPIO(address = 0x10010000, width = 8) ++
+
   new chipyard.config.AbstractConfig)
 
 // Rocket tile and cache sizing for the tapeout target.

@@ -75,6 +75,14 @@ class WithSimSPIFlashModel(rdOnly: Boolean = true) extends HarnessBinder({
   }
 })
 
+class WithSPITiedOff extends HarnessBinder({
+  case (th: HasHarnessInstantiators, port: SPIPort, chipId: Int) => {
+    // The SPI controller drives sck, cs, and dq.{o,ie,oe}; only dq.i is an
+    // input to the SoC and must be driven when no external SPI model is used.
+    port.io.dq.foreach(_.i := false.B)
+  }
+})
+
 class WithI2CTiedOff extends HarnessBinder({
   case (th: HasHarnessInstantiators, port: I2CPort, chipId: Int) => {
     port.io <> DontCare
