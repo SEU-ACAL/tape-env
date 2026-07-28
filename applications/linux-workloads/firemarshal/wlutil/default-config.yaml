@@ -17,10 +17,6 @@ res-dir : '../../build/run-output'
 # mount working directory
 mount-dir : "../../build/mount"
 
-# Location of the FireSim repository. Used by the 'install' command. Null
-# indicates that no FireSim installation is available.
-firesim-dir : null
-
 # Default parallelism level to use in subcommands (mostly when calling 'make')
 # '' means unbounded
 jlevel : null

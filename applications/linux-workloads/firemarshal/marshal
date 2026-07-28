@@ -19,7 +19,7 @@ def deleteSafe(pth):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Build and run (in spike or qemu) boot code and disk images for firesim")
+        description="Build and run Linux workload boot code and images")
     parser.add_argument('--workdir', help='Use a custom workload directory (defaults to the same directory as the first config file)', type=pathlib.Path)
     parser.add_argument('-v', '--verbose',
                         help='Print all output of subcommands to stdout as well as the logs', action='store_true')
@@ -52,12 +52,6 @@ def main():
     clean_parser = subparsers.add_parser(
             'clean', help="Removes build outputs of the provided config (img and bin). Does not affect logs or runOutputs.")
     clean_parser.add_argument('config_files', nargs='+', help="Configuration file(s) to use.")
-
-    # Install Command
-    install_parser = subparsers.add_parser(
-            'install', help="Install this workload to firesim (create configs in firesim/deploy/workloads)")
-    install_parser.add_argument('config_files', nargs='+', help="Configuration file(s) to use.")
-    install_parser.add_argument("-t", "--target", default='firesim', type=str, help="Target to install to. See your board's documentation for available targets")
 
     args = parser.parse_args()
 
@@ -173,13 +167,6 @@ def main():
                 for jCfg in targetCfg['jobs'].values():
                     cleanCfg(jCfg)
 
-        elif args.command == 'install':
-            try:
-                # wlutil.installWorkload(cfgName, cfgs)
-                wlutil.installWorkload(cfgs[cfgName], installer=args.target)
-            except wlutil.ConfigurationError as e:
-                print(e)
-                sys.exit(1)
         else:
             log.error("No subcommand specified")
             sys.exit(1)

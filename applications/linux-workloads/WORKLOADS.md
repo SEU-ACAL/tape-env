@@ -146,8 +146,7 @@ source is `applications/my-workload/payload`. Each `files` pair is
 The `command` runs from the guest init script after Linux has booted.
 
 Inherit `htif-console.json` for P2E. It supplies the Linux console route over
-HTIF and the OpenSBI DTB convention. For a disk-backed FireSim workload,
-inherit `firesim-poweroff.json` instead; see [README.md](README.md).
+HTIF and the OpenSBI DTB convention.
 
 ## Build The P2E Image
 

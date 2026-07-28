@@ -6,9 +6,7 @@ import doit
 import hashlib
 import wlutil
 import re
-import zipfile
 import urllib.request
-import time
 import logging
 
 # Note: All argument paths are expected to be absolute paths
@@ -22,15 +20,6 @@ overlay = br_dir / 'overlay'
 
 # Buildroot puts its output images here
 img_dir = buildroot_dir / 'output' / 'images'
-
-GH_REPO = 'firemarshal-public-br-images'
-GH_ORG = 'firesim'
-URL_PREFIX = f"https://raw.githubusercontent.com/{GH_ORG}/{GH_REPO}"
-
-
-def get_url(file_path):
-    return f"{URL_PREFIX}/main/{file_path}"
-
 
 def make_relative(path):
     path_str = str(path)
@@ -219,36 +208,6 @@ class Builder:
             changed: list of file depencies that have changed since the last successful execution
         """
         log = logging.getLogger()
-
-        # optimization to get cached br distro image
-        img_rel_path = make_relative(str(self.outputImg))
-        cached_url = get_url(img_rel_path + ".zip")
-        cached_local = f"{br_dir}/{self.outputImg.name}.zip"
-
-        # try N times then move on
-        for i in range(0 if os.environ.get("FIREMARSHAL_DISABLE_PUBLIC_CACHE") else 3):
-            try:
-                log.info(f"Attempting to download cached image: {cached_url}")
-                urllib.request.urlretrieve(cached_url, cached_local)
-                break
-            except Exception as e:
-                log.debug(f"urlretrieve exception: {e}")
-            time.sleep(3)
-
-        if os.path.exists(cached_local):
-            assert len(task.targets) == 1, "Multiple targets detected for buildroot"
-            target_doesnt_exist = not os.path.exists(task.targets[0])
-            file_deps_not_changed = not changed
-            log.debug(f"Target doesn't exist: {target_doesnt_exist}, File dep(s) not changed: {file_deps_not_changed} {changed}")
-            if target_doesnt_exist and file_deps_not_changed:
-                log.info(f"Unzipping cached image: {cached_local}")
-                with zipfile.ZipFile(cached_local, 'r') as zip_ref:
-                    self.outputImg.parent.mkdir(parents=True, exist_ok=True)
-                    zip_ref.extractall(self.outputImg.parent)
-                os.remove(cached_local)
-                log.info(f"Skipping full buildroot build. Using cached image {self.outputImg} from {cached_local}")
-                return
-            os.remove(cached_local)
 
         try:
             wlutil.checkSubmodule(buildroot_dir)

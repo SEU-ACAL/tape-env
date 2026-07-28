@@ -48,8 +48,8 @@
 	path = applications/linux-workloads/busybox
 	url = https://github.com/mirror/busybox.git
 [submodule "applications_linux_iceblk_driver"]
-	path = applications/linux-workloads/iceblk-driver
+	path = applications/linux-workloads/legacy/firesim/drivers/iceblk-driver
 	url = https://github.com/firesim/iceblk-driver.git
 [submodule "applications_linux_icenet_driver"]
-	path = applications/linux-workloads/icenet-driver
+	path = applications/linux-workloads/legacy/firesim/drivers/icenet-driver
 	url = https://github.com/firesim/icenet-driver.git

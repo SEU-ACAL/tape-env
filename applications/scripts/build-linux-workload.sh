@@ -10,14 +10,11 @@ REPO_ROOT="$(git -C "${SCRIPT_DIR}/../.." rev-parse --show-toplevel)"
 FIREMARSHAL_DIR="${REPO_ROOT}/applications/linux-workloads/firemarshal"
 DEFAULT_CONFIG="${REPO_ROOT}/applications/linux-workloads/workloads/poweroff.json"
 HTIF_CONSOLE_CONFIG="${REPO_ROOT}/applications/linux-workloads/workloads/htif-console.json"
-FIRESIM_CONFIG="${REPO_ROOT}/applications/linux-workloads/workloads/firesim-poweroff.json"
 CONFIG="${DEFAULT_CONFIG}"
 CONFIG_EXPLICIT=0
 OUTPUT_DIR="${REPO_ROOT}/applications/linux-workloads/build"
-NO_DISK=1
 VERIFY_SPIKE=0
 HTIF_CONSOLE=0
-FIRESIM=0
 JOBS="${FIREMARSHAL_JOBS:-}"
 
 usage() {
@@ -29,8 +26,6 @@ Build a FireMarshal Buildroot Linux workload for Tapeout/P2E.
 Options:
   --config PATH    FireMarshal workload configuration (default: poweroff.json)
   --output DIR     Artifact root (default: applications/linux-workloads/build)
-  --disk           Build a disk-backed image without installing it to FireSim
-  --firesim        Build and install the FireSim disk workload
   --htif-console   Build the P2E debugging workload with Linux output over HTIF
   --verify-spike   Launch the completed no-disk workload in Spike
   --jobs N         Parallel build jobs (default: FireMarshal auto-detect)
@@ -54,20 +49,11 @@ while [[ $# -gt 0 ]]; do
       OUTPUT_DIR="$2"
       shift 2
       ;;
-    --disk)
-      NO_DISK=0
-      shift
-      ;;
     --htif-console)
       HTIF_CONSOLE=1
       if [[ "${CONFIG_EXPLICIT}" -eq 0 ]]; then
         CONFIG="${HTIF_CONSOLE_CONFIG}"
       fi
-      shift
-      ;;
-    --firesim)
-      FIRESIM=1
-      NO_DISK=0
       shift
       ;;
     --verify-spike)
@@ -91,10 +77,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ "${FIRESIM}" -eq 1 && "${CONFIG_EXPLICIT}" -eq 0 ]]; then
-  CONFIG="${FIRESIM_CONFIG}"
-fi
-
 if [[ -z "${IN_NIX_SHELL:-}" ]]; then
   echo "Run this script from the Tapeout Nix development shell:" >&2
   echo "  nix develop .#firemarshal --command applications/scripts/build-linux-workload.sh" >&2
@@ -117,11 +99,6 @@ if [[ "${CONFIG}" == "${HTIF_CONSOLE_CONFIG}" ]]; then
   HTIF_CONSOLE=1
 fi
 
-if [[ "${FIRESIM}" -eq 1 && "${HTIF_CONSOLE}" -eq 1 ]]; then
-  echo "--firesim cannot be combined with --htif-console." >&2
-  exit 2
-fi
-
 # Spike places its DTB in its ROM, while the P2E OpenSBI payload deliberately
 # reads the HPEC DTB from the DDR-preloaded address. Treating a Spike launch as
 # a P2E HTIF validation would therefore produce a misleading boot failure.
@@ -138,8 +115,6 @@ fi
 git -C "${REPO_ROOT}" submodule update --init \
   applications/linux-workloads/buildroot \
   applications/linux-workloads/busybox \
-  applications/linux-workloads/iceblk-driver \
-  applications/linux-workloads/icenet-driver \
   applications/linux-workloads/linux \
   applications/linux-workloads/opensbi
 if [[ ! -x "${FIREMARSHAL_DIR}/marshal" ]]; then
@@ -314,11 +289,7 @@ if [[ -n "${JOBS}" ]]; then
   export MARSHAL_JLEVEL="${JOBS}"
 fi
 
-marshal_args=(--workdir "$(dirname "${CONFIG}")")
-if [[ "${NO_DISK}" -eq 1 ]]; then
-  marshal_args+=(--no-disk)
-fi
-marshal_args+=(build "${CONFIG}")
+marshal_args=(--workdir "$(dirname "${CONFIG}")" --no-disk build "${CONFIG}")
 
 cd "${REPO_ROOT}"
 "${FIREMARSHAL_DIR}/marshal" "${marshal_args[@]}"
@@ -328,17 +299,7 @@ if [[ "${HTIF_CONSOLE}" -eq 1 ]]; then
     --output "${OUTPUT_DIR}/tape-env/tape-env-linux-htif-console/tape-env-linux-htif-console.dtb"
 fi
 
-if [[ "${FIRESIM}" -eq 1 ]]; then
-  "${FIREMARSHAL_DIR}/marshal" \
-    --workdir "$(dirname "${CONFIG}")" \
-    install "${CONFIG}"
-fi
-
 if [[ "${VERIFY_SPIKE}" -eq 1 ]]; then
-  if [[ "${NO_DISK}" -ne 1 ]]; then
-    echo "--verify-spike requires the default no-disk workload mode" >&2
-    exit 2
-  fi
   "${FIREMARSHAL_DIR}/marshal" \
     --workdir "$(dirname "${CONFIG}")" \
     --no-disk launch --spike "${CONFIG}"

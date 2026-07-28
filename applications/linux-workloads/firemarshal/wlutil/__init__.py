@@ -1,5 +1,5 @@
 """
-Utilities for dealing with FireSim workloads
+Utilities for dealing with Linux workloads
 """
 
 # These imports allow users to simply import wlutil instead of manually
@@ -7,5 +7,4 @@ Utilities for dealing with FireSim workloads
 from .wlutil import *  # NOQA
 from .build import buildWorkload  # NOQA
 from .launch import launchWorkload  # NOQA
-from .install import installWorkload  # NOQA
 from .config import ConfigManager  # NOQA

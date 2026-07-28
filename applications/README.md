@@ -30,10 +30,9 @@ files.
 
 `applications/linux-workloads/firemarshal` contains a trimmed, repository-owned
 FireMarshal script layer for generating Buildroot Linux workloads. Linux,
-OpenSBI, Buildroot, BusyBox, and FireSim drivers are pinned as direct
-submodules. The default workload embeds the root filesystem in an initramfs,
-which is required by the current Tapeout/P2E platform because it has no block
-device path.
+OpenSBI, Buildroot, and BusyBox are pinned as direct submodules. The default
+workload embeds the root filesystem in an initramfs, which is required by the
+current Tapeout/P2E platform because it has no block device path.
 
 Initialize Linux workload dependencies once after cloning:
 
@@ -54,8 +53,7 @@ applications/linux-workloads/build/tape-env/tape-env-linux-poweroff/tape-env-lin
 ```
 
 Pass `--config PATH` to build another workload and `--output DIR` to place
-artifacts elsewhere. `--firesim` builds the disk image and installs its
-workload descriptor to FireSim. See
+artifacts elsewhere. See
 [linux-workloads/WORKLOADS.zh-CN.md](linux-workloads/WORKLOADS.zh-CN.md) (中文)
 or [linux-workloads/README.md](linux-workloads/README.md) (English) for workload
 layout and P2E invocation.

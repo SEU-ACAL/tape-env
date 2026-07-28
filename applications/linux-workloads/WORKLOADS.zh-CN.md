@@ -133,8 +133,7 @@ P2E。
 `command` 会在 Linux 启动完成后由 guest init 脚本执行。
 
 P2E workload 必须继承 `htif-console.json`，以提供 HTIF console 和 OpenSBI 的 DTB
-约定。需要给 FireSim 构建磁盘 workload 时改为继承 `firesim-poweroff.json`，见
-[README.md](README.md)。
+约定。
 
 ## 构建 P2E 镜像
 

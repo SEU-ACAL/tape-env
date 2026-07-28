@@ -1,9 +1,8 @@
 # Linux Workloads
 
 `applications/linux-workloads/firemarshal/` is a trimmed, repository-owned subset of
-FireMarshal. It retains only the Buildroot workload builder, no-disk and disk
-boot assembly, Spike launch support, and the FireSim installer. Linux,
-OpenSBI, Buildroot, BusyBox, and FireSim block/network drivers are direct
+FireMarshal. It retains the Buildroot workload builder, no-disk boot assembly,
+and Spike launch support. Linux, OpenSBI, Buildroot, and BusyBox are direct
 submodules under this directory.
 
 Initialize the workload dependencies after a clone:
@@ -60,22 +59,6 @@ p2e run \
 
 Do not combine `--htif-console` and `--verify-spike`: the P2E OpenSBI payload
 expects its DTB at `0x8ff00000`, while Spike uses its own ROM convention.
-
-## FireSim
-
-FireSim Linux workloads use disk mode: the boot ELF and ext2 root filesystem
-are separate, and the initramfs loads `iceblk` before mounting the root image.
-The retained FireSim installer does not support no-disk workloads.
-
-```sh
-nix develop .#firemarshal --command applications/scripts/build-linux-workload.sh --firesim
-```
-
-This builds `workloads/firesim-poweroff.json`, installs a workload descriptor
-to `soc-generator/sims/firesim/deploy/workloads/`, and leaves the boot ELF and
-rootfs image under `applications/linux-workloads/build/tape-env/`. Custom FireSim
-workloads should inherit `firesim-br-base.json` so the required block-device
-drivers are included.
 
 The no-disk path still uses `guestmount` to turn the ext2 rootfs into an
 initramfs. Install `libguestfs` on the build host before running a no-disk

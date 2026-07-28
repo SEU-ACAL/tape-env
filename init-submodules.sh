@@ -121,8 +121,6 @@ init_linux_workloads() {
     local linux_submodules=(
         applications/linux-workloads/buildroot
         applications/linux-workloads/busybox
-        applications/linux-workloads/iceblk-driver
-        applications/linux-workloads/icenet-driver
         applications/linux-workloads/linux
         applications/linux-workloads/opensbi
     )
@@ -147,8 +145,8 @@ else
         applications/zephyr
         applications/linux-workloads/buildroot
         applications/linux-workloads/busybox
-        applications/linux-workloads/iceblk-driver
-        applications/linux-workloads/icenet-driver
+        applications/linux-workloads/legacy/firesim/drivers/iceblk-driver
+        applications/linux-workloads/legacy/firesim/drivers/icenet-driver
         applications/linux-workloads/linux
         applications/linux-workloads/opensbi
         dependencies/p2e-runner

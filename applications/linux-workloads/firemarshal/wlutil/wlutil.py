@@ -128,7 +128,6 @@ def cleanPaths(opts, baseDir=pathlib.Path('.')):
         ('board-dir', True),
         ('image-dir', True),
         ('linux-dir', True),
-        ('firesim-dir', True),
         ('opensbi-dir', True),
         ('log-dir', True),
         ('res-dir', True),
@@ -162,7 +161,6 @@ userOpts = [
         'workload-dirs',
         'board-dir',
         'image-dir',
-        'firesim-dir',
         'log-dir',
         'mount-dir',
         'res-dir',
@@ -589,11 +587,6 @@ if runnableWithSudo('true'):
     pwdlessSudoCmd = sudoCmd
 
 
-def existsAndRunnableWithSudo(cmd):
-    global sudoCmd
-    return os.path.exists(cmd) and runnableWithSudo(cmd)
-
-
 @contextmanager
 def mountImg(imgPath, mntPath):
     global sudoCmd
@@ -608,7 +601,6 @@ def mountImg(imgPath, mntPath):
     gid = sp.run(['id', '-g'], capture_output=True, text=True).stdout.strip()
 
     if pwdlessSudoCmd:
-        # use faster mount without firesim script since we have pwdless sudo
         run(pwdlessSudoCmd + ["mount", "-o", "loop", imgPath, mntPath])
         run(pwdlessSudoCmd + ["chown", "-R", f"{uid}:{gid}", mntPath])
         try:
@@ -616,35 +608,24 @@ def mountImg(imgPath, mntPath):
         finally:
             run_with_retries(pwdlessSudoCmd + ['umount', mntPath])
     else:
-        # use either firesim-*mount* cmds if available/useable or default to guestmount (slower but reliable)
-        fsimMountCmd = '/usr/local/bin/firesim-mount-with-uid-gid'
-        fsimUnmountCmd = '/usr/local/bin/firesim-unmount'
+        # guestmount does not support NFS filesystems.
+        fstype = sp.run(["df", mntPath, "--output=fstype"], capture_output=True, text=True).stdout.strip().splitlines()[-1]
+        assert "nfs" not in fstype, f"Guestmount does not support {fstype} filesystems, change mount-dir to a non-NFS filesystem"
 
-        if existsAndRunnableWithSudo(fsimMountCmd) and existsAndRunnableWithSudo(fsimUnmountCmd):
-            run(sudoCmd + [fsimMountCmd, imgPath, mntPath, uid, gid])
-            try:
-                yield mntPath
-            finally:
-                run_with_retries(sudoCmd + [fsimUnmountCmd, mntPath])
-        else:
-            # guestmount does not support NFS filesystems
-            fstype = sp.run(["df", mntPath, "--output=fstype"], capture_output=True, text=True).stdout.strip().splitlines()[-1]
-            assert "nfs" not in fstype, f"Guestmount does not support {fstype} filesystems, change mount-dir to a non-NFS filesystem"
+        pidPath = './guestmount.pid'
+        run(['guestmount', '--pid-file', pidPath, '-o', f'uid={uid}', '-o', f'gid={gid}', '-a', imgPath, '-m', '/dev/sda', mntPath])
+        try:
+            with open(pidPath, 'r') as pidFile:
+                mntPid = int(pidFile.readline())
+            yield mntPath
+        finally:
+            run(['guestunmount', mntPath])
+            os.remove(pidPath)
 
-            pidPath = './guestmount.pid'
-            run(['guestmount', '--pid-file', pidPath, '-o', f'uid={uid}', '-o', f'gid={gid}', '-a', imgPath, '-m', '/dev/sda', mntPath])
-            try:
-                with open(pidPath, 'r') as pidFile:
-                    mntPid = int(pidFile.readline())
-                yield mntPath
-            finally:
-                run(['guestunmount', mntPath])
-                os.remove(pidPath)
-
-            # There is a race-condition in guestmount where a background task keeps
-            # modifying the image for a period after unmount. This is the documented
-            # best-practice (see man guestmount).
-            waitpid(mntPid)
+        # There is a race-condition in guestmount where a background task keeps
+        # modifying the image for a period after unmount. This is the documented
+        # best-practice (see man guestmount).
+        waitpid(mntPid)
 
 
 def toCpio(src, dst):
@@ -654,14 +635,10 @@ def toCpio(src, dst):
     log = logging.getLogger()
     log.debug("Creating Cpio archive from " + str(src))
 
-    fsimCpioCmd = '/usr/local/bin/firesim-cpio'
-    if existsAndRunnableWithSudo(fsimCpioCmd):
-        run(sudoCmd + [fsimCpioCmd, src, dst])
-    else:
-        with open(dst, 'wb') as outCpio:
-            p = sp.run(pwdlessSudoCmd + ["sh", "-c", "find -print0 | cpio --owner root:root --null -ov --format=newc"],
-                       stderr=sp.PIPE, stdout=outCpio, cwd=src)
-            log.debug(p.stderr.decode('utf-8'))
+    with open(dst, 'wb') as outCpio:
+        p = sp.run(pwdlessSudoCmd + ["sh", "-c", "find -print0 | cpio --owner root:root --null -ov --format=newc"],
+                   stderr=sp.PIPE, stdout=outCpio, cwd=src)
+        log.debug(p.stderr.decode('utf-8'))
 
 
 def resizeFS(img, newSize=0):
