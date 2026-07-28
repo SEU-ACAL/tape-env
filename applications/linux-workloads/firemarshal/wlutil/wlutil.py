@@ -729,6 +729,10 @@ def copyImgFiles(img, files, direction):
             # remove duplicates but keep order
             dirsToModify = list(dict.fromkeys(dirsToModify))
 
+            # cp creates a missing final destination directory for a directory
+            # source. There is nothing to chmod until after that copy occurs.
+            dirsToModify = [dirPath for dirPath in dirsToModify if dirPath.exists()]
+
             for dirPath in dirsToModify:
                 perms = int(oct(os.stat(dirPath).st_mode)[-3:], 8)
                 log.debug(f"Changing permissions of {dirPath} from {oct(perms)}:{type(perms)} to {oct(relaxedPerms)} temporarily")

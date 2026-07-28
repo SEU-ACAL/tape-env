@@ -1,0 +1,9 @@
+{
+  "name": "tape-env-linux-riscv-benchmarks",
+  "base": "htif-console.json",
+  "workdir": "../..",
+  "files": [
+    ["linux-riscv-benchmarks/build", "/opt/riscv-benchmarks"]
+  ],
+  "command": "/opt/riscv-benchmarks/run-linux-riscv-benchmarks.sh"
+}

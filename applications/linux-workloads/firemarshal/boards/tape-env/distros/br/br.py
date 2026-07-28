@@ -15,7 +15,8 @@ import logging
 
 # Some common directories for this module (all absolute paths)
 br_dir = pathlib.Path(__file__).parent
-buildroot_dir = (br_dir / 'buildroot').resolve()
+buildroot_dir = pathlib.Path(os.environ.get(
+    'FIREMARSHAL_BUILDROOT_DIR', br_dir / 'buildroot')).resolve()
 fm_dir = br_dir.parents[3]
 overlay = br_dir / 'overlay'
 

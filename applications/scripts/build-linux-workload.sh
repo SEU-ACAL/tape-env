@@ -59,8 +59,10 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --htif-console)
-      CONFIG="${HTIF_CONSOLE_CONFIG}"
       HTIF_CONSOLE=1
+      if [[ "${CONFIG_EXPLICIT}" -eq 0 ]]; then
+        CONFIG="${HTIF_CONSOLE_CONFIG}"
+      fi
       shift
       ;;
     --firesim)
@@ -151,24 +153,26 @@ fi
 # build and restore the upstream configuration on every exit path.
 BUSYBOX_CONFIG="${FIREMARSHAL_DIR}/wlutil/busybox-config"
 BUSYBOX_CONFIG_BACKUP="$(mktemp)"
-BUILDROOT_DISTRO="${FIREMARSHAL_DIR}/boards/tape-env/distros/br/br.py"
-BUILDROOT_DISTRO_BACKUP="$(mktemp)"
-BUILDROOT_HELPERS="${FIREMARSHAL_DIR}/boards/tape-env/distros/br/buildroot/toolchain/helpers.mk"
-BUILDROOT_HELPERS_BACKUP="$(mktemp)"
-FAKEROOT_FS_COMMON_MK="${FIREMARSHAL_DIR}/boards/tape-env/distros/br/buildroot/fs/common.mk"
-FAKEROOT_FS_COMMON_MK_BACKUP="$(mktemp)"
+BUILDROOT_SOURCE_DIR="${FIREMARSHAL_DIR}/boards/tape-env/distros/br/buildroot"
+BUILDROOT_WORKTREE_ROOT="${OUTPUT_DIR}/worktrees"
+BUILDROOT_WORKTREE_LAYOUT=""
+BUILDROOT_WORKTREE=""
 cp "${BUSYBOX_CONFIG}" "${BUSYBOX_CONFIG_BACKUP}"
-cp "${BUILDROOT_DISTRO}" "${BUILDROOT_DISTRO_BACKUP}"
-cp "${BUILDROOT_HELPERS}" "${BUILDROOT_HELPERS_BACKUP}"
-cp "${FAKEROOT_FS_COMMON_MK}" "${FAKEROOT_FS_COMMON_MK_BACKUP}"
-restore_firemarshal_files() {
+cleanup_firemarshal_build() {
   cp "${BUSYBOX_CONFIG_BACKUP}" "${BUSYBOX_CONFIG}"
-  cp "${BUILDROOT_DISTRO_BACKUP}" "${BUILDROOT_DISTRO}"
-  cp "${BUILDROOT_HELPERS_BACKUP}" "${BUILDROOT_HELPERS}"
-  cp "${FAKEROOT_FS_COMMON_MK_BACKUP}" "${FAKEROOT_FS_COMMON_MK}"
-  rm -f "${BUSYBOX_CONFIG_BACKUP}" "${BUILDROOT_DISTRO_BACKUP}" "${BUILDROOT_HELPERS_BACKUP}" "${FAKEROOT_FS_COMMON_MK_BACKUP}"
+  rm -f "${BUSYBOX_CONFIG_BACKUP}"
+  if [[ -n "${BUILDROOT_WORKTREE}" ]]; then
+    git -C "${BUILDROOT_SOURCE_DIR}" worktree remove --force "${BUILDROOT_WORKTREE}" || true
+  fi
+  if [[ -n "${BUILDROOT_WORKTREE_LAYOUT}" ]]; then
+    unlink "${BUILDROOT_WORKTREE_LAYOUT}/applications/linux-workloads/firemarshal" 2>/dev/null || true
+    unlink "${BUILDROOT_WORKTREE_LAYOUT}/applications/scripts" 2>/dev/null || true
+    rmdir "${BUILDROOT_WORKTREE_LAYOUT}/applications/linux-workloads" 2>/dev/null || true
+    rmdir "${BUILDROOT_WORKTREE_LAYOUT}/applications" 2>/dev/null || true
+    rmdir "${BUILDROOT_WORKTREE_LAYOUT}" 2>/dev/null || true
+  fi
 }
-trap restore_firemarshal_files EXIT
+trap cleanup_firemarshal_build EXIT
 sed -i \
   -e 's/^CONFIG_TC=y$/# CONFIG_TC is not set/' \
   -e 's/^CONFIG_FEATURE_TC_INGRESS=y$/# CONFIG_FEATURE_TC_INGRESS is not set/' \
@@ -177,31 +181,51 @@ sed -i \
 # MARSHAL_IMAGE_DIR is deliberately outside FireMarshal, so its public cache
 # key is an absolute local path and cannot hit. The host cannot reach GitHub
 # reliably either; skip the three futile download attempts and build locally.
-sed -i \
-  's/for i in range(3):/for i in range(0 if os.environ.get("FIREMARSHAL_DISABLE_PUBLIC_CACHE") else 3):/' \
-  "${BUILDROOT_DISTRO}"
 export FIREMARSHAL_DISABLE_PUBLIC_CACHE=1
 
-# Older FireMarshal revisions fetch the pinned fakeroot archive unconditionally.
-# Patch only that original top-level form. The local source already has the
-# guarded form, and applying the replacement a second time corrupts Python
-# indentation.
-if grep -q '^        urllib\.request\.urlretrieve(fakerootSite + "/" + fakerootTarFile, fakerootTar)$' "${BUILDROOT_DISTRO}"; then
-  perl -0pi -e 's{        urllib\.request\.urlretrieve\(fakerootSite \+ "/" \+ fakerootTarFile, fakerootTar\)}{        if not fakerootTar.exists():\n            urllib.request.urlretrieve(fakerootSite + "/" + fakerootTarFile, fakerootTar)}' \
-    "${BUILDROOT_DISTRO}"
+# Buildroot source must not be changed in its submodule. Use a disposable
+# worktree for compatibility edits and reuse the original ignored output tree
+# as its package and toolchain cache.
+if [[ -n "$(git -C "${BUILDROOT_SOURCE_DIR}" status --porcelain)" ]]; then
+  echo "Buildroot submodule must be clean before building a workload: ${BUILDROOT_SOURCE_DIR}" >&2
+  exit 1
 fi
+mkdir -p "${BUILDROOT_WORKTREE_ROOT}"
+BUILDROOT_WORKTREE_LAYOUT="$(mktemp -d "${BUILDROOT_WORKTREE_ROOT}/.layout.XXXXXX")"
+BUILDROOT_WORKTREE="${BUILDROOT_WORKTREE_LAYOUT}/applications/linux-workloads/buildroot"
+mkdir -p "$(dirname "${BUILDROOT_WORKTREE}")" "${BUILDROOT_WORKTREE_LAYOUT}/applications"
+ln -s "${FIREMARSHAL_DIR}" "${BUILDROOT_WORKTREE_LAYOUT}/applications/linux-workloads/firemarshal"
+ln -s "${REPO_ROOT}/applications/scripts" "${BUILDROOT_WORKTREE_LAYOUT}/applications/scripts"
+git -C "${BUILDROOT_SOURCE_DIR}" worktree add --detach "${BUILDROOT_WORKTREE}" HEAD
+ln -s "${BUILDROOT_SOURCE_DIR}/output" "${BUILDROOT_WORKTREE}/output"
+if [[ -f "${BUILDROOT_SOURCE_DIR}/.config" ]]; then
+  ln -s "${BUILDROOT_SOURCE_DIR}/.config" "${BUILDROOT_WORKTREE}/.config"
+elif [[ -f "${BUILDROOT_SOURCE_DIR}/output/.config" ]]; then
+  ln -s "${BUILDROOT_SOURCE_DIR}/output/.config" "${BUILDROOT_WORKTREE}/.config"
+else
+  echo "Buildroot has no reusable generated .config: ${BUILDROOT_SOURCE_DIR}" >&2
+  exit 1
+fi
+export FIREMARSHAL_BUILDROOT_DIR="${BUILDROOT_WORKTREE}"
+BUILDROOT_DIR="${BUILDROOT_WORKTREE}"
+BUILDROOT_HELPERS="${BUILDROOT_DIR}/toolchain/helpers.mk"
+FAKEROOT_FS_COMMON_MK="${BUILDROOT_DIR}/fs/common.mk"
 
 # Buildroot 2024.05 knows GCC through 14, while the Tapeout Nix toolchain is
 # GCC 15.  For a custom external toolchain, a newer compiler satisfies the
-# feature floor selected by Buildroot.  Restore the upstream check on exit.
+# feature floor selected by Buildroot. The worktree is discarded on exit.
 perl -0pi -e 's/if \[\[ ! "\$\$\{real_version\}\." =~ \^\$\$\{expected_version\}\\\. \]\] ; then \\\n/if [ "\$\${real_version%%.*}" -lt "\$\${expected_version}" ] ; then \\\n/' \
   "${BUILDROOT_HELPERS}"
 
-# fakeroot preloads a host library built by Nix.  Preserve Buildroot's normal
-# /bin/sh shebang, but invoke its generated script through the Nix shell so
-# the preloaded library and the interpreter use the same glibc ABI.
-nix_bash="$(command -v bash)"
-sed -i 's|$$(HOST_DIR)/bin/fakeroot -- $$(FAKEROOT_SCRIPT)|$$(HOST_DIR)/bin/fakeroot -- '"${nix_bash}"' $$(FAKEROOT_SCRIPT)|' "${FAKEROOT_FS_COMMON_MK}"
+# Buildroot's fakeroot is compiled against a glibc ABI that no longer
+# intercepts mknod on the current Nix shell. Use host fakeroot, shell, and
+# core utilities only in the disposable worktree's filesystem-image rule.
+HOST_FAKEROOT=/usr/bin/fakeroot
+if [[ ! -x "${HOST_FAKEROOT}" ]]; then
+  echo "Host fakeroot is required to build the no-disk root filesystem: ${HOST_FAKEROOT}" >&2
+  exit 1
+fi
+sed -i 's|PATH=$$(BR_PATH) FAKEROOTDONTTRYCHOWN=1 $$(HOST_DIR)/bin/fakeroot -- $$(FAKEROOT_SCRIPT)|PATH=/usr/sbin:/usr/bin:/sbin:/bin FAKEROOTDONTTRYCHOWN=1 '"${HOST_FAKEROOT}"' -- /bin/sh $$(FAKEROOT_SCRIPT)|' "${FAKEROOT_FS_COMMON_MK}"
 
 if [[ -n "${FIREMARSHAL_RISCV:-}" ]]; then
   export RISCV="${FIREMARSHAL_RISCV}"
@@ -215,8 +239,21 @@ fi
 # Buildroot's toolchain-wrapper embeds the absolute external-toolchain path.
 # Reconfigure it only when nix develop has supplied a different toolchain;
 # package and download caches remain intact.
-BUILDROOT_DIR="${FIREMARSHAL_DIR}/boards/tape-env/distros/br/buildroot"
 BUILDROOT_WRAPPER="${BUILDROOT_DIR}/output/host/bin/toolchain-wrapper"
+BUILDROOT_PATCHELF="${BUILDROOT_DIR}/output/host/bin/patchelf"
+
+# Buildroot host tools are compiled outside the Nix store.  If an older tool
+# references libraries collected from a previous Nix environment, rebuild only
+# that package before Buildroot invokes it during target finalization.
+if [[ -x "${BUILDROOT_PATCHELF}" ]] \
+  && ! "${BUILDROOT_PATCHELF}" --version >/dev/null 2>&1; then
+  echo "Refreshing unavailable Buildroot host patchelf..."
+  (
+    cd "${BUILDROOT_DIR}"
+    make host-patchelf-dirclean
+  )
+fi
+
 if [[ -f "${BUILDROOT_DIR}/.config" && -x "${BUILDROOT_WRAPPER}" ]] \
   && ! grep -aFq -- "${RISCV}/bin/%s" "${BUILDROOT_WRAPPER}"; then
   echo "Refreshing Buildroot external toolchain wrapper..."
@@ -253,6 +290,14 @@ if ! command -v guestmount >/dev/null 2>&1; then
 fi
 
 mkdir -p "${OUTPUT_DIR}" "${OUTPUT_DIR}/logs" "${OUTPUT_DIR}/run-output"
+
+# libguestfs expands its appliance under /tmp and /var/tmp by default. Those
+# live on the small root filesystem of the build hosts; keep this disposable
+# cache beside the other ignored workload outputs instead.
+LIBGUESTFS_DIR="${OUTPUT_DIR}/libguestfs"
+mkdir -p "${LIBGUESTFS_DIR}/tmp" "${LIBGUESTFS_DIR}/cache"
+export LIBGUESTFS_TMPDIR="${LIBGUESTFS_DIR}/tmp"
+export LIBGUESTFS_CACHEDIR="${LIBGUESTFS_DIR}/cache"
 
 export MARSHAL_BOARD_DIR="${FIREMARSHAL_DIR}/boards/tape-env"
 export MARSHAL_IMAGE_DIR="${OUTPUT_DIR}"

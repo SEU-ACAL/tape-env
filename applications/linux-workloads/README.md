@@ -18,8 +18,11 @@ The P2E harness has no Linux block device, so its default workload uses
 no-disk mode. The Buildroot root filesystem is embedded into the boot ELF as an
 initramfs and must be preloaded to DDR.
 
+Use the FireMarshal-only development shell for Linux workloads. It omits the
+simulator and RTL toolchain closure used by the default shell.
+
 ```sh
-nix develop --command applications/scripts/build-linux-workload.sh
+nix develop .#firemarshal --command applications/scripts/build-linux-workload.sh
 ```
 
 The P2E ELF is written to:
@@ -29,9 +32,12 @@ applications/linux-workloads/build/tape-env/tape-env-linux-poweroff/
   tape-env-linux-poweroff-bin-nodisk
 ```
 
-Build a custom P2E workload by copying `workloads/poweroff.json`; it should
-inherit `p2e-br-base.json`. Use `--verify-spike` to run a completed no-disk
-workload in Spike.
+Build a custom P2E workload by following
+[WORKLOADS.zh-CN.md](WORKLOADS.zh-CN.md) (中文) or [WORKLOADS.md](WORKLOADS.md)
+(English). They cover porting a bare-metal program to Linux user space,
+packaging files into the root filesystem, and running the resulting ELF
+through P2E. Use `--verify-spike` to run a completed non-HTIF no-disk workload
+in Spike.
 
 ## HTIF Console
 
@@ -39,7 +45,7 @@ The P2E harness does not forward physical UART TX to the host. The separate
 HTIF console workload routes Linux output through OpenSBI and HTIF:
 
 ```sh
-nix develop --command applications/scripts/build-linux-workload.sh --htif-console
+nix develop .#firemarshal --command applications/scripts/build-linux-workload.sh --htif-console
 ```
 
 This additionally generates a DTB. Run it with both DDR-preloaded inputs:
@@ -62,7 +68,7 @@ are separate, and the initramfs loads `iceblk` before mounting the root image.
 The retained FireSim installer does not support no-disk workloads.
 
 ```sh
-nix develop --command applications/scripts/build-linux-workload.sh --firesim
+nix develop .#firemarshal --command applications/scripts/build-linux-workload.sh --firesim
 ```
 
 This builds `workloads/firesim-poweroff.json`, installs a workload descriptor

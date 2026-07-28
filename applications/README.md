@@ -44,7 +44,7 @@ Initialize Linux workload dependencies once after cloning:
 Build the default Linux smoke workload from the development shell:
 
 ```bash
-nix develop --command applications/scripts/build-linux-workload.sh
+nix develop .#firemarshal --command applications/scripts/build-linux-workload.sh
 ```
 
 The resulting initramfs ELF, suitable as the P2E workload input, is:
@@ -55,5 +55,7 @@ applications/linux-workloads/build/tape-env/tape-env-linux-poweroff/tape-env-lin
 
 Pass `--config PATH` to build another workload and `--output DIR` to place
 artifacts elsewhere. `--firesim` builds the disk image and installs its
-workload descriptor to FireSim. See [linux/README.md](linux/README.md) for
-workload layout and P2E invocation.
+workload descriptor to FireSim. See
+[linux-workloads/WORKLOADS.zh-CN.md](linux-workloads/WORKLOADS.zh-CN.md) (中文)
+or [linux-workloads/README.md](linux-workloads/README.md) (English) for workload
+layout and P2E invocation.
