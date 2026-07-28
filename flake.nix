@@ -15,6 +15,9 @@
         gcc11Stdenv = gcc11Pkgs.overrideCC gcc11Pkgs.stdenv gcc11Pkgs.gcc11;
         riscvPkgs = pkgs.pkgsCross.riscv64-embedded;
         riscvCc = riscvPkgs.stdenv.cc;
+        # Buildroot 2024.05 has Kconfig entries through GCC 14. The wrapper
+        # below presents the current GCC 15 toolchain as that supported floor
+        # to Buildroot's version probes, without modifying Buildroot sources.
         riscvLinuxPkgs = pkgs.pkgsCross.riscv64;
         riscvLinuxCc = riscvLinuxPkgs.stdenv.cc;
         # Buildroot's external-toolchain probe predates Nix's split sysroot
@@ -57,7 +60,15 @@
               continue
             fi
             if [ "$arg" = "-print-file-name=libc.a" ]; then
-              printf '%s\\n' "$toolchain_root/sysroot/lib/libc.a"
+              printf '%s\n' "$toolchain_root/sysroot/lib/libc.a"
+              exit 0
+            fi
+            if [ "@compiler@" = "gcc" ] \
+              && { [ "$arg" = "-dumpversion" ] || [ "$arg" = "-dumpfullversion" ]; }; then
+              # Buildroot 2024.05 has version selectors through GCC 14. GCC
+              # 15 satisfies its feature floor, but must identify as the
+              # highest supported selector during its configuration probes.
+              printf '%s\n' '14.3.0'
               exit 0
             fi
             if [ "$arg" = "-static" ]; then
@@ -393,6 +404,63 @@ EOF
           ] ++ extraPackages;
         };
 
+        # Linux workload builds do not need the simulator, Chisel, or
+        # bare-metal toolchain closure carried by the default development
+        # shell. Keep this shell focused so FireMarshal can be entered and
+        # reproduced independently.
+        firemarshalShell = pkgs.mkShellNoCC {
+          RISCV = "${firemarshalRiscvToolchain}";
+          FIREMARSHAL_RISCV = "${firemarshalRiscvToolchain}";
+
+          shellHook = ''
+            export CY_DIR="$PWD"
+            export PATH="$CY_DIR/bin:$FIREMARSHAL_RISCV/bin:$PATH"
+            if [[ -n "''${LD_LIBRARY_PATH:-}" ]]; then
+              export LD_LIBRARY_PATH="${pkgs.zlib}/lib:''${LD_LIBRARY_PATH}"
+            else
+              export LD_LIBRARY_PATH="${pkgs.zlib}/lib"
+            fi
+            export FIREMARSHAL_NIX_PATCHELF="${pkgs.patchelf}/bin/patchelf"
+            export FIREMARSHAL_NIX_READELF="${pkgs.binutils}/bin/readelf"
+            export FIREMARSHAL_NIX_FAKEROOT="${pkgs.fakeroot}/bin/fakeroot"
+            export FIREMARSHAL_NIX_SH="${pkgs.bash}/bin/sh"
+            export FIREMARSHAL_NIX_HOST_CC="${pkgs.stdenv.cc}/bin/gcc"
+            export LIBRARY_PATH="${pkgs.libxcrypt}/lib''${LIBRARY_PATH:+:$LIBRARY_PATH}"
+            unset NIX_LDFLAGS
+          '';
+
+          packages = [
+            pkgs.autoconf
+            pkgs.automake
+            pkgs.bash
+            pkgs.bison
+            pkgs.bc
+            pkgs.cpio
+            pkgs.coreutils
+            pkgs.dtc
+            pkgs.findutils
+            pkgs.fakeroot
+            pkgs.flex
+            pkgs.gawk
+            pkgs.git
+            pkgs.gnumake
+            pkgs.gnutar
+            pkgs.gzip
+            pkgs.libxcrypt
+            pkgs.libxslt
+            pkgs.patch
+            pkgs.perl
+            pkgs.pkg-config
+            pkgs.stdenv.cc
+            firemarshalPython
+            pkgs.python3Packages.pyelftools
+            pkgs.wget
+            pkgs.which
+            pkgs.xz
+            pkgs.zlib
+          ];
+        };
+
         jtagDebugShell = pkgs.mkShellNoCC {
           packages = [
             gcc11Pkgs.openocd
@@ -403,11 +471,12 @@ EOF
 
       in {
         packages = {
-          inherit chipyardNewlibNano chipyardRiscvTools libglossHtif rawRiscvUnknownElfTools riscvUnknownElfTools;
+          inherit chipyardNewlibNano chipyardRiscvTools firemarshalRiscvToolchain libglossHtif rawRiscvUnknownElfTools riscvUnknownElfTools;
         };
 
         devShells = {
           default = mkDevShell [ ];
+          firemarshal = firemarshalShell;
           jtag-debug = jtagDebugShell;
         };
       });

@@ -32,3 +32,4 @@ p2e.toml
 .vscode/
 tests/build/
 applications/linux/build/
+/applications/linux-riscv-benchmarks/

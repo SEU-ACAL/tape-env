@@ -7,14 +7,14 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repo_root="$(git -C "${script_dir}/../.." rev-parse --show-toplevel)"
+repo_root="$(git -C "${script_dir}" rev-parse --show-toplevel)"
 tests_dir="${repo_root}/applications/riscv-tests"
-port_dir="${repo_root}/applications/linux-riscv-benchmarks"
-output_dir="${LINUX_RISCV_BENCHMARKS_OUTPUT:-${repo_root}/applications/linux-riscv-benchmarks/build}"
+port_dir="${script_dir}"
+output_dir="${LINUX_RISCV_BENCHMARKS_OUTPUT:-${port_dir}/build}"
 
 usage() {
   cat <<'EOF'
-Usage: applications/scripts/build-linux-riscv-benchmarks.sh [--output DIRECTORY]
+Usage: applications/linux-workloads/examples/riscv-benchmarks/build.sh [--output DIRECTORY]
 
 Build the Linux user-space ports of the benchmark subset used in CI. The
 result contains eleven static RISC-V Linux binaries and a suite runner. The
