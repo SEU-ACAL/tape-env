@@ -94,6 +94,58 @@ make SIM=vcs CONFIG=RocketConfig verilog
 
 更多生成和仿真变量见 [soc-generator/README.md](soc-generator/README.md)。
 
+## TapeoutConfig 与 SRAM
+
+`verilog` 负责 Chisel/FIRRTL elaboration 和 SRAM replacement；VCS 仅编译
+生成后的 Verilog。硬 SRAM 的工艺库必须与后端流片 PDK 一致，且一次只能选择一个：
+
+- TSMC 28nm：使用 `USE_TSMC28_SRAM=1`，默认库根目录为
+  `/data2/TSMC28/Memory/SRAM`。
+- SMIC 180nm：使用 `USE_SMIC180_SRAM=1`，默认库根目录由
+  `soc-generator/generator/chipyard/chipyard.mk` 的 `SMIC180_SRAM_ROOT` 指定。
+
+选择 TSMC28 并生成 TapeoutConfig Verilog，再用 VCS 编译：
+
+```sh
+make -C soc-generator/sims/vcs CONFIG=TapeoutConfig USE_TSMC28_SRAM=1 verilog
+make -C soc-generator/sims/vcs CONFIG=TapeoutConfig USE_TSMC28_SRAM=1
+```
+
+选择 SMIC180 时只替换工艺选择变量：
+
+```sh
+make -C soc-generator/sims/vcs CONFIG=TapeoutConfig USE_SMIC180_SRAM=1 verilog
+make -C soc-generator/sims/vcs CONFIG=TapeoutConfig USE_SMIC180_SRAM=1
+```
+
+生成的 RTL 在：
+
+```text
+soc-generator/sims/vcs/generated-src/chipyard.harness.TestHarness.TapeoutConfig/gen-collateral/
+```
+
+选择工艺库前，先检查 TapeoutConfig 的实际 SRAM 规格；`mrw` 需按
+`mask_gran` 分解为独立的单端口宏：
+
+```sh
+sed -n '1,200p' \
+  soc-generator/sims/vcs/generated-src/chipyard.harness.TestHarness.TapeoutConfig/\
+chipyard.harness.TestHarness.TapeoutConfig.top.mems.conf
+```
+
+当前配置需要 `32x21`、`512x8`、`512x32`、`512x64`、`64x21`、`64x22`
+单端口宏；其中 64-bit masked D-cache 会分解为八个 `512x8` 宏。严格模式下，
+所选库的 MDF、仿真 Verilog filelist 和物理交付物必须覆盖这些规格。若使用独立的
+宏库交付，在命令中同时覆盖三个变量：
+
+```sh
+make -C soc-generator/sims/vcs CONFIG=TapeoutConfig USE_TSMC28_SRAM=1 \
+  TSMC28_SRAM_ROOT=/path/to/sram-library \
+  TSMC28_SRAM_MDF=/path/to/sram-library.mdf.json \
+  TSMC28_SRAM_SIM_SOURCES=/path/to/sram-sim.sources \
+  verilog
+```
+
 ## 工作负载与回归
 
 `applications/tests/` 包含常用裸机程序，例如 `hello`、`mt-hello` 和外设测试。其
