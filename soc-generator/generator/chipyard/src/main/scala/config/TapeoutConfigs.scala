@@ -51,6 +51,7 @@ class WithTapeoutRocket extends Config(
   new freechips.rocketchip.rocket.WithL1DCacheSets(64) ++
   new freechips.rocketchip.rocket.WithL1DCacheWays(1) ++
   // Keep the default 8-way associativity: 16 KiB / (8 ways * 64B) = 32 sets.
+  new freechips.rocketchip.subsystem.WithInclusiveCacheSchedulerBypass(false) ++
   new freechips.rocketchip.subsystem.WithInclusiveCache(nWays = 8, capacityKB = 16) ++
   new freechips.rocketchip.rocket.WithNHugeCores(1)
 )
