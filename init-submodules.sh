@@ -40,17 +40,21 @@ function usage
     echo "Usage: $0 <options>"
     echo "Initialize Chipyard submodules"
     echo "By default, this will only initialize minimally required submodules"
-    echo "Enable the full checkout or the optional Gemmini workload sources"
+    echo "Enable the full checkout or optional Gemmini, Linux workload, and P2E sources"
     echo ""
     echo "Options:"
     echo "  -h            Display this help message"
     echo "  --full        Initialize all submodules"
     echo "  --gemmini     Initialize the optional Gemmini accelerator submodule"
+    echo "  --linux       Initialize Linux workload build dependencies"
+    echo "  --p2e         Initialize the optional P2E runner submodule"
     echo ""
 }
 
 ENABLE_FULL=0
 ENABLE_GEMMINI=0
+ENABLE_LINUX=0
+ENABLE_P2E=0
 
 while test $# -gt 0
 do
@@ -67,6 +71,12 @@ do
 	--gemmini)
 	    ENABLE_GEMMINI=1
 	    ;;
+        --linux|--firemarshal)
+            ENABLE_LINUX=1
+            ;;
+        --p2e)
+            ENABLE_P2E=1
+            ;;
         *)
             echo "ERROR: bad argument $1"
             usage
@@ -94,6 +104,10 @@ fi
 
 cd "$RDIR"
 
+# Keep cached checkouts aligned with URLs changed in .gitmodules, including
+# HTTPS-only CI environments where SSH to GitHub is unavailable.
+git submodule sync --recursive
+
 update_submodule() {
     submodule_name="$1"
     if [[ "${2:-}" == "recursive" ]]; then
@@ -103,6 +117,21 @@ update_submodule() {
     fi
 }
 
+init_linux_workloads() {
+    local linux_submodules=(
+        applications/linux-workloads/buildroot
+    )
+    submodule_name="Linux workload Buildroot"
+    git submodule update --init "${linux_submodules[@]}"
+}
+
+# Keep the focused optional initialization from updating unrelated generator
+# submodules in an existing workspace.
+if [[ "$ENABLE_LINUX" -eq 1 && "$ENABLE_FULL" -eq 0 && "$ENABLE_GEMMINI" -eq 0 && "$ENABLE_P2E" -eq 0 ]]; then
+    init_linux_workloads
+    exit 0
+fi
+
 if [[ "$ENABLE_FULL" -eq 1 ]]; then
     submodule_name="all registered submodules"
     git submodule update --init --recursive
@@ -111,10 +140,36 @@ else
         soc-generator/generator/gemmini
         soc-generator/generator/rocket-chip
         applications/zephyr
+        applications/linux-workloads/buildroot
+        dependencies/p2e-runner
     )
 
-    skip_submodule() { git config --local "submodule.$1.update" none; }
-    unskip_submodule() { git config --local --unset-all "submodule.$1.update" || :; }
+    # Git reads submodule.<name>.update using the section name from
+    # .gitmodules, which is not necessarily the checkout path. In particular,
+    # the Linux workload submodules use applications_linux_* names.
+    submodule_name_for_path() {
+        local path="$1"
+        local name
+        name="$(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' | \
+            awk -v path="$path" '$2 == path { name = $1; sub(/^submodule\./, "", name); sub(/\.path$/, "", name); print name; exit }')"
+        if [[ -z "$name" ]]; then
+            echo "No submodule name registered for path: $path" >&2
+            return 1
+        fi
+        echo "$name"
+    }
+
+    skip_submodule() {
+        local name
+        name="$(submodule_name_for_path "$1")"
+        git config --local "submodule.$name.update" none
+    }
+
+    unskip_submodule() {
+        local name
+        name="$(submodule_name_for_path "$1")"
+        git config --local --unset-all "submodule.$name.update" || :
+    }
 
     (
         trap 'for path in "${excluded_submodules[@]}"; do unskip_submodule "$path"; done' EXIT INT TERM
@@ -130,5 +185,13 @@ else
         update_submodule soc-generator/generator/gemmini
         submodule_name="soc-generator/generator/gemmini/software/gemmini-rocc-tests"
         git -C soc-generator/generator/gemmini submodule update --init --recursive software/gemmini-rocc-tests
+    fi
+
+    if [[ "$ENABLE_LINUX" -eq 1 ]]; then
+        init_linux_workloads
+    fi
+
+    if [[ "$ENABLE_P2E" -eq 1 ]]; then
+        update_submodule dependencies/p2e-runner
     fi
 fi

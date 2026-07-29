@@ -25,3 +25,36 @@ The submodule is pinned to the official `riscv-software-src/riscv-tests`
 source. The build script applies the legacy-toolchain compatibility changes to
 an ephemeral copy and does not patch or otherwise alter the pinned source
 files.
+
+## Linux workloads
+
+`applications/linux-workloads/firemarshal` contains a trimmed, repository-owned
+FireMarshal script layer for generating Buildroot Linux workloads. Buildroot is
+the only direct submodule; the workload defconfig pins and downloads Linux,
+OpenSBI, and BusyBox. The default workload embeds the root filesystem in an
+initramfs, which is required by the current Tapeout/P2E platform because it has
+no block device path.
+
+Initialize Linux workload dependencies once after cloning:
+
+```bash
+./init-submodules.sh --linux
+```
+
+Build the default Linux smoke workload from the development shell:
+
+```bash
+nix develop .#firemarshal --command applications/scripts/build-linux-workload.sh
+```
+
+The resulting initramfs ELF, suitable as the P2E workload input, is:
+
+```text
+applications/linux-workloads/build/tape-env/tape-env-linux-poweroff/tape-env-linux-poweroff-bin-nodisk
+```
+
+Pass `--config PATH` to build another workload and `--output DIR` to place
+artifacts elsewhere. See
+[linux-workloads/WORKLOADS.zh-CN.md](linux-workloads/WORKLOADS.zh-CN.md) (中文)
+or [linux-workloads/README.md](linux-workloads/README.md) (English) for workload
+layout and P2E invocation.

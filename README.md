@@ -4,16 +4,18 @@
 Rocket、BOOM、共享 L2、Gemmini 和 TestChipIP 的 RTL 生成，以及 Verilator/VCS
 软件仿真和裸机工作负载验证。
 
-FPGA 加速仿真及其配套编译栈不属于本仓库；FireMarshal 是独立的工作负载工具，应在
-其自身工作区中使用和维护。
+FPGA 加速仿真及其配套编译栈不属于本仓库；Linux 工作负载通过固定版本的
+FireMarshal 子模块生成，详情见 [applications/README.md](applications/README.md)。
 
 ## 目录说明
 
 - `soc-generator/`：SoC 生成、Verilator/VCS 仿真入口及生成的构建产物。
 - `soc-generator/generator/`：Rocket、BOOM、Gemmini 和 Chipyard 集成源码。
-- `applications/`：裸机测试、RISC-V 回归测试和 Zephyr 工作负载。
+- `applications/`：裸机测试、RISC-V 回归测试、Zephyr 与 FireMarshal Linux 工作负载。
 - `dependencies/`：非 SoC 生成器依赖，例如 DRAMSim2、CDE 和 FPGA shells。
 - `.github/`：CI 工作流与回归脚本。
+
+远端 HPEC P2E 构建与运行流程见 [P2E.md](P2E.md)。
 
 ## 前置条件
 
@@ -35,6 +37,8 @@ cd chipyard
 
 ```sh
 ./init-submodules.sh --gemmini  # Gemmini 及其 RoCC 测试工作负载
+./init-submodules.sh --linux    # Linux workload 构建依赖（兼容 --firemarshal）
+./init-submodules.sh --p2e      # HPEC P2E runner
 ./init-submodules.sh --full     # 所有已登记子模块
 ```
 
@@ -43,6 +47,16 @@ cd chipyard
 ```sh
 nix develop
 ```
+
+JTAG 软件调试使用独立环境，不增加默认开发 shell 的依赖：
+
+```sh
+nix develop .#jtag-debug
+```
+
+该轻量环境提供 `openocd`、`gdb` 和 `riscv64-unknown-elf-gdb`，不包含 SoC 编译
+工具链；它用于连接已由默认开发环境生成的仿真器。GDB 来自 flake 锁定的 Nixpkgs，
+支持 RV64 bare-metal ELF。
 
 ## 快速验证：运行 Hello
 

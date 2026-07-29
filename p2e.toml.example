@@ -1,0 +1,10 @@
+[remote]
+# SSH config alias, or user@host.
+host = "hpec-p2e"
+# Must be an absolute directory writable by the remote SSH user.
+remote_root = "/home/<user>/p2e"
+
+[p2e]
+rtl_dir = "dependencies/p2e-runner/platform/tape-env/generated-src/chipyard.p2e.hpec.P2ETop.HpecP2ETapeoutConfig/gen-collateral"
+# Load ELF PT_LOAD segments through the HPEC DDR backdoor before HTIF starts.
+preload_ddr = true

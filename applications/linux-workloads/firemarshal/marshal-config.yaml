@@ -1,0 +1,12 @@
+# Tapeout's trimmed FireMarshal configuration for P2E workload builds.
+workload-dirs: []
+board-dir: 'boards/tape-env'
+image-dir: '../build'
+log-dir: '../build/logs'
+res-dir: '../build/run-output'
+mount-dir: '../build/mount'
+jlevel: null
+rootfs-margin: '256MiB'
+doitOpts:
+  verbosity: 2
+  dep_file: ''

@@ -111,7 +111,7 @@ SCALA_EXT = scala
 VLOG_EXT = sv v
 CHIPYARD_SOURCE_DIRS = \
 	$(wildcard $(base_dir)/generator/*) \
-	$(wildcard $(dependencies_dir)/fpga/fpga-shells $(dependencies_dir)/fpga/src $(dependencies_dir)/tools/stage)
+	$(wildcard $(dependencies_dir)/tools/stage)
 CHIPYARD_SCALA_SOURCES = $(call lookup_srcs_by_multiple_type,$(CHIPYARD_SOURCE_DIRS),$(SCALA_EXT))
 CHIPYARD_VLOG_SOURCES = $(call lookup_srcs_by_multiple_type,$(CHIPYARD_SOURCE_DIRS),$(VLOG_EXT))
 TAPEOUT_SOURCE_DIRS = $(dependencies_dir)/tools/tapeout
@@ -119,7 +119,7 @@ TAPEOUT_SCALA_SOURCES = $(call lookup_srcs_by_multiple_type,$(TAPEOUT_SOURCE_DIR
 TAPEOUT_VLOG_SOURCES = $(call lookup_srcs_by_multiple_type,$(TAPEOUT_SOURCE_DIRS),$(VLOG_EXT))
 # This assumes no SBT meta-build sources
 SBT_ROOT ?= $(base_dir)
-SBT_SOURCE_DIRS = $(base_dir)/generator $(dependencies_dir)/tools $(dependencies_dir)/fpga
+SBT_SOURCE_DIRS = $(base_dir)/generator $(dependencies_dir)/tools
 SBT_SOURCES = $(call lookup_srcs,$(SBT_SOURCE_DIRS),sbt) $(SBT_ROOT)/build.sbt $(SBT_ROOT)/project/plugins.sbt $(SBT_ROOT)/project/build.properties
 
 $(build_dir):

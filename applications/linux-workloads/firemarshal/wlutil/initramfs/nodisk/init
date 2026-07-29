@@ -1,0 +1,31 @@
+#!/fm-init/busybox sh
+
+echo "Running FireMarshal nodisk init"
+
+# Mount the /proc and /sys filesystems.
+mount -t proc none /proc
+mount -t sysfs none /sys
+mount -t devtmpfs none /dev
+
+# Load all kernel modules in /lib/modules/KERNELVERSION/*.ko
+echo "Loading FireMarshal platform drivers"
+modprobe -a $(modprobe -l)
+
+umount /proc
+umount /sys
+
+# Call the native init that came with the distro
+echo "Calling distro init"
+if [ -x /sbin/init ]; then
+    exec /sbin/init
+fi
+
+# Buildroot with BR2_ROOTFS_MERGED_USR places init under /usr/sbin. Retain
+# this fallback for payloads built with older nodisk overlays that replaced
+# the rootfs /sbin compatibility symlink with an empty directory.
+if [ -x /usr/sbin/init ]; then
+    exec /usr/sbin/init
+fi
+
+echo "No distro init found at /sbin/init or /usr/sbin/init"
+exec /fm-init/busybox sh

@@ -1,6 +1,3 @@
-[submodule "dependencies/fpga/fpga-shells"]
-	path = dependencies/fpga/fpga-shells
-	url = https://github.com/chipsalliance/rocket-chip-fpga-shells.git
 [submodule "soc-generator/generator/diplomacy"]
 	path = soc-generator/generator/diplomacy
 	url = https://github.com/chipsalliance/diplomacy.git
@@ -31,3 +28,10 @@
 [submodule "applications/zephyr"]
 	path = applications/zephyr
 	url = https://github.com/ucb-bar/zephyr.git
+[submodule "dependencies/p2e-runner"]
+	path = dependencies/p2e-runner
+	url = https://github.com/SEU-ACAL/p2e_runner.git
+	branch = main
+[submodule "applications_linux_buildroot"]
+	path = applications/linux-workloads/buildroot
+	url = https://github.com/buildroot/buildroot.git

@@ -15,7 +15,132 @@
         gcc11Stdenv = gcc11Pkgs.overrideCC gcc11Pkgs.stdenv gcc11Pkgs.gcc11;
         riscvPkgs = pkgs.pkgsCross.riscv64-embedded;
         riscvCc = riscvPkgs.stdenv.cc;
+        # Buildroot 2024.05 has Kconfig entries through GCC 14. The wrapper
+        # below presents the current GCC 15 toolchain as that supported floor
+        # to Buildroot's version probes, without modifying Buildroot sources.
+        riscvLinuxPkgs = pkgs.pkgsCross.riscv64;
+        riscvLinuxCc = riscvLinuxPkgs.stdenv.cc;
+        # Buildroot's external-toolchain probe predates Nix's split sysroot
+        # layout: it requires `gcc -print-file-name=libc.a` to name a unified
+        # sysroot. Keep the compiler and C library from pkgsCross.riscv64, but
+        # present a conventional read-only sysroot for FireMarshal.
+        firemarshalRiscvToolchain = pkgs.runCommand "tape-env-firemarshal-riscv64-toolchain" { } ''
+          mkdir -p $out/bin $out/sysroot/lib $out/sysroot/usr/include
+          ln -s ${riscvLinuxCc}/bin/* $out/bin/
+          # Buildroot copies an external sysroot then rewrites absolute
+          # symlinks.  Dereference Nix-store links here so its staging copy
+          # remains self-contained, including the dynamic loader.
+          cp -Lr ${riscvLinuxPkgs.glibc}/lib/. $out/sysroot/lib/
+          cp -Lr ${riscvLinuxPkgs.glibc.static}/lib/. $out/sysroot/lib/
+          cp -Lr ${riscvLinuxPkgs.glibc.dev}/include/. $out/sysroot/usr/include/
+          # Buildroot may reinstall this external sysroot in-place. Preserve
+          # Nix's contents but do not propagate store files' read-only modes.
+          chmod -R u+w $out/sysroot
+          ln -s lib $out/sysroot/lib64
+          ln -s ../lib $out/sysroot/usr/lib
+
+          for compiler in gcc g++ c++ cpp cc; do
+            rm -f $out/bin/riscv64-unknown-linux-gnu-$compiler
+            cat > $out/bin/riscv64-unknown-linux-gnu-$compiler <<'EOF'
+          #!${pkgs.runtimeShell}
+          toolchain_root="$(cd "$(dirname "$0")/.." && pwd)"
+          static_link=0
+          has_c_standard=1
+          sysroot=
+          expect_sysroot_path=0
+          filtered_args=()
+          if [ "@compiler@" = "gcc" ]; then
+            # Buildroot 2024.05 contains packages not yet C23-clean.
+            has_c_standard=0
+          fi
+          for arg in "$@"; do
+            if [ "$expect_sysroot_path" -eq 1 ]; then
+              sysroot="$arg"
+              expect_sysroot_path=0
+              continue
+            fi
+            if [ "$arg" = "-print-file-name=libc.a" ]; then
+              printf '%s\n' "$toolchain_root/sysroot/lib/libc.a"
+              exit 0
+            fi
+            if [ "@compiler@" = "gcc" ] \
+              && { [ "$arg" = "-dumpversion" ] || [ "$arg" = "-dumpfullversion" ]; }; then
+              # Buildroot 2024.05 has version selectors through GCC 14. GCC
+              # 15 satisfies its feature floor, but must identify as the
+              # highest supported selector during its configuration probes.
+              printf '%s\n' '14.3.0'
+              exit 0
+            fi
+            if [ "$arg" = "-static" ]; then
+              static_link=1
+            fi
+            case "$arg" in
+              --sysroot)
+                expect_sysroot_path=1
+                continue
+                ;;
+              --sysroot=*)
+                sysroot="''${arg#--sysroot=}"
+                continue
+                ;;
+              -std=*|--std=*) has_c_standard=1 ;;
+            esac
+            filtered_args+=("$arg")
+          done
+          if [ "$expect_sysroot_path" -eq 1 ]; then
+            echo "--sysroot requires a path" >&2
+            exit 2
+          fi
+          set -- "''${filtered_args[@]}"
+          if [ "@compiler@" = "gcc" ] && [ "$has_c_standard" -eq 0 ]; then
+            set -- -std=gnu17 "$@"
+          fi
+          # Nix's cc-wrapper has absolute glibc linker scripts, which conflict
+          # with GNU ld's --sysroot rewriting. Keep its toolchain ABI, but
+          # present Buildroot's staging headers and package libraries directly.
+          sysroot_flags=()
+          if [ -n "$sysroot" ]; then
+            sysroot_flags=(
+              -isystem "$sysroot/usr/include"
+              -isystem "$sysroot/include"
+              -L"$sysroot/lib"
+              -L"$sysroot/usr/lib"
+              -Wl,-rpath-link,"$sysroot/lib"
+              -Wl,-rpath-link,"$sysroot/usr/lib"
+            )
+            if [ "$static_link" -eq 0 ] && [ "@compiler@" != "cpp" ]; then
+              sysroot_flags+=(
+                -Wl,--dynamic-linker=/lib/ld-linux-riscv64-lp64d.so.1
+              )
+            fi
+          fi
+          if [ "$static_link" -eq 1 ]; then
+            exec ${riscvLinuxCc}/bin/riscv64-unknown-linux-gnu-@compiler@ \
+              -L${riscvLinuxPkgs.glibc.static}/lib "''${sysroot_flags[@]}" "$@"
+          fi
+          exec ${riscvLinuxCc}/bin/riscv64-unknown-linux-gnu-@compiler@ \
+            "''${sysroot_flags[@]}" "$@"
+          EOF
+            sed -i "s/@compiler@/$compiler/g" $out/bin/riscv64-unknown-linux-gnu-$compiler
+            chmod +x $out/bin/riscv64-unknown-linux-gnu-$compiler
+          done
+
+          # Nix's cross GCC wrapper exposes binutils under their plain names,
+          # whereas autotools detects GCC's companion names.  Buildroot only
+          # needs normal archive operations here, so map those aliases to the
+          # target GNU binutils shipped with the same toolchain.
+          ln -s riscv64-unknown-linux-gnu-ar $out/bin/riscv64-unknown-linux-gnu-gcc-ar
+          ln -s riscv64-unknown-linux-gnu-nm $out/bin/riscv64-unknown-linux-gnu-gcc-nm
+          ln -s riscv64-unknown-linux-gnu-ranlib $out/bin/riscv64-unknown-linux-gnu-gcc-ranlib
+        '';
         riscvTarget = riscvPkgs.stdenv.targetPlatform.config;
+        firemarshalPython = pkgs.python3.withPackages (ps: [
+          ps.doit
+          ps.gitpython
+          ps.humanfriendly
+          ps.psutil
+          ps.pyyaml
+        ]);
         # Keep Spike ABI-compatible with the TestChipIP Cospike source. This
         # revision is the one pinned by upstream Chipyard's riscv-isa-sim
         # submodule.
@@ -194,13 +319,18 @@ EOF
           ln -s ${libglossHtif}/riscv64-unknown-elf/lib $out/riscv64-unknown-elf/lib
         '';
 
-      in {
-        packages = {
-          inherit chipyardNewlibNano chipyardRiscvTools libglossHtif rawRiscvUnknownElfTools riscvUnknownElfTools;
-        };
+        jtagGdb = gcc11Pkgs.gdb;
 
-        devShells.default = pkgs.mkShellNoCC {
+        riscvGdb = pkgs.writeShellScriptBin "riscv64-unknown-elf-gdb" ''
+          exec ${jtagGdb}/bin/gdb "$@"
+        '';
+
+        mkDevShell = extraPackages: pkgs.mkShellNoCC {
           RISCV = "${chipyardRiscvTools}";
+          # FireMarshal's Buildroot configuration requires a Linux-targeted
+          # compiler under $RISCV, while Chipyard's existing $RISCV is the
+          # bare-metal toolchain used by simulators and bare-metal workloads.
+          FIREMARSHAL_RISCV = "${firemarshalRiscvToolchain}";
           FIRTOOL_BIN = "${circt}/bin/firtool";
           JAVA_HOME = "${pkgs.jdk17_headless}";
           VCS_HOME = "/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1";
@@ -210,8 +340,14 @@ EOF
 
           shellHook = ''
             export CY_DIR="$PWD"
-            export PATH="$VERDI_HOME/bin:$VCS_HOME/bin:$RISCV/bin:$PATH"
-            export LD_LIBRARY_PATH="${pkgs.zlib}/lib:''${LD_LIBRARY_PATH:-}"
+            export PATH="$CY_DIR/bin:$VERDI_HOME/bin:$VCS_HOME/bin:$RISCV/bin:$FIREMARSHAL_RISCV/bin:$PATH"
+            # A trailing colon means "search the current directory" to the
+            # dynamic loader.  Buildroot rejects that unsafe environment.
+            if [[ -n "''${LD_LIBRARY_PATH:-}" ]]; then
+              export LD_LIBRARY_PATH="${pkgs.zlib}/lib:''${LD_LIBRARY_PATH}"
+            else
+              export LD_LIBRARY_PATH="${pkgs.zlib}/lib"
+            fi
             # VCS's Ubuntu mode exports CPATH=/usr/include/x86_64-linux-gnu
             # to its generated C-source build.  That mixes host glibc bits
             # headers with the Nix GCC wrapper's glibc headers.  On x86_64
@@ -219,6 +355,11 @@ EOF
             # binaries while avoiding that Ubuntu-specific CPATH injection.
             export VCS_ARCH_OVERRIDE=linux
             export ZEPHYR_RISCV="${rawRiscvUnknownElfTools}"
+            export FIREMARSHAL_NIX_PATCHELF="${pkgs.patchelf}/bin/patchelf"
+            export FIREMARSHAL_NIX_READELF="${pkgs.binutils}/bin/readelf"
+            # Buildroot's host-mkpasswd links with -lcrypt directly. Keep that
+            # lookup in the Nix closure instead of falling through to /usr/lib.
+            export LIBRARY_PATH="${pkgs.libxcrypt}/lib''${LIBRARY_PATH:+:$LIBRARY_PATH}"
             export COURSIER_CACHE="$PWD/.coursier-cache"
             export SBT_OPTS="-Dsbt.global.base=$PWD/.sbt -Dsbt.boot.directory=$PWD/.sbt/boot -Dsbt.ivy.home=$PWD/.ivy2 ''${SBT_OPTS:-}"
             unset NIX_LDFLAGS
@@ -234,6 +375,7 @@ EOF
             pkgs.bc
             pkgs.ccache
             pkgs.cmake
+            pkgs.cpio
             pkgs.coreutils
             pkgs.dtc
             pkgs.flex
@@ -242,12 +384,14 @@ EOF
             pkgs.gnumake
             pkgs.jq
             pkgs.jdk17_headless
+            pkgs.libxcrypt
+            pkgs.libxslt
             pkgs.ninja
             # numactl 2.0.18 rejects membind on the Linux 5.4 hosts used for simulation.
             # Keep it on the existing nixpkgs-gcc11 input, whose 2.0.16 package supports it.
             gcc11Pkgs.numactl
             pkgs.perl
-            pkgs.python3
+            firemarshalPython
             pkgs.python3Packages.pyelftools
             pkgs.python3Packages.west
             pkgs.ctags
@@ -257,7 +401,83 @@ EOF
             pkgs.zlib
             circt
             riscvCc
+          ] ++ extraPackages;
+        };
+
+        # Linux workload builds do not need the simulator, Chisel, or
+        # bare-metal toolchain closure carried by the default development
+        # shell. Keep this shell focused so FireMarshal can be entered and
+        # reproduced independently.
+        firemarshalShell = pkgs.mkShellNoCC {
+          RISCV = "${firemarshalRiscvToolchain}";
+          FIREMARSHAL_RISCV = "${firemarshalRiscvToolchain}";
+
+          shellHook = ''
+            export CY_DIR="$PWD"
+            export PATH="$CY_DIR/bin:$FIREMARSHAL_RISCV/bin:$PATH"
+            if [[ -n "''${LD_LIBRARY_PATH:-}" ]]; then
+              export LD_LIBRARY_PATH="${pkgs.zlib}/lib:''${LD_LIBRARY_PATH}"
+            else
+              export LD_LIBRARY_PATH="${pkgs.zlib}/lib"
+            fi
+            export FIREMARSHAL_NIX_PATCHELF="${pkgs.patchelf}/bin/patchelf"
+            export FIREMARSHAL_NIX_READELF="${pkgs.binutils}/bin/readelf"
+            export FIREMARSHAL_NIX_FAKEROOT="${pkgs.fakeroot}/bin/fakeroot"
+            export FIREMARSHAL_NIX_SH="${pkgs.bash}/bin/sh"
+            export FIREMARSHAL_NIX_HOST_CC="${pkgs.stdenv.cc}/bin/gcc"
+            export LIBRARY_PATH="${pkgs.libxcrypt}/lib''${LIBRARY_PATH:+:$LIBRARY_PATH}"
+            unset NIX_LDFLAGS
+          '';
+
+          packages = [
+            pkgs.autoconf
+            pkgs.automake
+            pkgs.bash
+            pkgs.bison
+            pkgs.bc
+            pkgs.cpio
+            pkgs.coreutils
+            pkgs.dtc
+            pkgs.findutils
+            pkgs.fakeroot
+            pkgs.flex
+            pkgs.gawk
+            pkgs.git
+            pkgs.gnumake
+            pkgs.gnutar
+            pkgs.gzip
+            pkgs.libxcrypt
+            pkgs.libxslt
+            pkgs.patch
+            pkgs.perl
+            pkgs.pkg-config
+            pkgs.stdenv.cc
+            firemarshalPython
+            pkgs.python3Packages.pyelftools
+            pkgs.wget
+            pkgs.which
+            pkgs.xz
+            pkgs.zlib
           ];
+        };
+
+        jtagDebugShell = pkgs.mkShellNoCC {
+          packages = [
+            gcc11Pkgs.openocd
+            jtagGdb
+            riscvGdb
+          ];
+        };
+
+      in {
+        packages = {
+          inherit chipyardNewlibNano chipyardRiscvTools firemarshalRiscvToolchain libglossHtif rawRiscvUnknownElfTools riscvUnknownElfTools;
+        };
+
+        devShells = {
+          default = mkDevShell [ ];
+          firemarshal = firemarshalShell;
+          jtag-debug = jtagDebugShell;
         };
       });
 }

@@ -19,6 +19,7 @@ class TapeoutConfig extends Config(
   new WithTapeoutRocket ++
   // AbstractConfig adds an MBUS scratchpad; remove all subsystem scratchpads.
   new testchipip.soc.WithNoScratchpads ++
+  new chipyard.clocking.WithNdmResetInSystemReset ++
   new WithTapeoutSingleClock(100) ++
   new chipyard.harness.WithSimTSIOverSerialTL(fast = true) ++
   new chipyard.WithSerialConnect ++

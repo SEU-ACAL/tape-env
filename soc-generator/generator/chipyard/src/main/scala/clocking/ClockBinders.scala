@@ -2,12 +2,22 @@ package chipyard.clocking
 
 import chisel3._
 import chisel3.util._
+import org.chipsalliance.cde.config.{Config, Field}
 import chipyard.iobinders._
 import freechips.rocketchip.prci._
 import freechips.rocketchip.diplomacy._
+import freechips.rocketchip.devices.debug.HasPeripheryDebug
 import freechips.rocketchip.subsystem._
 import freechips.rocketchip.tilelink._
+import freechips.rocketchip.util.AsyncResetReg
 import chipyard.iocell._
+
+/** Route Debug Module ndmreset into the non-debug system reset tree. */
+case object IncludeNdmResetInSystemReset extends Field[Boolean](false)
+
+class WithNdmResetInSystemReset extends Config((site, here, up) => {
+  case IncludeNdmResetInSystemReset => true
+})
 
 // This uses the FakePLL, which uses a ClockAtFreq Verilog blackbox to generate
 // the requested clocks. This also adds TileLink ClockDivider and ClockSelector
@@ -116,10 +126,33 @@ class WithSingleClockBroadcastClockGenerator(freqMHz: Int = 100) extends Overrid
       val (clock_io, clockIOCell) = IOCell.generateIOFromSignal(clock_wire, "clock", p(IOCellKey))
       val (reset_io, resetIOCell) = IOCell.generateIOFromSignal(reset_wire, "reset", p(IOCellKey))
 
+      // ndmreset originates in the DMI clock domain. Keep the Debug Module on
+      // the platform reset, but reset every system clock group from this
+      // synchronized request. This is the RISC-V Debug Module's non-debug
+      // reset contract and leaves JTAG available throughout the reset.
+      val ndmReset = if (p(IncludeNdmResetInSystemReset)) {
+        system match {
+          case debugSystem: HasPeripheryDebug =>
+            debugSystem.debug.map { debug =>
+              AsyncResetReg(
+                debug.ndreset,
+                clock_wire,
+                reset_wire.asBool,
+                init = false,
+                name = Some("ndmreset_sync")
+              )
+            }.getOrElse(false.B)
+          case _ => false.B
+        }
+      } else {
+        false.B
+      }
+      val systemReset = reset_wire.asBool || ndmReset
+
       clockGroupsSourceNode.out.foreach { case (bundle, edge) =>
         bundle.member.data.foreach { b =>
           b.clock := clock_wire
-          b.reset := reset_wire
+          b.reset := systemReset.asAsyncReset
         }
       }
       (Seq(ClockPort(() => clock_io, freqMHz), ResetPort(() => reset_io)), clockIOCell ++ resetIOCell)

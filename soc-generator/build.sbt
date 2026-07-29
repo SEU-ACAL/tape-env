@@ -285,11 +285,7 @@ lazy val gemmini = withInitCheck(freshProject("gemmini", file("generator/gemmini
   .settings(libraryDependencies ++= rocketLibDeps.value)
   .settings(commonSettings)
 
-lazy val fpga_shells = projectFromDir("fpga_shells", file("../dependencies/fpga/fpga-shells"))
-  .dependsOn(rocketchip, rocketchip_blocks)
-  .settings(libraryDependencies ++= rocketLibDeps.value)
-  .settings(commonSettings)
-
-lazy val chipyard_fpga = projectFromDir("chipyard_fpga", file("../dependencies/fpga"))
-  .dependsOn(chipyard, fpga_shells)
+lazy val hpec_p2e = projectFromDir("hpec_p2e", file("../dependencies/p2e-runner/platform/tape-env"))
+  .dependsOn(chipyard)
+  .settings(chiselSettings)
   .settings(commonSettings)

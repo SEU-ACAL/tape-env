@@ -45,16 +45,19 @@ trait CanHaveHTIF { this: BaseSubsystem =>
 // This trait adds the "chosen" node to DTS, which
 // can be used to pass information to OS about the earlycon
 case object ChosenInDTS extends Field[Boolean](true)
+// Override the default UART stdout path for platforms that provide a
+// firmware-visible console through another DT node, such as HTIF.
+case object ChosenStdoutPath extends Field[Option[String]](None)
 trait CanHaveChosenInDTS { this: BaseSubsystem =>
   if (p(ChosenInDTS)) {
     this match {
       case t: HasPeripheryUART if (!p(PeripheryUARTKey).isEmpty) => {
         val chosen = new Device {
           def describe(resources: ResourceBindings): Description = {
-            val stdout = resources("stdout").map(_.value)
-            Description("chosen", resources("uart").headOption.map { case Binding(_, value) =>
-              "stdout-path" -> Seq(value)
-            }.toMap)
+            val stdout = p(ChosenStdoutPath).map(ResourceString).orElse(
+              resources("uart").headOption.map(_.value)
+            )
+            Description("chosen", stdout.map("stdout-path" -> Seq(_)).toMap)
           }
         }
         ResourceBinding {
