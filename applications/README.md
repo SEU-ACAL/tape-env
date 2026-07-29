@@ -29,10 +29,11 @@ files.
 ## Linux workloads
 
 `applications/linux-workloads/firemarshal` contains a trimmed, repository-owned
-FireMarshal script layer for generating Buildroot Linux workloads. Linux,
-OpenSBI, Buildroot, and BusyBox are pinned as direct submodules. The default
-workload embeds the root filesystem in an initramfs, which is required by the
-current Tapeout/P2E platform because it has no block device path.
+FireMarshal script layer for generating Buildroot Linux workloads. Buildroot is
+the only direct submodule; the workload defconfig pins and downloads Linux,
+OpenSBI, and BusyBox. The default workload embeds the root filesystem in an
+initramfs, which is required by the current Tapeout/P2E platform because it has
+no block device path.
 
 Initialize Linux workload dependencies once after cloning:
 

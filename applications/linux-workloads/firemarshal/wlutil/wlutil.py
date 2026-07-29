@@ -48,9 +48,6 @@ ctx = None
 
 # List of marshal submodules (those enabled by init-submodules.sh)
 marshalSubmods = [
-        'linux-dir',
-        'opensbi-dir',
-        'busybox-dir',
         'buildroot-dir',
         'driver-dirs'
         ]
@@ -127,8 +124,6 @@ def cleanPaths(opts, baseDir=pathlib.Path('.')):
     pathOpts = [
         ('board-dir', True),
         ('image-dir', True),
-        ('linux-dir', True),
-        ('opensbi-dir', True),
         ('log-dir', True),
         ('res-dir', True),
         ('mount-dir', False),
@@ -181,9 +176,6 @@ derivedOpts = [
         # Builtin workloads (the board's bases)
         'workdir-builtin',
 
-        # Busybox source directory (used for the initramfs)
-        'busybox-dir',
-
         # Initramfs root directory (used to build default initramfs for loading board drivers)
         'initramfs-dir',
 
@@ -198,12 +190,6 @@ derivedOpts = [
 
         # List of paths to linux driver sources to use
         'driver-dirs',
-
-        # Linux source to use by default (can be overwritten by user config). Derived from board-dir.
-        'linux-dir',
-
-        # Default OpenSBI source to use by default (can be overwritten by user config). Derived from board-dir.
-        'opensbi-dir',
 
         # Buildroot source directory
         'buildroot-dir',
@@ -294,8 +280,8 @@ class marshalCtx(collections.abc.MutableMapping):
             1) convert to lower-case
             2) all underscores will be replaced with dashes
 
-        For example MARSHAL_LINUX_DIR=../special/linux would add a ('linux-dir'
-        : '../special/linux') option to the config."""
+        For example MARSHAL_IMAGE_DIR=../images would add an ('image-dir'
+        : '../images') option to the config."""
 
         reOpt = re.compile(r"^MARSHAL_(\S+)")
         envCfg = {}
@@ -324,7 +310,6 @@ class marshalCtx(collections.abc.MutableMapping):
         above for documentation of these options."""
 
         self['workdir-builtin'] = self['board-dir'] / 'base-workloads'
-        self['busybox-dir'] = self['root-dir'].parent / 'busybox'
         self['initramfs-dir'] = self['wlutil-dir'] / "initramfs"
         self['gen-dir'] = self['wlutil-dir'] / "generated"
         self['command-script'] = self['gen-dir'] / "_command.sh"
@@ -332,8 +317,6 @@ class marshalCtx(collections.abc.MutableMapping):
         self['rootfs-margin'] = humanfriendly.parse_size(str(self['rootfs-margin']))
 
         self['driver-dirs'] = list(self['board-dir'].glob('drivers/*'))
-        self['opensbi-dir'] = self['board-dir'] / 'firmware' / 'opensbi'
-        self['linux-dir'] = self['board-dir'] / 'linux'
         self['installers'] = self['board-dir'] / 'installers'
 
         self['buildroot-dir'] = self['wlutil-dir'] / 'br' / 'buildroot'

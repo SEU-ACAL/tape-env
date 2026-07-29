@@ -372,7 +372,7 @@ def inheritFirmwareOpts(config, baseCfg):
             elif k in ['opensbi-build-args']:
                 config['firmware'][k] = baseCfg['firmware'][k] + config['firmware'][k]
 
-    if 'firmware' in config:
+    if 'firmware' in config and 'opensbi-src' in config['firmware']:
         config['firmware']['source'] = config['firmware']['opensbi-src']
 
 

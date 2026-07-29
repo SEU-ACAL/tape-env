@@ -2,10 +2,10 @@
 
 `applications/linux-workloads/firemarshal/` is a trimmed, repository-owned subset of
 FireMarshal. It retains the Buildroot workload builder, no-disk boot assembly,
-and Spike launch support. Linux, OpenSBI, Buildroot, and BusyBox are direct
-submodules under this directory.
+and Spike launch support. Buildroot is the only direct submodule; it downloads
+and pins Linux, OpenSBI, and BusyBox from the workload defconfig.
 
-Initialize the workload dependencies after a clone:
+Initialize Buildroot after a clone:
 
 ```sh
 ./init-submodules.sh --linux

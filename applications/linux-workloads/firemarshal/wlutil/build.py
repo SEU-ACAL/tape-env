@@ -11,6 +11,119 @@ from . import launch as wllaunch
 taskLoader = None
 
 
+class BuildrootSourceError(Exception):
+    """Raised when a Buildroot-managed source tree is unavailable."""
+
+
+def _buildroot_dir():
+    """Return the Buildroot tree selected by the active FireMarshal board."""
+    return pathlib.Path(os.environ.get(
+        'FIREMARSHAL_BUILDROOT_DIR', wlutil.getOpt('buildroot-dir'))).resolve()
+
+
+def _buildroot_config_value(name):
+    buildroot_dir = _buildroot_dir()
+    config_paths = [buildroot_dir / '.config', buildroot_dir / 'output' / '.config']
+
+    for config_path in config_paths:
+        if not config_path.is_file():
+            continue
+
+        with open(config_path, 'r') as config_file:
+            for line in config_file:
+                key, separator, value = line.rstrip('\n').partition('=')
+                if separator and key == name:
+                    return value.strip().strip('"')
+
+    raise BuildrootSourceError(
+        f"Buildroot configuration does not define {name}. "
+        "Build the workload root filesystem before building its payload.")
+
+
+def _buildroot_package_source(package, version_option):
+    version = _buildroot_config_value(version_option)
+    source = _buildroot_dir() / 'output' / 'build' / f"{package}-{version}"
+    if not source.is_dir():
+        raise BuildrootSourceError(
+            f"Buildroot has not extracted {package} ({version}) at {source}. "
+            "Build the workload root filesystem before building its payload.")
+    return source
+
+
+def _private_buildroot_source(source, destination, clean_target):
+    """Copy a Buildroot package source into a clean workload-private tree."""
+    extracted_stamp = source / '.stamp_extracted'
+    fingerprint = f"v2:{source.resolve()}:{extracted_stamp.stat().st_mtime_ns}"
+    fingerprint_file = destination.parent / f".{destination.name}.buildroot-source"
+
+    if destination.is_dir() and fingerprint_file.is_file():
+        if fingerprint_file.read_text().strip() == fingerprint:
+            return destination
+
+    if destination.exists():
+        shutil.rmtree(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    sp.run(['cp', '-a', '--reflink=auto', str(source), str(destination)], check=True)
+    clean_args = ['make', clean_target]
+    if clean_target == 'mrproper':
+        clean_args.insert(1, 'ARCH=riscv')
+    wlutil.run(clean_args, cwd=destination)
+    fingerprint_file.write_text(fingerprint + '\n')
+    return destination
+
+
+def _buildroot_busybox_source():
+    build_dir = _buildroot_dir() / 'output' / 'build'
+    candidates = [
+        candidate for candidate in build_dir.glob('busybox-*')
+        if candidate.is_dir() and (candidate / '.config').is_file()
+    ]
+    if not candidates:
+        raise BuildrootSourceError(
+            f"Buildroot has not built BusyBox under {build_dir}. "
+            "Build the workload root filesystem before building its payload.")
+
+    return max(candidates, key=lambda candidate: (candidate / '.config').stat().st_mtime_ns)
+
+
+def _buildroot_busybox_binary():
+    target_dir = _buildroot_dir() / 'output' / 'target'
+    for relative_path in [pathlib.Path('usr/bin/busybox'), pathlib.Path('bin/busybox')]:
+        binary = target_dir / relative_path
+        if binary.is_file():
+            return binary
+
+    raise BuildrootSourceError(
+        f"Buildroot has not installed BusyBox under {target_dir}. "
+        "Build the workload root filesystem before building its payload.")
+
+
+def prepareBuildrootSources(config):
+    """Resolve Buildroot package sources and use workload-private build trees."""
+
+    linux = config['linux']
+    firmware = config['firmware']
+
+    if 'source' not in linux:
+        source = _buildroot_package_source('linux', 'BR2_LINUX_KERNEL_VERSION')
+        # Buildroot builds Linux in its extracted source directory. FireMarshal
+        # uses O= and therefore needs a clean, private source tree.
+        linux['source'] = _private_buildroot_source(
+            source, config['out-dir'] / 'linux-source', 'mrproper')
+    if not linux['source'].is_dir():
+        raise BuildrootSourceError(f"Linux source directory does not exist: {linux['source']}")
+
+    if 'source' not in firmware:
+        source = _buildroot_package_source('opensbi', 'BR2_TARGET_OPENSBI_VERSION')
+        firmware['source'] = _private_buildroot_source(
+            source, config['out-dir'] / 'opensbi-source', 'distclean')
+    if not firmware['source'].is_dir():
+        raise BuildrootSourceError(f"OpenSBI source directory does not exist: {firmware['source']}")
+
+    linux['build-dir'] = config['out-dir'] / 'linux-build'
+    firmware['build-dir'] = config['out-dir'] / 'opensbi-build'
+
+
 # Print task target or file dep changes
 # Taken from: https://github.com/pydoit/doit/issues/329
 def print_deps(task, changed):
@@ -43,20 +156,14 @@ class doitLoader(doit.cmd_base.TaskLoader2):
 
 
 def buildBusybox(config):
-    """Builds the local copy of busybox (needed by linux initramfs).
-
-    This is called as a doit task (added to the graph in buildDepGraph())
-    """
-
+    """Copy Buildroot's BusyBox into FireMarshal's private initramfs."""
     try:
-        wlutil.checkSubmodule(wlutil.getOpt('busybox-dir'))
-    except wlutil.SubmoduleError as e:
+        busybox = _buildroot_busybox_binary()
+    except BuildrootSourceError as e:
         return doit.exceptions.TaskFailed(e)
 
-    shutil.copy(wlutil.getOpt('wlutil-dir') / 'busybox-config', wlutil.getOpt('busybox-dir') / '.config')
-    wlutil.run(['make', '-j' + str(wlutil.getOpt('jlevel'))], cwd=wlutil.getOpt('busybox-dir'))
-    shutil.copy(wlutil.getOpt('busybox-dir') / 'busybox', wlutil.getOpt('initramfs-dir') / 'disk' / 'bin/')
-    shutil.copy(wlutil.getOpt('busybox-dir') / 'busybox', wlutil.getOpt('initramfs-dir') / 'nodisk' / 'fm-init/')
+    shutil.copy(busybox, wlutil.getOpt('initramfs-dir') / 'disk' / 'bin/')
+    shutil.copy(busybox, wlutil.getOpt('initramfs-dir') / 'nodisk' / 'fm-init/')
     return True
 
 
@@ -84,53 +191,6 @@ def handlePostBin(config, linuxBin):
             postbinEnv.update({'FIREMARSHAL_LINUX_BIN': linuxBin})
 
         wlutil.run([config['post-bin'].path] + config['post-bin'].args, env=postbinEnv, cwd=config['workdir'])
-
-
-def submoduleDepsTask(submodules, name=""):
-    """Returns a calc_dep task for doit to check if submodule is up to date.
-    Packaging this in a calc_dep task avoids unnecessary checking that can be
-    slow."""
-    def submoduleDeps(submodules):
-        return {'uptodate': [wlutil.config_changed(wlutil.checkGitStatus(sub)) for sub in submodules]}
-
-    return {'name': name,
-            'actions': [(submoduleDeps, [submodules])]}
-
-
-def kmodDepsTask(cfg, taskDeps=None, name=""):
-    """Check if the kernel modules in cfg are uptodate (suitable for doit's calc_dep function)"""
-
-    def checkMods(cfg):
-        log = logging.getLogger()
-
-        if 'modules' not in cfg['linux']:
-            return
-
-        for driverDir in cfg['linux']['modules'].values():
-            if not driverDir.exists():
-                log.warn("WARNING: Required module " + str(driverDir) + " does not exist: Assuming the workload is not uptodate.")
-                return False
-            try:
-                p = wlutil.run(["make", "-q", "LINUXSRC=" + str(cfg['linux']['source'])], cwd=driverDir, check=False)
-
-                if p.returncode != 0:
-                    return False
-            except Exception as e:
-                log.warn("WARNING: Error when checking if module " + str(driverDir) + " is up to date: Assuming workload is not up to date. Error: " + str(e))
-                return False
-
-        return True
-
-    def calcModsAction(cfg):
-        return {'uptodate': [checkMods(cfg)]}
-
-    task = {'name': name,
-            'actions': [(calcModsAction, [cfg])]}
-
-    if taskDeps is not None:
-        task['task_dep'] = taskDeps
-
-    return task
 
 
 def fileDepsTask(name, taskDeps=None, overlay=None, files=None):
@@ -175,8 +235,8 @@ def addDep(loader, config):
         'targets': [wlutil.getOpt('initramfs-dir') / 'disk' / 'bin' / 'busybox',
                     wlutil.getOpt('initramfs-dir') / 'nodisk' / 'fm-init' / 'busybox'],
         'file_dep': [wlutil.getOpt('wlutil-dir') / 'busybox-config'],
-        'uptodate': [wlutil.config_changed(wlutil.checkGitStatus(wlutil.getOpt('busybox-dir'))),
-                     wlutil.config_changed(wlutil.getToolVersions())]
+        'task_dep': config['base-deps'],
+        'uptodate': [wlutil.config_changed(wlutil.getToolVersions())]
         })
 
     hostInit = []
@@ -208,28 +268,12 @@ def addDep(loader, config):
         else:
             targets = [str(config['bin'])]
 
-        moddeps = []
-        if 'firmware' in config:
-            moddeps.append(config['firmware']['source'])
-
-        bin_calc_dep_tsks = [
-                submoduleDepsTask(moddeps, name="_submodule_deps_"+config['name']),
-            ]
-
-        if 'linux' in config:
-            moddeps.append(config['linux']['source'])
-            bin_calc_dep_tsks.append(kmodDepsTask(config, name="_kmod_deps_"+config['name']))
-
-        for tsk in bin_calc_dep_tsks:
-            loader.addTask(tsk)
-
         loader.addTask({
                 'name': str(config['bin']),
                 'actions': [(makeBin, [config])],
                 'targets': targets,
                 'file_dep': bin_file_deps,
-                'task_dep': bin_task_deps,
-                'calc_dep': [tsk['name'] for tsk in bin_calc_dep_tsks]
+                'task_dep': bin_task_deps
                 })
         diskBin = [str(config['bin'])]
 
@@ -247,19 +291,12 @@ def addDep(loader, config):
         else:
             targets = [str(wlutil.noDiskPath(config['bin']))]
 
-        uptodate = []
-        if 'firmware' in config:
-            uptodate.append(wlutil.config_changed(wlutil.checkGitStatus(config['firmware']['source'])))
-        if 'linux' in config:
-            uptodate.append(wlutil.config_changed(wlutil.checkGitStatus(config['linux']['source'])))
-
         loader.addTask({
                 'name': str(wlutil.noDiskPath(config['bin'])),
                 'actions': [(makeBin, [config], {'nodisk': True})],
                 'targets': targets,
                 'file_dep': nodisk_file_deps,
-                'task_dep': nodisk_task_deps,
-                'uptodate': uptodate
+                'task_dep': nodisk_task_deps
                 })
         nodiskBin = [str(wlutil.noDiskPath(config['bin']))]
 
@@ -410,21 +447,21 @@ def makeInitramfs(srcs, cpioDir, includeDevNodes=False):
     return finalPath
 
 
-def generateKConfig(kfrags, linuxSrc):
-    """Generate the final .config in linuxSrc from the provided list of kernel
-    configuration fragments. Fragments will be applied on top of defconfig."""
-    linuxCfg = linuxSrc / '.config'
+def generateKConfig(kfrags, linuxSrc, linuxBuild):
+    """Generate the final .config in linuxBuild from the provided kernel fragments."""
+    linuxBuild.mkdir(parents=True, exist_ok=True)
+    linuxCfg = linuxBuild / '.config'
     defCfg = wlutil.getOpt('gen-dir') / 'defconfig'
 
     # Create a defconfig to use as reference
-    wlutil.run(['make'] + wlutil.getOpt('linux-make-args') + ['defconfig'], cwd=linuxSrc)
+    wlutil.run(['make', 'O=' + str(linuxBuild)] + wlutil.getOpt('linux-make-args') + ['defconfig'], cwd=linuxSrc)
     shutil.copy(linuxCfg, defCfg)
 
     # Create a config from the user fragments
     kconfigEnv = os.environ.copy()
     kconfigEnv['ARCH'] = 'riscv'
     kconfigEnv['CROSS_COMPILE'] = 'riscv64-unknown-linux-gnu-'
-    wlutil.run([linuxSrc / 'scripts/kconfig/merge_config.sh', str(defCfg)] +
+    wlutil.run([linuxSrc / 'scripts/kconfig/merge_config.sh', '-O', str(linuxBuild), str(defCfg)] +
                list(map(str, kfrags)), env=kconfigEnv, cwd=linuxSrc)
 
 
@@ -442,19 +479,20 @@ def makeModules(cfg):
     drivers = []
 
     # Prepare the linux source with the proper config
-    generateKConfig(linCfg['config'], linCfg['source'])
+    generateKConfig(linCfg['config'], linCfg['source'], linCfg['build-dir'])
     cfg['out-dir'].mkdir(parents=True, exist_ok=True)
-    shutil.copy(linCfg['source'] / '.config', cfg['out-dir'] / 'linux_module_config')
+    shutil.copy(linCfg['build-dir'] / '.config', cfg['out-dir'] / 'linux_module_config')
 
     # Build modules (if they exist)
     if ('modules' in linCfg) and (len(linCfg['modules']) != 0):
         # Prepare the linux source for building external modules
-        wlutil.run(["make"] + wlutil.getOpt('linux-make-args') +
+        wlutil.run(["make", 'O=' + str(linCfg['build-dir'])] + wlutil.getOpt('linux-make-args') +
                    ["modules_prepare", '-j' + str(wlutil.getOpt('jlevel'))],
                    cwd=linCfg['source'])
 
         # MODPOST errors are warnings, since we built the extmods without building the kernel first
-        makeCmd = "make KBUILD_MODPOST_WARN=1 LINUXSRC=" + str(linCfg['source'])
+        makeCmd = "make KBUILD_MODPOST_WARN=1 LINUXSRC=" + str(linCfg['source']) + \
+                  " LINUXBUILD=" + str(linCfg['build-dir'])
 
         for driverDir in linCfg['modules'].values():
             wlutil.checkSubmodule(driverDir)
@@ -464,7 +502,7 @@ def makeModules(cfg):
             wlutil.run(makeCmd, cwd=driverDir, shell=True)
             drivers.extend(list(driverDir.glob("*.ko")))
 
-    kernelVersion = sp.run(["make", "-s", "ARCH=riscv", "kernelrelease"], cwd=linCfg['source'], stdout=sp.PIPE, universal_newlines=True).stdout.strip()
+    kernelVersion = sp.run(["make", '-s', 'O=' + str(linCfg['build-dir']), "ARCH=riscv", "kernelrelease"], cwd=linCfg['source'], stdout=sp.PIPE, universal_newlines=True).stdout.strip()
     driverDir = wlutil.getOpt('initramfs-dir') / "drivers" / "lib" / "modules" / kernelVersion
 
     # Always start from a clean slate
@@ -483,12 +521,12 @@ def makeModules(cfg):
 
 
 def makeOpenSBI(config, nodisk=False):
-    payload = config['linux']['source'] / 'arch' / 'riscv' / 'boot' / 'Image'
+    payload = config['linux']['build-dir'] / 'arch' / 'riscv' / 'boot' / 'Image'
     size = payload.stat().st_size
 
     # Sometimes static variables can exceed the size of the flat image
     # Look in the vmlinux ELF for the max address, and use that if its greater
-    vmlinux = config['linux']['source'] / 'vmlinux'
+    vmlinux = config['linux']['build-dir'] / 'vmlinux'
     # don't use wlutil.run, since we need to process the stdout
     proc = sp.Popen(['readelf', '--segments', '--wide', vmlinux], stdout=sp.PIPE, universal_newlines=True)
     proc.wait()
@@ -514,10 +552,10 @@ def makeOpenSBI(config, nodisk=False):
     if 'opensbi-build-args' in config['firmware']:
         args += config['firmware']['opensbi-build-args']
 
-    wlutil.run(['make'] + wlutil.getOpt('linux-make-args') + args,
+    wlutil.run(['make', 'O=' + str(config['firmware']['build-dir'])] + args,
                cwd=config['firmware']['source'])
 
-    return config['firmware']['source'] / 'build' / 'platform' / 'generic' / 'firmware' / 'fw_payload.elf'
+    return config['firmware']['build-dir'] / 'platform' / 'generic' / 'firmware' / 'fw_payload.elf'
 
 
 def makeBin(config, nodisk=False):
@@ -537,13 +575,10 @@ def makeBin(config, nodisk=False):
     if 'linux' in config:
         initramfsIncludes = []
 
-        # Some submodules are only needed if building Linux
         try:
-            wlutil.checkSubmodule(config['linux']['source'])
-            wlutil.checkSubmodule(config['firmware']['source'])
-
+            prepareBuildrootSources(config)
             makeModules(config)
-        except wlutil.SubmoduleError as err:
+        except BuildrootSourceError as err:
             return doit.exceptions.TaskFailed(err)
 
         initramfsIncludes.append(wlutil.getOpt('initramfs-dir') / 'drivers')
@@ -562,11 +597,13 @@ def makeBin(config, nodisk=False):
             initramfsPath = makeInitramfs(initramfsIncludes, cpioDir, includeDevNodes=True)
 
         makeInitramfsKfrag(initramfsPath, cpioDir / "initramfs.kfrag")
-        generateKConfig(config['linux']['config'] + [cpioDir / "initramfs.kfrag"], config['linux']['source'])
-        wlutil.run(['make'] + wlutil.getOpt('linux-make-args') + ['vmlinux', 'Image', '-j' + str(wlutil.getOpt('jlevel'))], cwd=config['linux']['source'])
-        # copy files needed to build linux (busybox copying is put here so that it is shown per linux build)
-        shutil.copy(config['linux']['source'] / '.config', config['out-dir'] / 'linux_config')
-        shutil.copy(wlutil.getOpt('busybox-dir') / '.config', config['out-dir'] / 'busybox_config')
+        generateKConfig(config['linux']['config'] + [cpioDir / "initramfs.kfrag"],
+                        config['linux']['source'], config['linux']['build-dir'])
+        wlutil.run(['make', 'O=' + str(config['linux']['build-dir'])] + wlutil.getOpt('linux-make-args') +
+                   ['vmlinux', 'Image', '-j' + str(wlutil.getOpt('jlevel'))], cwd=config['linux']['source'])
+        # Preserve the exact Buildroot-managed configuration alongside the workload.
+        shutil.copy(config['linux']['build-dir'] / '.config', config['out-dir'] / 'linux_config')
+        shutil.copy(_buildroot_busybox_source() / '.config', config['out-dir'] / 'busybox_config')
 
         fw = makeOpenSBI(config, nodisk)
 
@@ -574,10 +611,10 @@ def makeBin(config, nodisk=False):
         config['dwarf'].parent.mkdir(parents=True, exist_ok=True)
         if nodisk:
             shutil.copy(fw, wlutil.noDiskPath(config['bin']))
-            shutil.copy(config['linux']['source'] / 'vmlinux', wlutil.noDiskPath(config['dwarf']))
+            shutil.copy(config['linux']['build-dir'] / 'vmlinux', wlutil.noDiskPath(config['dwarf']))
         else:
             shutil.copy(fw, config['bin'])
-            shutil.copy(config['linux']['source'] / 'vmlinux', config['dwarf'])
+            shutil.copy(config['linux']['build-dir'] / 'vmlinux', config['dwarf'])
 
     return True
 

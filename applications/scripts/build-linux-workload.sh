@@ -113,29 +113,17 @@ if [[ -n "${JOBS}" && ! "${JOBS}" =~ ^[1-9][0-9]*$ ]]; then
 fi
 
 git -C "${REPO_ROOT}" submodule update --init \
-  applications/linux-workloads/buildroot \
-  applications/linux-workloads/busybox \
-  applications/linux-workloads/linux \
-  applications/linux-workloads/opensbi
+  applications/linux-workloads/buildroot
 if [[ ! -x "${FIREMARSHAL_DIR}/marshal" ]]; then
   echo "Trimmed FireMarshal scripts are unavailable: ${FIREMARSHAL_DIR}" >&2
   exit 1
 fi
 
-# The no-disk initramfs builds FireMarshal's private BusyBox separately from
-# Buildroot. Its default tc applet depends on legacy CBQ UAPI removed by the
-# Tapeout toolchain headers; P2E has no network device, so disable it for this
-# build and restore the upstream configuration on every exit path.
-BUSYBOX_CONFIG="${FIREMARSHAL_DIR}/wlutil/busybox-config"
-BUSYBOX_CONFIG_BACKUP="$(mktemp)"
 BUILDROOT_SOURCE_DIR="${FIREMARSHAL_DIR}/boards/tape-env/distros/br/buildroot"
 BUILDROOT_WORKTREE_ROOT="${OUTPUT_DIR}/worktrees"
 BUILDROOT_WORKTREE_LAYOUT=""
 BUILDROOT_WORKTREE=""
-cp "${BUSYBOX_CONFIG}" "${BUSYBOX_CONFIG_BACKUP}"
 cleanup_firemarshal_build() {
-  cp "${BUSYBOX_CONFIG_BACKUP}" "${BUSYBOX_CONFIG}"
-  rm -f "${BUSYBOX_CONFIG_BACKUP}"
   if [[ -n "${BUILDROOT_WORKTREE}" ]]; then
     git -C "${BUILDROOT_SOURCE_DIR}" worktree remove --force "${BUILDROOT_WORKTREE}" || true
   fi
@@ -148,10 +136,6 @@ cleanup_firemarshal_build() {
   fi
 }
 trap cleanup_firemarshal_build EXIT
-sed -i \
-  -e 's/^CONFIG_TC=y$/# CONFIG_TC is not set/' \
-  -e 's/^CONFIG_FEATURE_TC_INGRESS=y$/# CONFIG_FEATURE_TC_INGRESS is not set/' \
-  "${BUSYBOX_CONFIG}"
 
 # MARSHAL_IMAGE_DIR is deliberately outside FireMarshal, so its public cache
 # key is an absolute local path and cannot hit. The host cannot reach GitHub
@@ -159,8 +143,8 @@ sed -i \
 export FIREMARSHAL_DISABLE_PUBLIC_CACHE=1
 
 # Buildroot source must not be changed in its submodule. Use a disposable
-# worktree for compatibility edits and reuse the original ignored output tree
-# as its package and toolchain cache.
+# worktree for compatibility edits and reuse the original ignored output and
+# download trees as package, toolchain, and source caches.
 if [[ -n "$(git -C "${BUILDROOT_SOURCE_DIR}" status --porcelain)" ]]; then
   echo "Buildroot submodule must be clean before building a workload: ${BUILDROOT_SOURCE_DIR}" >&2
   exit 1
@@ -173,13 +157,17 @@ ln -s "${FIREMARSHAL_DIR}" "${BUILDROOT_WORKTREE_LAYOUT}/applications/linux-work
 ln -s "${REPO_ROOT}/applications/scripts" "${BUILDROOT_WORKTREE_LAYOUT}/applications/scripts"
 git -C "${BUILDROOT_SOURCE_DIR}" worktree add --detach "${BUILDROOT_WORKTREE}" HEAD
 ln -s "${BUILDROOT_SOURCE_DIR}/output" "${BUILDROOT_WORKTREE}/output"
+ln -s "${BUILDROOT_SOURCE_DIR}/dl" "${BUILDROOT_WORKTREE}/dl"
 if [[ -f "${BUILDROOT_SOURCE_DIR}/.config" ]]; then
   ln -s "${BUILDROOT_SOURCE_DIR}/.config" "${BUILDROOT_WORKTREE}/.config"
 elif [[ -f "${BUILDROOT_SOURCE_DIR}/output/.config" ]]; then
   ln -s "${BUILDROOT_SOURCE_DIR}/output/.config" "${BUILDROOT_WORKTREE}/.config"
 else
-  echo "Buildroot has no reusable generated .config: ${BUILDROOT_SOURCE_DIR}" >&2
-  exit 1
+  # A fresh Buildroot checkout has no generated configuration yet. Seed the
+  # shared ignored .config so the host-tool preparation below can run; the
+  # FireMarshal builder later replaces it with the workload defconfig.
+  make -C "${BUILDROOT_SOURCE_DIR}" defconfig
+  ln -s "${BUILDROOT_SOURCE_DIR}/.config" "${BUILDROOT_WORKTREE}/.config"
 fi
 export FIREMARSHAL_BUILDROOT_DIR="${BUILDROOT_WORKTREE}"
 BUILDROOT_DIR="${BUILDROOT_WORKTREE}"

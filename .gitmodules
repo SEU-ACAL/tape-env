@@ -35,21 +35,6 @@
 	path = dependencies/p2e-runner
 	url = https://github.com/SEU-ACAL/p2e_runner.git
 	branch = main
-[submodule "applications_linux_linux"]
-	path = applications/linux-workloads/linux
-	url = https://github.com/firesim/linux.git
-[submodule "applications_linux_opensbi"]
-	path = applications/linux-workloads/opensbi
-	url = https://github.com/riscv-software-src/opensbi.git
 [submodule "applications_linux_buildroot"]
 	path = applications/linux-workloads/buildroot
 	url = https://github.com/buildroot/buildroot.git
-[submodule "applications_linux_busybox"]
-	path = applications/linux-workloads/busybox
-	url = https://github.com/mirror/busybox.git
-[submodule "applications_linux_iceblk_driver"]
-	path = applications/linux-workloads/legacy/firesim/drivers/iceblk-driver
-	url = https://github.com/firesim/iceblk-driver.git
-[submodule "applications_linux_icenet_driver"]
-	path = applications/linux-workloads/legacy/firesim/drivers/icenet-driver
-	url = https://github.com/firesim/icenet-driver.git

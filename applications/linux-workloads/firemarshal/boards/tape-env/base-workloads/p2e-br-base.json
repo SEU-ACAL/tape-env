@@ -7,11 +7,8 @@
     }
   },
   "linux": {
-    "source": "../../../../../linux",
     "config": "../../../../../configs/linux-base.config",
     "modules": {}
   },
-  "firmware": {
-    "opensbi-src": "../../../../../opensbi"
-  }
+  "firmware": {}
 }

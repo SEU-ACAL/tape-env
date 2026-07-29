@@ -1,3 +1,0 @@
-# Local standalone FireSim checkout. It has its own nested Git state and is
-# retained only as a local archive, not as part of tape-env.
-/upstream/

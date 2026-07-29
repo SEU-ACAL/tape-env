@@ -245,6 +245,7 @@ class Builder:
         # List all files that should be checked to determine if BR is uptodate
         deps = []
         deps.append(pathlib.Path(__file__))
+        deps.append(fm_dir / 'wlutil' / 'busybox-config')
         deps += self.opts['configs']
 
         return deps

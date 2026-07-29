@@ -120,11 +120,8 @@ update_submodule() {
 init_linux_workloads() {
     local linux_submodules=(
         applications/linux-workloads/buildroot
-        applications/linux-workloads/busybox
-        applications/linux-workloads/linux
-        applications/linux-workloads/opensbi
     )
-    submodule_name="Linux workload build dependencies"
+    submodule_name="Linux workload Buildroot"
     git submodule update --init "${linux_submodules[@]}"
 }
 
@@ -144,11 +141,6 @@ else
         soc-generator/generator/rocket-chip
         applications/zephyr
         applications/linux-workloads/buildroot
-        applications/linux-workloads/busybox
-        applications/linux-workloads/legacy/firesim/drivers/iceblk-driver
-        applications/linux-workloads/legacy/firesim/drivers/icenet-driver
-        applications/linux-workloads/linux
-        applications/linux-workloads/opensbi
         dependencies/p2e-runner
     )
 
