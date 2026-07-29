@@ -1,5 +1,7 @@
 # TapeoutConfig VCS JTAG Smoke Test
 
+[中文版本](VCS_JTAG_CN.md)
+
 This procedure verifies the JTAG debug path of the VCS `TapeoutConfig`
 simulator built with SMIC180 hard SRAM replacement. It checks the complete
 host-to-DUT path, not SRAM timing:

@@ -25,4 +25,4 @@ The SMIC library at `/data2/smic180/SRAM/S018SP_v0p1pc_CDK/SMIC180_S018SP_v0p1c_
 Only one hard-SRAM technology may be selected for a build. `USE_TSMC28_SRAM=1` remains available for the TSMC28 library.
 
 For an end-to-end VCS JTAG smoke test of `TapeoutConfig` with SMIC180 SRAM
-replacement, see [VCS_JTAG.md](VCS_JTAG.md).
+replacement, see [English](VCS_JTAG.md) or [中文](VCS_JTAG_CN.md).
