@@ -11,7 +11,7 @@
 cp p2e.toml.example p2e.toml
 # Edit p2e.toml: set the SSH host and remote_root for this user.
 nix develop
-make -C dependencies/fpga SUB_PROJECT=hpec-p2e verilog
+make -C dependencies/p2e-runner/platform/tape-env verilog
 
 cd dependencies/p2e-runner
 nix develop
@@ -22,7 +22,7 @@ p2e run --image /path/to/workload.elf
 `make` 成功后，`p2e.toml` 指定的 RTL 目录应包含：
 
 ```text
-dependencies/fpga/generated-src/chipyard.p2e.hpec.P2ETop.HpecP2ETapeoutConfig/gen-collateral/P2ETop.sv
+dependencies/p2e-runner/platform/tape-env/generated-src/chipyard.p2e.hpec.P2ETop.HpecP2ETapeoutConfig/gen-collateral/P2ETop.sv
 ```
 
 根目录的 `p2e.toml` 从模板创建后只保存本工程的非敏感默认值，例如 RTL 目录、SSH

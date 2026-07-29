@@ -1,6 +1,3 @@
-[submodule "dependencies/fpga/fpga-shells"]
-	path = dependencies/fpga/fpga-shells
-	url = https://github.com/chipsalliance/rocket-chip-fpga-shells.git
 [submodule "soc-generator/generator/diplomacy"]
 	path = soc-generator/generator/diplomacy
 	url = https://github.com/chipsalliance/diplomacy.git

@@ -7,7 +7,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(git -C "${SCRIPT_DIR}/../.." rev-parse --show-toplevel)"
-DEFAULT_DTS="${REPO_ROOT}/dependencies/fpga/generated-src/chipyard.p2e.hpec.P2ETop.HpecP2ETapeoutConfig/chipyard.p2e.hpec.P2ETop.HpecP2ETapeoutConfig.dts"
+DEFAULT_DTS="${REPO_ROOT}/dependencies/p2e-runner/platform/tape-env/generated-src/chipyard.p2e.hpec.P2ETop.HpecP2ETapeoutConfig/chipyard.p2e.hpec.P2ETop.HpecP2ETapeoutConfig.dts"
 DTS="${DEFAULT_DTS}"
 OUTPUT=""
 
