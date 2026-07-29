@@ -23,3 +23,6 @@ make -C soc-generator SIM=vcs USE_SMIC180_SRAM=1 verilog
 The SMIC library at `/data2/smic180/SRAM/S018SP_v0p1pc_CDK/SMIC180_S018SP_v0p1c_20260722` supplies the six macro sizes used by `TapeoutConfig`. The macros use the `CLK/CEN/WEN/A/D/Q` interface; `CEN` and `WEN` are active low. `smic180_sram_sim.sources` expands into the corresponding Verilog models. The default `SMIC180_SRAM_SIM_FLAGS=+notimingcheck` preserves functional SRAM simulation while disabling the library's timing checks; use SDF or STA for timing signoff. Override `SMIC180_SRAM_ROOT`, `SMIC180_SRAM_MDF`, `SMIC180_SRAM_SIM_SOURCES`, or `SMIC180_SRAM_SIM_FLAGS` for another library delivery.
 
 Only one hard-SRAM technology may be selected for a build. `USE_TSMC28_SRAM=1` remains available for the TSMC28 library.
+
+For an end-to-end VCS JTAG smoke test of `TapeoutConfig` with SMIC180 SRAM
+replacement, see [VCS_JTAG.md](VCS_JTAG.md).
