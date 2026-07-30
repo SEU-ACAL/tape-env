@@ -132,6 +132,12 @@ if [[ "$ENABLE_LINUX" -eq 1 && "$ENABLE_FULL" -eq 0 && "$ENABLE_GEMMINI" -eq 0 &
     exit 0
 fi
 
+# Keep a P2E-only checkout independent from the default recursive update.
+if [[ "$ENABLE_P2E" -eq 1 && "$ENABLE_FULL" -eq 0 && "$ENABLE_GEMMINI" -eq 0 && "$ENABLE_LINUX" -eq 0 ]]; then
+    update_submodule dependencies/p2e-runner
+    exit 0
+fi
+
 if [[ "$ENABLE_FULL" -eq 1 ]]; then
     submodule_name="all registered submodules"
     git submodule update --init --recursive
@@ -192,6 +198,7 @@ else
     fi
 
     if [[ "$ENABLE_P2E" -eq 1 ]]; then
+        echo "P2E INIT"
         update_submodule dependencies/p2e-runner
     fi
 fi
