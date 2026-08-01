@@ -35,6 +35,9 @@ done
 
 export CI_VCS_BUILD_CONFIGS CI_VCS_BUILD_JOBS
 
+# Self-hosted workspaces persist between runs, so discard incomplete
+# submodule worktrees before restoring the VCS build dependencies.
+git -C "${REPO_ROOT}" submodule deinit --force --all
 git -C "${REPO_ROOT}" submodule sync --recursive
 
 git -C "${REPO_ROOT}" submodule update --init soc-generator/generator/gemmini
