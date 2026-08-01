@@ -203,7 +203,7 @@ jobs:
 
       - name: Upload TapeoutConfig register map
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tapeoutconfig-regmap
           path: "${{ env.CI_RUN_DIR }}/tapeoutconfig-regmap"
@@ -258,7 +258,7 @@ jobs:
 
       - name: Upload regression failure diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: regression-failure-diagnostics-${{ github.run_id }}
           path: ${{ runner.temp }}/regression-failure-diagnostics.tar.gz
