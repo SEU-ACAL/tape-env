@@ -66,11 +66,14 @@ It can also be overridden through `CLOCK_PERIOD` in nanoseconds.
 
 The job has separate `Generate RTL and run Design Compiler` and `Run PrimeTime
 power analysis` steps. A manually dispatched run offers `dhrystone` (default)
-and `fpu-stress` workload choices. The latter runs a compact scalar FP64 FMA
-smoke workload. Both default to the 673046 ns to 4470574 ns steady-state FSDB
-window. PrimeTime reports
-averaged power in watts. The workload, activity window, and technology paths
-can be overridden with `POWER_BENCHMARK`, `POWER_WORKLOAD`, `POWER_START_NS`,
+and `fpu-stress` workload choices, plus an `SDF timing annotation` checkbox
+that defaults to enabled. In SDF mode the DC-generated `ChipTop.sdf` is
+annotated into GLS and PrimeTime reads `run-sdf.fsdb`; disabling the checkbox
+preserves the zero-delay GLS `run-zero.fsdb` flow. The latter runs a compact
+scalar FP64 FMA smoke workload. Both modes default to the 673046 ns to 4470574
+ns steady-state FSDB window. PrimeTime reports averaged power in watts. The
+workload, timing mode, activity window, and technology paths can be overridden
+with `POWER_BENCHMARK`, `POWER_WORKLOAD`, `POWER_USE_SDF`, `POWER_START_NS`,
 `POWER_END_NS`,
 `STD_CELL_MODEL`, `STD_CELL_DB`, `SRAM_ROOT`, and `SRAM_CORNER`. For SMIC180,
 the standard-cell and SRAM libraries use the same SS, 125C process and voltage
