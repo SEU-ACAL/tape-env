@@ -17,10 +17,19 @@ POWER_BENCHMARK="${POWER_BENCHMARK:-dhrystone}"
 POWER_WORKLOAD_ROOT="${POWER_WORKLOAD_ROOT:-/data2/ci-workloads/riscv-tests/riscv64-unknown-elf/share/riscv-tests/benchmarks}"
 POWER_WORKLOAD="${POWER_WORKLOAD:-}"
 POWER_RANDOM_SEED="${POWER_RANDOM_SEED:-1}"
+POWER_USE_SDF="${POWER_USE_SDF:-1}"
 FLOW_DIR="${CI_SYNTHESIS_RUN_ROOT}/dc-flow"
 POWER_FLOW_DIR="${CI_SYNTHESIS_RUN_ROOT}/power-flow"
 POWER_GLS_DIR="${POWER_FLOW_DIR}/3-Pre_PR_NETSIM"
 POWER_PT_DIR="${POWER_FLOW_DIR}/4-Pre_PR_STA_POWER"
+
+case "${POWER_USE_SDF}" in
+  0|1) ;;
+  *)
+    echo "POWER_USE_SDF must be 0 (zero-delay GLS) or 1 (SDF GLS): ${POWER_USE_SDF}" >&2
+    exit 2
+    ;;
+esac
 
 case "${POWER_BENCHMARK}" in
   dhrystone)
@@ -66,7 +75,21 @@ else
   netlist="${FLOW_DIR}/outputs/${run_label}/${TOP_MODULE}.v"
 fi
 constraint_sdc="${FLOW_DIR}/outputs/${run_label}/${TOP_MODULE}.sdc"
-power_report="${POWER_PT_DIR}/outputs/${run_label}/zero-fsdb/power_total.rpt"
+sdf="${FLOW_DIR}/outputs/${run_label}/${TOP_MODULE}.sdf"
+power_sim_config="chipyard.harness.TestHarness.${SYNTHESIS_CONFIG}"
+power_gls_gen_dir="${POWER_GLS_DIR}/gen/${power_sim_config}/${run_label}"
+if [[ "${POWER_USE_SDF}" == "1" ]]; then
+  power_mode="SDF-annotated GLS"
+  power_activity_source="SDF GLS FSDB"
+  power_fsdb="${power_gls_gen_dir}/run-sdf.fsdb"
+  power_report_dir="${POWER_PT_DIR}/outputs/${run_label}/sdf-fsdb"
+else
+  power_mode="Zero-delay GLS"
+  power_activity_source="Zero-delay GLS FSDB"
+  power_fsdb="${power_gls_gen_dir}/run-zero.fsdb"
+  power_report_dir="${POWER_PT_DIR}/outputs/${run_label}/zero-fsdb"
+fi
+power_report="${power_report_dir}/power_total.rpt"
 
 write_power_summary() {
   local internal_power switching_power leakage_power total_power
@@ -82,7 +105,11 @@ write_power_summary() {
     echo "| --- | ---: |"
     echo "| Benchmark | \`${POWER_BENCHMARK}\` |"
     echo "| Workload | \`${POWER_WORKLOAD##*/}\` |"
-    echo "| Activity source | Zero-delay GLS FSDB from ${POWER_START_NS} ns to ${POWER_END_NS} ns |"
+    echo "| Timing mode | ${power_mode} |"
+    echo "| Activity source | ${power_activity_source} from ${POWER_START_NS} ns to ${POWER_END_NS} ns |"
+    if [[ "${POWER_USE_SDF}" == "1" ]]; then
+      echo "| SDF | \`${sdf}\` |"
+    fi
     if [[ -f "${power_report}" ]]; then
       internal_power="$(awk -F= '/^  Cell Internal Power/ { sub(/^[[:space:]]+/, "", $2); split($2, value, /[[:space:]]+/); print value[1]; exit }' "${power_report}")"
       switching_power="$(awk -F= '/^  Net Switching Power/ { sub(/^[[:space:]]+/, "", $2); split($2, value, /[[:space:]]+/); print value[1]; exit }' "${power_report}")"
@@ -107,7 +134,11 @@ for required_directory in 3-Pre_PR_NETSIM 4-Pre_PR_STA_POWER; do
   fi
 done
 
-for required_file in "${netlist}" "${constraint_sdc}" "${POWER_WORKLOAD}"; do
+required_files=("${netlist}" "${constraint_sdc}" "${POWER_WORKLOAD}")
+if [[ "${POWER_USE_SDF}" == "1" ]]; then
+  required_files+=("${sdf}")
+fi
+for required_file in "${required_files[@]}"; do
   if [[ ! -f "${required_file}" ]]; then
     echo "Missing PrimeTime power input: ${required_file}" >&2
     exit 1
@@ -175,17 +206,13 @@ cp -a "${SYNTHESIS_WORKBENCH}/3-Pre_PR_NETSIM" "${POWER_GLS_DIR}"
 cp -a "${SYNTHESIS_WORKBENCH}/4-Pre_PR_STA_POWER" "${POWER_PT_DIR}"
 configure_power_window
 
-power_sim_config="chipyard.harness.TestHarness.${SYNTHESIS_CONFIG}"
-power_gls_gen_dir="${POWER_GLS_DIR}/gen/${power_sim_config}/${run_label}"
-power_fsdb="${power_gls_gen_dir}/run-zero.fsdb"
-power_report_dir="${POWER_PT_DIR}/outputs/${run_label}/zero-fsdb"
-
 if [[ "$(docker inspect --format '{{.State.Running}}' "${DC_CONTAINER}" 2>/dev/null || true)" != "true" ]]; then
   echo "The PrimeTime container is not running: ${DC_CONTAINER}" >&2
   exit 1
 fi
 
-export POWER_GLS_DIR POWER_PT_DIR POWER_WORKLOAD POWER_RANDOM_SEED POWER_START_NS POWER_END_NS
+export POWER_GLS_DIR POWER_PT_DIR POWER_WORKLOAD POWER_RANDOM_SEED POWER_START_NS POWER_END_NS POWER_USE_SDF
+export POWER_SDF="${sdf}"
 export PT_SHELL_BIN
 export REPO_ROOT SYNTHESIS_CONFIG SYNTHESIS_TECH power_sim_config netlist constraint_sdc run_label
 
@@ -196,26 +223,51 @@ run_in_nix '
   make -C "${dramsim_dir}" libdramsim.a
   test -f "${dramsim_dir}/libdramsim.a"
 
-  make -C "${POWER_GLS_DIR}" \
-    TAPE_ENV="${REPO_ROOT}" \
-    CONFIG="${power_sim_config}" \
-    TECH="${SYNTHESIS_TECH}" \
-    NETLIST_RUN="${run_label}" \
-    NETLIST="${netlist}" \
-    RANDOM_SEED="${POWER_RANDOM_SEED}" \
-    WAVEFORM=1 \
-    gls_zero
+  if [[ "${POWER_USE_SDF}" == "1" ]]; then
+    make -C "${POWER_GLS_DIR}" \
+      TAPE_ENV="${REPO_ROOT}" \
+      CONFIG="${power_sim_config}" \
+      TECH="${SYNTHESIS_TECH}" \
+      NETLIST_RUN="${run_label}" \
+      NETLIST="${netlist}" \
+      SDF="${POWER_SDF}" \
+      RANDOM_SEED="${POWER_RANDOM_SEED}" \
+      WAVEFORM=1 \
+      gls_sdf
 
-  make -C "${POWER_GLS_DIR}" \
-    TAPE_ENV="${REPO_ROOT}" \
-    CONFIG="${power_sim_config}" \
-    TECH="${SYNTHESIS_TECH}" \
-    NETLIST_RUN="${run_label}" \
-    NETLIST="${netlist}" \
-    RANDOM_SEED="${POWER_RANDOM_SEED}" \
-    WAVEFORM=1 \
-    BINARY="${POWER_WORKLOAD}" \
-    run_zero
+    make -C "${POWER_GLS_DIR}" \
+      TAPE_ENV="${REPO_ROOT}" \
+      CONFIG="${power_sim_config}" \
+      TECH="${SYNTHESIS_TECH}" \
+      NETLIST_RUN="${run_label}" \
+      NETLIST="${netlist}" \
+      SDF="${POWER_SDF}" \
+      RANDOM_SEED="${POWER_RANDOM_SEED}" \
+      WAVEFORM=1 \
+      BINARY="${POWER_WORKLOAD}" \
+      run_sdf
+  else
+    make -C "${POWER_GLS_DIR}" \
+      TAPE_ENV="${REPO_ROOT}" \
+      CONFIG="${power_sim_config}" \
+      TECH="${SYNTHESIS_TECH}" \
+      NETLIST_RUN="${run_label}" \
+      NETLIST="${netlist}" \
+      RANDOM_SEED="${POWER_RANDOM_SEED}" \
+      WAVEFORM=1 \
+      gls_zero
+
+    make -C "${POWER_GLS_DIR}" \
+      TAPE_ENV="${REPO_ROOT}" \
+      CONFIG="${power_sim_config}" \
+      TECH="${SYNTHESIS_TECH}" \
+      NETLIST_RUN="${run_label}" \
+      NETLIST="${netlist}" \
+      RANDOM_SEED="${POWER_RANDOM_SEED}" \
+      WAVEFORM=1 \
+      BINARY="${POWER_WORKLOAD}" \
+      run_zero
+  fi
 
 ' 2>&1 | tee "${POWER_FLOW_DIR}/power.log"
 gls_status=${PIPESTATUS[0]}

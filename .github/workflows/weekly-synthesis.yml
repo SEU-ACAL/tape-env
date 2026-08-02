@@ -22,6 +22,11 @@ on:
         options:
           - dhrystone
           - fpu-stress
+      use_sdf:
+        description: Annotate the Dhrystone GLS run with the synthesized SDF
+        required: true
+        default: true
+        type: boolean
       clock_period_ns:
         description: Clock period in ns (optional; blank uses the technology default)
         required: false
@@ -50,6 +55,7 @@ jobs:
       NO_PROXY: localhost,127.0.0.1
       SYNTHESIS_TECH: ${{ inputs.technology || 'smic180' }}
       POWER_BENCHMARK: ${{ inputs.benchmark || 'dhrystone' }}
+      POWER_USE_SDF: ${{ github.event_name != 'workflow_dispatch' && '1' || (inputs.use_sdf && '1' || '0') }}
       CLOCK_PERIOD: ${{ inputs.clock_period_ns || '' }}
     steps:
       - name: Checkout Chipyard
