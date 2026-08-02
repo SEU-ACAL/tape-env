@@ -5,7 +5,8 @@ Rocket、BOOM、共享 L2、Gemmini 和 TestChipIP 的 RTL 生成，以及 Veril
 软件仿真和裸机工作负载验证。
 
 FPGA 加速仿真及其配套编译栈不属于本仓库；Linux 工作负载通过固定版本的
-FireMarshal 子模块生成，详情见 [applications/README.md](applications/README.md)。
+FireMarshal 子模块生成，使用说明见
+[applications/linux-workloads/使用说明.md](applications/linux-workloads/使用说明.md)。
 
 ## 目录说明
 
@@ -91,12 +92,18 @@ make CONFIG=RocketConfig verilog
 make CONFIG=RocketConfig emu
 make CONFIG=RocketConfig emu-debug
 make CONFIG=RocketConfig run BINARY=/absolute/path/to/program.elf
+make CONFIG=RocketConfig run-fast BINARY=/absolute/path/to/program.elf
+make CONFIG=RocketConfig run-debug BINARY=/absolute/path/to/program.elf
 ```
 
-默认仿真器是 Verilator。VCS 可通过 `SIM=vcs` 选择，例如：
+默认仿真器是 Verilator。`emu` 构建普通仿真器，`emu-debug` 构建带波形支持的
+调试仿真器；`run` 生成反汇编日志，`run-fast` 省略反汇编以缩短运行时间，`run-debug`
+使用调试仿真器并生成波形。VCS 可通过 `SIM=vcs` 选择，例如：
 
 ```sh
 make SIM=vcs CONFIG=RocketConfig verilog
+make SIM=vcs CONFIG=RocketConfig emu
+make SIM=vcs CONFIG=RocketConfig run BINARY=/absolute/path/to/program.elf
 ```
 
 可用配置类可通过 `make find-configs` 查询。常用配置包括：
@@ -105,8 +112,6 @@ make SIM=vcs CONFIG=RocketConfig verilog
 - `QuadChannelRocketConfig`：CI 使用的多通道 Rocket 配置。
 - `MediumBoomV3CosimFastConfig`、`MediumBoomV4CosimFastConfig`：CI 使用的 BOOM 配置。
 - `GemminiRocketConfig`：Gemmini 加速器配置，使用前执行 `./init-submodules.sh --gemmini`。
-
-更多生成和仿真变量见 [soc-generator/README.md](soc-generator/README.md)。
 
 ## TapeoutConfig 与 SRAM
 
@@ -160,16 +165,37 @@ make -C soc-generator/sims/vcs CONFIG=TapeoutConfig USE_TSMC28_SRAM=1 \
   verilog
 ```
 
+更多 SRAM 工艺库接口、仿真模型和物理交付物说明见
+[soc-generator/generator/chipyard/vlsi/SRAM.md](soc-generator/generator/chipyard/vlsi/SRAM.md)。
+
 ## 工作负载与回归
 
-`applications/tests/` 包含常用裸机程序，例如 `hello`、`mt-hello` 和外设测试。其
-构建细节见 [applications/tests/README.md](applications/tests/README.md)。Rocket/BOOM
-ISA 与 benchmark 回归测试来自 `applications/riscv-tests`；构建和运行方式见
-[applications/README.md](applications/README.md)。
+`applications/tests/` 包含 `hello`、`mt-hello` 和外设测试。构建全部测试、生成反汇编
+或清理构建目录分别使用：
+
+```sh
+cmake -S applications/tests -B applications/tests/build -D CMAKE_BUILD_TYPE=Debug
+cmake --build applications/tests/build --target all
+cmake --build applications/tests/build --target dump
+cmake --build applications/tests/build --target clean
+```
+
+Rocket/BOOM 的 ISA 与 benchmark 回归二进制来自 `applications/riscv-tests` 子模块：
+
+```sh
+nix develop --command applications/scripts/build-riscv-tests.sh
+make -C soc-generator/sims/verilator CONFIG=QuadChannelRocketConfig run-asm-tests-fast
+```
+
+需将回归二进制输出到其他位置时，使用 `--output DIR`，并在运行时传入对应的
+`RISCV=DIR`。Linux 工作负载、HTIF 控制台及 P2E DTB 参数见
+[applications/linux-workloads/使用说明.md](applications/linux-workloads/使用说明.md)；
+RISC-V Linux benchmark 示例见
+[applications/linux-workloads/examples/riscv-benchmarks/使用说明.md](applications/linux-workloads/examples/riscv-benchmarks/使用说明.md)。
 
 仓库 CI 会构建 Rocket 与 BOOM 的 Verilator/VCS 回归配置，并运行 ISA、benchmark、
 裸机 Hello 和 Zephyr Hello 验证。CI 使用的配置及预构建工作负载说明见
-[.github/CI_README.md](.github/CI_README.md)。
+[.github/CI.md](.github/CI.md)。
 
 ## 组件来源与边界
 

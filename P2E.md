@@ -9,7 +9,7 @@
 
 ```sh
 cp p2e.toml.example p2e.toml
-# Edit p2e.toml: set the SSH host and remote_root for this user.
+# 编辑 p2e.toml，为当前用户设置 SSH 主机和 remote_root。
 nix develop
 make -C dependencies/p2e-runner/platform/tape-env verilog
 
@@ -34,6 +34,6 @@ dependencies/p2e-runner/platform/tape-env/generated-src/chipyard.p2e.hpec.P2ETop
 
 Linux 在当前 HPEC wrapper 中的物理 UART TX 没有连接至宿主机。需要观察 Linux
 bring-up 时，使用 `applications/scripts/build-linux-workload.sh --htif-console` 生成
-HTIF-console ELF 和 DTB，再按 [applications/linux-workloads/README.md](applications/linux-workloads/README.md)
+HTIF-console ELF 和 DTB，再按 [Linux 工作负载说明](applications/linux-workloads/使用说明.md)
 的 `p2e run --dtb ... --dtb-address 0x8ff00000` 命令运行。该调试模式不替代默认 UART
 配置。
