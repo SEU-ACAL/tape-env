@@ -104,26 +104,36 @@ static int eeprom_read(uint8_t offset, uint8_t *data)
 
 int main(void)
 {
+  // 目标：向 EEPROM 内部地址 0x2a 写入 0x5c，并随机读回验证。
   const uint8_t offset = 0x2a;
   const uint8_t expected = 0x5c;
   uint8_t data = 0;
   int rc;
 
-  // 100 MHz peripheral clock / (5 * (249 + 1)) = 80 kHz I2C clock.
+  // 配置并使能 I2C 控制器。波形中之后的 SCL 有效周期约为 10.71 us。
   reg_write32(I2C_PRESCALE_LO, 249);
   reg_write32(I2C_PRESCALE_HI, 0);
   reg_write32(I2C_CONTROL, I2C_CONTROL_ENABLE);
 
+  // 写事务：S -> 0xa0 -> ACK -> 0x2a -> ACK -> 0x5c -> ACK -> P。
+  // 本次 FSDB 中该事务从 3.076415 ms 的 START 开始，3.383945 ms STOP；
+  // EEPROM 在 3.357525 ms 将 memory[0x2a] 从初始值 0x2a 改为 0x5c。
   rc = eeprom_write(offset, expected);
   if (rc != 0) {
     printf("I2C EEPROM write failed: %d\n", rc);
     return 1;
   }
+  // 随机读事务：S -> 0xa0 -> ACK -> 0x2a -> ACK -> Sr -> 0xa1 -> ACK
+  //             -> 0x5c -> NACK -> P。
+  // 先以写方向设置 EEPROM 的内部地址指针，再用 repeated-START 切换至读
+  // 方向；FSDB 中 repeated-START 位于 3.602575 ms，读出的 0x5c 位于
+  // 3.714695--3.789705 ms，最后于 3.816125 ms 产生 STOP。
   rc = eeprom_read(offset, &data);
   if (rc != 0) {
     printf("I2C EEPROM read failed: %d\n", rc);
     return 1;
   }
+  // 软件比较接收寄存器中的读值与写入值，确认完整的 I2C 写/读路径正确。
   if (data != expected) {
     printf("I2C EEPROM mismatch: got 0x%02x expected 0x%02x\n", data, expected);
     return 1;
