@@ -15,6 +15,7 @@ import freechips.rocketchip.subsystem.{MBUS}
 
 class TapeoutConfig extends Config(
 
+  new testchipip.boot.WithTapeBootROM ++
   new freechips.rocketchip.subsystem.WithoutTLMonitors ++
   new WithTapeoutRocket ++
   // AbstractConfig adds an MBUS scratchpad; remove all subsystem scratchpads.
