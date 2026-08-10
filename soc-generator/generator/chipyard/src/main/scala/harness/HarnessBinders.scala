@@ -75,6 +75,33 @@ class WithSimSPIFlashModel(rdOnly: Boolean = true) extends HarnessBinder({
   }
 })
 
+/** Attach the existing SPI flash behavioral model to tapeout-style SPI pads. */
+class WithSimSPIFlashOnPads(
+  capacityBytes: BigInt = BigInt(0x100000),
+  rdOnly: Boolean = false) extends HarnessBinder({
+  case (th: HasHarnessInstantiators, port: SimSPIPadPort, _) => {
+    require(port.cs.size == 1, "SimSPIFlashOnPads supports exactly one chip-select")
+    require(port.dq.size == 4, "SimSPIFlashOnPads requires four SPI data pads")
+    val flash = Module(new SimSPIFlashPadModel(capacityBytes, port.spiId, rdOnly))
+      .suggestName(s"spi_flash_pad_${port.spiId}")
+    flash.io.sck <> port.sck
+    flash.io.cs <> port.cs.head
+    flash.io.dq.zip(port.dq).foreach { case (modelPad, socPad) => modelPad <> socPad }
+    flash.io.reset := th.harnessBinderReset.asBool
+  }
+})
+
+/** Attach a pull-up equipped I2C EEPROM to tapeout-style I2C pads. */
+class WithSimI2CEepromOnPads(i2cAddress: Int = 0x50) extends HarnessBinder({
+  case (th: HasHarnessInstantiators, port: SimI2CPadPort, _) => {
+    val eeprom = Module(new SimI2CEepromModel(i2cAddress))
+      .suggestName(s"i2c_eeprom_${port.i2cId}")
+    eeprom.io.scl <> port.scl
+    eeprom.io.sda <> port.sda
+    eeprom.io.reset := th.harnessBinderReset.asBool
+  }
+})
+
 class WithSPITiedOff extends HarnessBinder({
   case (th: HasHarnessInstantiators, port: SPIPort, chipId: Int) => {
     // The SPI controller drives sck, cs, and dq.{o,ie,oe}; only dq.i is an

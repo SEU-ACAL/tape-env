@@ -29,7 +29,6 @@ class TapeoutConfig extends Config(
   // with the PDK General IO implementation before physical tapeout.
   new chipyard.iobinders.WithSPIIOCells ++
   new chipyard.iobinders.WithI2CIOCells ++
-
   // MMIO peripherals.  AbstractConfig supplies a default UART; replace it
   // here so this tapeout configuration owns the complete peripheral map.
   new chipyard.config.WithUART(
@@ -43,6 +42,19 @@ class TapeoutConfig extends Config(
   new chipyard.config.WithGPIO(address = 0x10010000, width = 8) ++
 
   new chipyard.config.AbstractConfig)
+
+
+/**
+  * TapeoutConfig with both simulation targets.  The SPI flash still requires
+  * +spiflash0=<binary-image>; the I2C EEPROM is preloaded with byte[i] = i.
+  */
+class TapeoutSimConfig extends Config(
+  new chipyard.harness.WithSimI2CEepromOnPads ++
+  new chipyard.harness.WithSimSPIFlashOnPads ++
+  new chipyard.iobinders.WithSimSPIIOCells ++
+  new chipyard.iobinders.WithSimI2CIOCells ++
+  new TapeoutConfig)
+
 
 // Rocket tile and cache sizing for the tapeout target.
 class WithTapeoutRocket extends Config(
