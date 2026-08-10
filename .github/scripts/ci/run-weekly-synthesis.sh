@@ -25,7 +25,7 @@ CI_SUMMARY_FILE="${CI_SYNTHESIS_RUN_ROOT}/synthesis-summary.md"
 
 case "${SYNTHESIS_TECH}" in
   smic180)
-    CLOCK_PERIOD="${CLOCK_PERIOD:-2.0}"
+    CLOCK_PERIOD="${CLOCK_PERIOD:-10.0}"
     ;;
   tsmc28)
     CLOCK_PERIOD="${CLOCK_PERIOD:-1.0}"
