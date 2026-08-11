@@ -1,0 +1,80 @@
+name: Nightly Peripheral Regression
+
+on:
+  schedule:
+    # 16:00 UTC is midnight in Asia/Shanghai (UTC+8), leaving time before
+    # the weekly synthesis starts at 02:00 on Monday.
+    - cron: '0 16 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-peripheral-regression
+  cancel-in-progress: false
+
+jobs:
+  peripherals:
+    name: Run TapeoutConfig I2C and JTAG regressions
+    runs-on: [self-hosted, linux, builder]
+    timeout-minutes: 360
+    env:
+      CI_SHARED_ROOT: /data1/ci-runner
+      HTTP_PROXY: http://127.0.0.1:12000
+      HTTPS_PROXY: http://127.0.0.1:12000
+      NO_PROXY: localhost,127.0.0.1
+      USE_SMIC180_SRAM: 1
+      SMIC180_SRAM_ROOT: /data2/smic180/SRAM/S018SP_v0p1pc_CDK/SMIC180_S018SP_v0p1c_20260722
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare isolated CI paths
+        run: |
+          run_dir="${CI_SHARED_ROOT}/nightly-peripherals/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:12}"
+          mkdir -p "${run_dir}"
+          echo "CI_RUN_DIR=${run_dir}" >> "$GITHUB_ENV"
+
+      - name: Build TapeoutConfig VCS simulator
+        run: |
+          env \
+            CI_SHARED_ROOT="${CI_RUN_DIR}/vcs-ci" \
+            CI_CACHE_ROOT=/data1/ci-runner/cache/nightly-peripherals/vcs \
+            CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \
+            CI_VCS_BUILD_JOBS=8 \
+            CI_VCS_BUILD_CONFIGS=TapeoutConfig \
+            .github/scripts/ci/build-core-regressions-vcs.sh \
+            > "${CI_RUN_DIR}/vcs-build.log" 2>&1
+
+      - name: Run I2C and JTAG peripheral regressions
+        run: |
+          env \
+            CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \
+            CI_RESULT_ROOT="${CI_RUN_DIR}/peripheral-results" \
+            .github/scripts/ci/run-peripheral-regressions-vcs.sh \
+            > "${CI_RUN_DIR}/peripheral-regression.log" 2>&1
+
+      - name: Write peripheral regression summary
+        if: always()
+        run: |
+          echo "## Nightly TapeoutConfig peripheral regressions" >> "$GITHUB_STEP_SUMMARY"
+          for testcase in i2c jtag; do
+            result="${CI_RUN_DIR}/peripheral-results/${testcase}/result.json"
+            if [[ -f "${result}" ]]; then
+              cat "${result}" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "No result was produced for ${testcase}." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+      - name: Archive peripheral failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-peripheral-failure-diagnostics-${{ github.run_id }}
+          path: |
+            ${{ env.CI_RUN_DIR }}/vcs-build.log
+            ${{ env.CI_RUN_DIR }}/peripheral-regression.log
+            ${{ env.CI_RUN_DIR }}/peripheral-results
+          if-no-files-found: warn
+          retention-days: 14
