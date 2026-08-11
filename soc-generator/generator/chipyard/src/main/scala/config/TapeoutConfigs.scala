@@ -22,13 +22,16 @@ class TapeoutConfig extends Config(
   new chipyard.clocking.WithNdmResetInSystemReset ++
   new WithTapeoutSingleClock(100) ++
   new chipyard.harness.WithSimTSIOverSerialTL(fast = true) ++
+  // Keep tapeout-style pads while attaching the behavioral EEPROM in the
+  // simulation harness used by TapeoutConfig VCS regressions.
+  new chipyard.harness.WithSimI2CEepromOnPads ++
   new chipyard.WithSerialConnect ++
 
   // Replace AbstractConfig's SPI/I2C punchthrough ports with General IO cells.
   // IOCellKey remains GenericIOCellParams for simulation and must be replaced
   // with the PDK General IO implementation before physical tapeout.
   new chipyard.iobinders.WithSPIIOCells ++
-  new chipyard.iobinders.WithI2CIOCells ++
+  new chipyard.iobinders.WithSimI2CIOCells ++
   // MMIO peripherals.  AbstractConfig supplies a default UART; replace it
   // here so this tapeout configuration owns the complete peripheral map.
   new chipyard.config.WithUART(
@@ -45,14 +48,12 @@ class TapeoutConfig extends Config(
 
 
 /**
-  * TapeoutConfig with both simulation targets.  The SPI flash still requires
-  * +spiflash0=<binary-image>; the I2C EEPROM is preloaded with byte[i] = i.
-  */
+ * TapeoutConfig with the SPI flash simulation target. The I2C EEPROM model is
+ * already part of TapeoutConfig so its VCS image can run I2C regressions.
+ */
 class TapeoutSimConfig extends Config(
-  new chipyard.harness.WithSimI2CEepromOnPads ++
   new chipyard.harness.WithSimSPIFlashOnPads ++
   new chipyard.iobinders.WithSimSPIIOCells ++
-  new chipyard.iobinders.WithSimI2CIOCells ++
   new TapeoutConfig)
 
 
