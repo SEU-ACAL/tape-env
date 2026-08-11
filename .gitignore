@@ -31,5 +31,7 @@ project/project/
 p2e.toml
 .vscode/
 tests/build/
+applications/tests/jtag/build/
+applications/tests/jtag/__pycache__/
 applications/linux/build/
 /applications/linux-riscv-benchmarks/

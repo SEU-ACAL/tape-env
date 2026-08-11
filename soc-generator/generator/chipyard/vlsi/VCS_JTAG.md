@@ -16,11 +16,8 @@ then writes and reads a DRAM word using the Debug Module system bus access
 
 ## Prerequisites
 
-- Initialize the P2E submodule because it provides the `gdb-loop` workload:
-
-  ```sh
-  ./init-submodules.sh --p2e
-  ```
+- The self-contained JTAG workload lives in `applications/tests/jtag`; no P2E
+  submodule is required for this test.
 
 - Start the normal development shell for VCS build and simulation:
 
@@ -43,7 +40,7 @@ then writes and reads a DRAM word using the Debug Module system bus access
 From the repository root in the normal development shell:
 
 ```sh
-make -C dependencies/p2e-runner/examples/gdb-loop
+make -C applications/tests/jtag
 
 make -C soc-generator \
   SIM=vcs \
@@ -84,7 +81,7 @@ connection.
 
 ```sh
 simv=$PWD/soc-generator/sims/vcs/simv-chipyard.harness-TapeoutConfig
-elf=$PWD/dependencies/p2e-runner/examples/gdb-loop/build/gdb-loop.elf
+elf=$PWD/applications/tests/jtag/build/gdb-loop.elf
 dram_ini=$PWD/soc-generator/generator/testchipip/src/main/resources/dramsim2_ini
 
 "$simv" \
@@ -156,7 +153,7 @@ the same debug shell. The commands below are intentionally directed and leave
 the target halted.
 
 ```sh
-elf=$PWD/dependencies/p2e-runner/examples/gdb-loop/build/gdb-loop.elf
+elf=$PWD/applications/tests/jtag/build/gdb-loop.elf
 
 riscv64-unknown-elf-gdb -batch \
   -ex 'set pagination off' \
@@ -185,7 +182,7 @@ JTAG_A0=$2 = 0x1234abcd
 JTAG_MEM=0x80100000:  0x4a544147
 ```
 
-The PC may differ because `gdb-loop` is running when the halt request arrives.
+The PC may differ because the JTAG workload is running when the halt request arrives.
 The `a0` and memory values must match exactly.
 
 ## Pass Criteria And Cleanup
