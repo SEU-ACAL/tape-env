@@ -3,6 +3,11 @@
 仓库的验证 CI 是 `Regression Tests` 工作流（`.github/workflows/regression.yml`）。它会在
 目标分支为 `main` 的拉取请求中运行，也可以手动触发。
 
+`Nightly Peripheral Regression`（`.github/workflows/nightly-peripheral-regression.yml`）每天
+北京时间 00:00 运行，也可手动触发。它构建一次 `TapeoutConfig` VCS 仿真器，并串行执行 I2C
+EEPROM 压力测试（4 轮、每轮 16 字节）和 JTAG RSP 压力测试（32 步、64 次内存操作）。
+测试失败时会上传各测试日志和保留的 VCS 运行目录。
+
 该工作流为下列配置构建 Verilator 仿真器：
 
 - `QuadChannelRocketConfig`
