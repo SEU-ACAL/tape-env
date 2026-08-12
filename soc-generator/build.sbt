@@ -87,7 +87,10 @@ def projectFromDir(name: String, dir: File): Project = {
   * overriding scalaSource and resourceDirectory.
   */
 def freshProject(name: String, dir: File): Project = {
-  val sourceRoot = dir / "src"
+  val absDir =
+    if (dir.isAbsolute) dir.getCanonicalFile
+    else (chipyardRootDir / dir.getPath).getCanonicalFile
+  val sourceRoot = absDir / "src"
   Project(id = name, base = projectBase(name, sourceRoot))
     .settings(
       sourceDirectory := sourceRoot,
