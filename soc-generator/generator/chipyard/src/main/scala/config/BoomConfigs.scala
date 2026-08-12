@@ -7,6 +7,14 @@ class SmallBoomV3Config extends Config(
   new boom.v3.common.WithNSmallBooms(1) ++
   new chipyard.config.AbstractConfig)
 
+/** BOOMv3 FDIP configuration, including the FDIP frontend, ICache prefetch
+  * pipeline, and FDIP-specific branch prediction path.
+  */
+class FDIPMegaBoomV3Config extends Config(
+  new boom.fdip.common.WithNMegaBooms(1) ++
+  new chipyard.config.WithSystemBusWidth(128) ++
+  new chipyard.config.AbstractConfig)
+
 /** BOOMv3 configuration used by the upstream Verilator regression suite. */
 class MediumBoomV3CosimConfig extends Config(
   new chipyard.harness.WithCospike ++
