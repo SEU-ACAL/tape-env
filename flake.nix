@@ -333,6 +333,10 @@ EOF
           FIREMARSHAL_RISCV = "${firemarshalRiscvToolchain}";
           FIRTOOL_BIN = "${circt}/bin/firtool";
           JAVA_HOME = "${pkgs.jdk17_headless}";
+          # S018VM is a 2017 Swing application that rejects Java's modern
+          # version format. Keep SBT on JDK 17, but give the ROM compiler a
+          # Nix-managed JDK 8 explicitly.
+          SMIC180_ROM_JAVA = "${gcc11Pkgs.jdk8}/bin/java";
           VCS_HOME = "/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1";
           VERDI_HOME = "/data0/tools/Synopsys/verdi/verdi/W-2024.09-SP1";
           LM_LICENSE_FILE = "26000@devjz-ubt20-s01";
@@ -399,6 +403,7 @@ EOF
             pkgs.verilator
             pkgs.which
             pkgs.zlib
+            gcc11Pkgs.jdk8
             circt
             riscvCc
           ] ++ extraPackages;

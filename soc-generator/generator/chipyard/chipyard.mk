@@ -2,6 +2,10 @@
 # sequential memories with the corresponding hard SRAM macros.
 USE_TSMC28_SRAM ?= 0
 USE_SMIC180_SRAM ?= 0
+# Set USE_SMIC180_ROM=1 to replace TapeoutConfig's BootROM with the SMIC
+# S018VM macro. The default keeps the ordinary synthesizable TLROM. P2E
+# configurations are intentionally excluded below.
+USE_SMIC180_ROM ?= 0
 
 TSMC28_SRAM_ROOT ?= /data2/TSMC28/Memory/SRAM
 TSMC28_SRAM_MDF ?= $(base_dir)/generator/chipyard/vlsi/tsmc28_sram_library.mdf.json
@@ -17,8 +21,25 @@ SMIC180_SRAM_SIM_FILELIST ?= $(build_dir)/smic180_sram_sim.f
 SMIC180_SRAM_SIM_FLAGS ?= +notimingcheck
 SMIC180_SRAM_CONFIG_STAMP ?= $(build_dir)/.smic180-sram-config.stamp
 
+# TapeoutConfig uses the fixed 8192 x 64 SMIC S018VM BootROM macro only when
+# explicitly enabled. The effective value is exported for the Chisel config;
+# checking CONFIG here also prevents P2E's HpecP2E* configs from enabling it.
+SMIC180_ROM_ENABLED := $(if $(and $(filter TapeoutConfig,$(CONFIG)), $(filter 1 yes true,$(USE_SMIC180_ROM))),1,0)
+export SMIC180_ROM_ENABLED
+SMIC180_ROM_CDK_DIR ?= /data2/smic180/S018VM_V0P1PC_CDK
+SMIC180_ROM_COMPILER ?= $(base_dir)/generator/chipyard/vlsi/generate_smic180_bootrom.sh
+SMIC180_ROM_JAVA ?=
+SMIC180_ROM_CODEFILE ?= $(build_dir)/$(long_name).smic180_bootrom.code
+SMIC180_ROM_OUTPUT_DIR ?= $(build_dir)/smic180-bootrom
+SMIC180_ROM_MACRO_NAME ?= S018VM_X512Y16D64_PM
+SMIC180_ROM_MACRO_V ?= $(SMIC180_ROM_OUTPUT_DIR)/$(SMIC180_ROM_MACRO_NAME).v
+SMIC180_ROM_SIM_FILELIST ?= $(build_dir)/smic180_bootrom_sim.f
+SMIC180_ROM_CONFIG_STAMP ?= $(build_dir)/.smic180-rom-config.stamp
+
 TOP_MACRO_STAMP_DEPS += $(TSMC28_SRAM_CONFIG_STAMP) $(SMIC180_SRAM_CONFIG_STAMP)
 SIM_CONFIG_STAMPS += $(TSMC28_SRAM_CONFIG_STAMP) $(SMIC180_SRAM_CONFIG_STAMP)
+EXTRA_GENERATOR_REQS += $(SMIC180_ROM_CONFIG_STAMP)
+SIM_CONFIG_STAMPS += $(SMIC180_ROM_CONFIG_STAMP)
 
 .PHONY: tsmc28-sram-config-force
 tsmc28-sram-config-force:
@@ -75,3 +96,34 @@ endif
 $(SMIC180_SRAM_SIM_FILELIST): $(SMIC180_SRAM_SIM_SOURCES) $(SMIC180_SRAM_CONFIG_STAMP)
 	mkdir -p $(dir $@)
 	sed 's|^|$(SMIC180_SRAM_ROOT)/|' $< > $@
+
+.PHONY: smic180-rom-config-force
+smic180-rom-config-force:
+
+$(SMIC180_ROM_CONFIG_STAMP): smic180-rom-config-force
+	mkdir -p $(dir $@)
+	@{ \
+		printf '%s\n' 'USE_SMIC180_ROM=$(USE_SMIC180_ROM)'; \
+		printf '%s\n' 'SMIC180_ROM_ENABLED=$(SMIC180_ROM_ENABLED)'; \
+		printf '%s\n' 'SMIC180_ROM_CDK_DIR=$(SMIC180_ROM_CDK_DIR)'; \
+		printf '%s\n' 'SMIC180_ROM_JAVA=$(SMIC180_ROM_JAVA)'; \
+		printf '%s\n' 'SMIC180_ROM_COMPILER=$(SMIC180_ROM_COMPILER)'; \
+		printf '%s\n' 'SMIC180_ROM_MACRO_NAME=$(SMIC180_ROM_MACRO_NAME)'; \
+	} > $@.tmp; \
+	if ! cmp -s $@.tmp $@; then mv $@.tmp $@; else rm -f $@.tmp; fi
+
+ifeq ($(SMIC180_ROM_ENABLED),1)
+EXT_FILELISTS += $(SMIC180_ROM_SIM_FILELIST)
+EXTRA_SIM_FLAGS += +notimingcheck
+
+# The generator writes elaboration artifacts beside FIRRTL, including this
+# codefile.  Declare that side effect so a clean Make build orders correctly.
+$(SMIC180_ROM_CODEFILE): $(FIRRTL_FILE)
+
+$(SMIC180_ROM_MACRO_V): $(SMIC180_ROM_CODEFILE) $(SMIC180_ROM_COMPILER) $(SMIC180_ROM_CDK_DIR)/S018VM.jar $(SMIC180_ROM_CONFIG_STAMP)
+	SMIC180_ROM_JAVA="$(SMIC180_ROM_JAVA)" $(SMIC180_ROM_COMPILER) $(SMIC180_ROM_CDK_DIR) $(SMIC180_ROM_CODEFILE) $(SMIC180_ROM_OUTPUT_DIR)
+
+$(SMIC180_ROM_SIM_FILELIST): $(SMIC180_ROM_MACRO_V)
+	mkdir -p $(dir $@)
+	printf '%s\n' '$(SMIC180_ROM_MACRO_V)' > $@
+endif

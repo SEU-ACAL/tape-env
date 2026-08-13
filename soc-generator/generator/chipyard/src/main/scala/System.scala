@@ -29,7 +29,15 @@ class ChipyardSystem(implicit p: Parameters) extends ChipyardSubsystem
   with CanHaveSlaveAXI4Port
 {
 
-  val bootROM  = p(BootROMLocated(location)).map { BootROM.attach(_, this, CBUS) }
+  // Cosimulation consumes the BootROM image separately from the instantiated
+  // ROM. Keep a deferred copy available when the hardware uses a hard macro.
+  val bootROMContents: Seq[() => Seq[Byte]] = p(BootROMLocated(location)).map { params =>
+    () => SMIC180BootROM.contents(params, this)
+  }
+  val bootROM = p(BootROMLocated(location)).map { params =>
+    if (p(UseSMIC180BootROM)) SMIC180BootROM.attach(params, this, CBUS)
+    else BootROM.attach(params, this, CBUS)
+  }
   val maskROMs = p(MaskROMLocated(location)).map { MaskROM.attach(_, this, CBUS) }
 
   override lazy val module = new ChipyardSystemModule(this)

@@ -15,6 +15,7 @@ import freechips.rocketchip.subsystem.{MBUS}
 
 class TapeoutConfig extends Config(
 
+  new WithSMIC180BootROMFromEnv ++
   new testchipip.boot.WithTapeBootROM ++
   new freechips.rocketchip.subsystem.WithoutTLMonitors ++
   new WithTapeoutRocket ++
