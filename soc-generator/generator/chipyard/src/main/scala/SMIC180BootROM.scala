@@ -10,6 +10,7 @@ import org.chipsalliance.cde.config.{Config, Field, Parameters}
 import org.chipsalliance.diplomacy.bundlebridge.BundleBridgeSource
 import org.chipsalliance.diplomacy.lazymodule.{InModuleBody, LazyModule, LazyModuleImp}
 
+import freechips.rocketchip.devices.debug.UseSMIC180DebugROM
 import freechips.rocketchip.devices.tilelink.{BootROMLocated, BootROMParams}
 import freechips.rocketchip.diplomacy.{AddressSet, RegionType, TransferSizes}
 import freechips.rocketchip.resources.{Resource, SimpleDevice}
@@ -24,19 +25,23 @@ class WithSMIC180BootROM extends Config((_, _, _) => {
   case UseSMIC180BootROM => true
 })
 
-/** Select the hard ROM only when the build explicitly enables it.
+private object SMIC180ROMBuild {
+  def enabled: Boolean = sys.env.get("SMIC180_ROM_ENABLED").exists { value =>
+    value.trim.equalsIgnoreCase("1") ||
+      value.trim.equalsIgnoreCase("yes") ||
+      value.trim.equalsIgnoreCase("true")
+  }
+}
+
+/** Select the hard BootROM and Debug ROM only when the build explicitly enables them.
   *
   * The effective value is supplied by chipyard.mk rather than reading the
   * user's raw command-line variable directly. This lets the Make flow mask
   * the option for configurations such as the P2E platform.
   */
 class WithSMIC180BootROMFromEnv extends Config((_, _, _) => {
-  case UseSMIC180BootROM =>
-    sys.env.get("SMIC180_ROM_ENABLED").exists { value =>
-      value.trim.equalsIgnoreCase("1") ||
-        value.trim.equalsIgnoreCase("yes") ||
-        value.trim.equalsIgnoreCase("true")
-    }
+  case UseSMIC180BootROM => SMIC180ROMBuild.enabled
+  case UseSMIC180DebugROM => SMIC180ROMBuild.enabled
 })
 
 class SMIC180BootROMMacro extends BlackBox {

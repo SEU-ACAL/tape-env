@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generate the fixed 8192 x 64 BootROM macro from the SMIC S018VM compiler.
+# Generate a fixed-width SMIC S018VM ROM macro from the SMIC compiler.
 set -euo pipefail
 
 if [[ $# -ne 3 ]]; then
@@ -10,7 +10,10 @@ fi
 cdk_dir=$1
 codefile=$2
 output_dir=$3
-macro_name=S018VM_X512Y16D64_PM
+macro_name=${SMIC180_ROM_MACRO_NAME:-S018VM_X512Y16D64_PM}
+words=${SMIC180_ROM_WORDS:-8192}
+bits=${SMIC180_ROM_BITS:-64}
+mux=16
 
 if [[ -n ${SMIC180_ROM_JAVA:-} ]]; then
   java_cmd=$SMIC180_ROM_JAVA
@@ -37,8 +40,12 @@ if [[ ! -f "$codefile" ]]; then
   exit 1
 fi
 
-if [[ $(wc -l < "$codefile") -ne 8192 ]] || [[ $(awk 'length != 64 || /[^01]/ { bad = 1 } END { print bad + 0 }' "$codefile") -ne 0 ]]; then
-  echo "BootROM code file must contain exactly 8192 lines of 64 binary bits: $codefile" >&2
+if [[ ! $words =~ ^[0-9]+$ ]] || [[ ! $bits =~ ^[0-9]+$ ]]; then
+  echo "SMIC180_ROM_WORDS and SMIC180_ROM_BITS must be decimal integers" >&2
+  exit 2
+fi
+if [[ $(wc -l < "$codefile") -ne $words ]] || [[ $(awk -v bits="$bits" 'length != bits || /[^01]/ { bad = 1 } END { print bad + 0 }' "$codefile") -ne 0 ]]; then
+  echo "ROM code file must contain exactly $words lines of $bits binary bits: $codefile" >&2
   exit 1
 fi
 
@@ -55,7 +62,7 @@ compiler_dir=$cdk_dir
 if [[ -n ${DISPLAY:-} ]]; then
   (
     cd "$compiler_dir"
-    env -u JAVA_TOOL_OPTIONS "$java_cmd" -jar S018VM.jar -instname "$macro_name" -words 8192 -mux 16 -bits 64 \
+    env -u JAVA_TOOL_OPTIONS "$java_cmd" -jar S018VM.jar -instname "$macro_name" -words "$words" -mux "$mux" -bits "$bits" \
       -codefile "$codefile" -savepath "$output_dir" -v -lef -lib -cdl -gds
   )
 else
@@ -84,7 +91,7 @@ else
 
   (
     cd "$compiler_dir"
-    env -u JAVA_TOOL_OPTIONS "$java_cmd" -jar S018VM.jar -instname "$macro_name" -words 8192 -mux 16 -bits 64 \
+    env -u JAVA_TOOL_OPTIONS "$java_cmd" -jar S018VM.jar -instname "$macro_name" -words "$words" -mux "$mux" -bits "$bits" \
       -codefile "$codefile" -savepath "$output_dir" -v -lef -lib -cdl -gds
   )
 fi
