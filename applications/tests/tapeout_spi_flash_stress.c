@@ -9,9 +9,13 @@
 #define SPI_FORMAT (SPI_BASE + 0x40)
 #define SPI_TXFIFO (SPI_BASE + 0x48)
 #define SPI_RXFIFO (SPI_BASE + 0x4c)
+#define SPI_TXMARK (SPI_BASE + 0x50)
+#define SPI_IP (SPI_BASE + 0x74)
 
 #define SPI_TXFIFO_FULL  0x80000000UL
 #define SPI_RXFIFO_EMPTY 0x80000000UL
+#define SPI_TXMARK_EMPTY 1U
+#define SPI_IP_TXWM      1U
 
 #define SPI_CSMODE_HOLD 2
 #define SPI_CSMODE_OFF  3
@@ -95,6 +99,17 @@ static int spi_read_rx(uint8_t *data)
   return -1;
 }
 
+static int spi_wait_tx_empty(void)
+{
+  for (uint32_t timeout = 0; timeout < SPI_FLASH_TIMEOUT_POLLS; ++timeout) {
+    if ((reg_read32(SPI_IP) & SPI_IP_TXWM) != 0) {
+      return 0;
+    }
+  }
+
+  return -1;
+}
+
 static int spi_send_address(uint32_t address)
 {
   return spi_write_tx((uint8_t)(address >> 16)) ||
@@ -102,11 +117,16 @@ static int spi_send_address(uint32_t address)
          spi_write_tx((uint8_t)address);
 }
 
-static void spi_release_chip_select(void)
+static int spi_release_chip_select(void)
 {
+  if (spi_wait_tx_empty() != 0) {
+    return -1;
+  }
+
   spi_delay();
   reg_write32(SPI_CSMODE, SPI_CSMODE_OFF);
   spi_delay();
+  return 0;
 }
 
 static int flash_write(uint32_t address, const uint8_t *data, uint32_t length)
@@ -121,8 +141,7 @@ static int flash_write(uint32_t address, const uint8_t *data, uint32_t length)
       return -1;
     }
   }
-  spi_release_chip_select();
-  return 0;
+  return spi_release_chip_select();
 }
 
 static int flash_read(uint32_t address, uint8_t *data, uint32_t length)
@@ -133,21 +152,23 @@ static int flash_read(uint32_t address, uint8_t *data, uint32_t length)
     return -1;
   }
 
-  spi_delay();
+  if (spi_wait_tx_empty() != 0) {
+    return -1;
+  }
+
   reg_write32(SPI_FORMAT, SPI_FORMAT_RX);
   for (uint32_t i = 0; i < length; ++i) {
     if (spi_write_tx(0) != 0) {
       return -1;
     }
-  }
-  spi_delay();
-  for (uint32_t i = 0; i < length; ++i) {
+
+    // The hardware RX FIFO is only eight entries deep. Drain each response
+    // before sending another read frame so a long transfer cannot overflow it.
     if (spi_read_rx(&data[i]) != 0) {
       return -1;
     }
   }
-  spi_release_chip_select();
-  return 0;
+  return spi_release_chip_select();
 }
 
 static uint8_t stress_pattern(uint32_t round, uint32_t index)
@@ -203,6 +224,9 @@ int main(void)
   printf("SPI flash stress: rounds=%u transfer_bytes=%u\n",
          (unsigned)SPI_FLASH_STRESS_ROUNDS,
          (unsigned)SPI_FLASH_STRESS_TRANSFER_BYTES);
+
+  // TX watermark 1 makes IP.txwm report only when the TX FIFO is empty.
+  reg_write32(SPI_TXMARK, SPI_TXMARK_EMPTY);
 
   for (uint32_t i = 0; i < sizeof(preload_addresses) / sizeof(preload_addresses[0]); ++i) {
     if (verify_preload_word(preload_addresses[i]) != 0) {
