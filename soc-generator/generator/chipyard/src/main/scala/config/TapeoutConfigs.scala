@@ -4,12 +4,23 @@ import org.chipsalliance.cde.config.Config
 import testchipip.soc.{OBUS}
 import freechips.rocketchip.subsystem.{MBUS}
 import chipyard.buckyball.WithPebbleBuckyballRoCC
+import freechips.rocketchip.util.{ClockGate, ClockGateImpl, ClockGateModelFile}
 import chipyard.iobinders.IOCellKey
 import chipyard.iocell.SMIC180IOCellParams
 
 /** Select SMIC SP018RP IO wrappers for all Tapeout configurations. */
 class WithSMIC180IOCells extends Config((site, here, up) => {
   case IOCellKey => SMIC180IOCellParams()
+})
+
+/** Map generic Rocket-Chip clock gates to SMIC UHD integrated clock gates. */
+class SMIC180ClockGate extends ClockGate {
+  override def desiredName = "SMIC180ClockGate"
+}
+
+class WithSMIC180ClockGates extends Config((site, here, up) => {
+  case ClockGateImpl => () => new SMIC180ClockGate
+  case ClockGateModelFile => Some("/vsrc/SMIC180ClockGate.v")
 })
 
 /**
@@ -21,7 +32,8 @@ class WithSMIC180IOCells extends Config((site, here, up) => {
 
 class TapeoutConfig extends Config(
 
-  // All Tapeout configurations use the physical SMIC SP018RP IO wrappers.
+  // All Tapeout configurations use SMIC physical clock gates and IO wrappers.
+  new WithSMIC180ClockGates ++
   new WithSMIC180IOCells ++
   new freechips.rocketchip.subsystem.WithoutTLMonitors ++
   new WithTapeoutRocket ++
