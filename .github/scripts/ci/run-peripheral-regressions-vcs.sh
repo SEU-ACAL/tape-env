@@ -57,6 +57,15 @@ run_i2c() {
     run_in_nix './applications/tests/ci-i2c-test.sh'
 }
 
+run_spi_flash() {
+  SIMV="$1" \
+    SPI_FLASH_STRESS_ROUNDS="${SPI_FLASH_STRESS_ROUNDS:-16}" \
+    SPI_FLASH_STRESS_TRANSFER_BYTES="${SPI_FLASH_STRESS_TRANSFER_BYTES:-64}" \
+    SPI_FLASH_TIMEOUT_POLLS="${SPI_FLASH_TIMEOUT_POLLS:-1000000}" \
+    SPI_FLASH_CI_TIMEOUT="${SPI_FLASH_CI_TIMEOUT:-900}" \
+    run_in_nix './applications/tests/ci-spi-flash-test.sh'
+}
+
 run_jtag() {
   local simv="$1"
   run_in_nix 'make -C applications/tests/jtag all' || return
@@ -75,5 +84,6 @@ run_jtag() {
 
 status=0
 run_test i2c run_i2c || status=1
+run_test spi_flash run_spi_flash || status=1
 run_test jtag run_jtag || status=1
 exit "$status"
