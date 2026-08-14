@@ -567,7 +567,7 @@ class WithTraceIOPunchthrough extends OverrideLazyIOBinder({
         maxpglevels = tiles.headOption.map(_.tileParams.core.pgLevels).getOrElse(0),
         pmpregions = tiles.headOption.map(_.tileParams.core.nPMPs).getOrElse(0),
         nharts = tiles.size,
-        bootrom = chipyardSystem.bootROM.headOption.map(_.module.contents.toArray.mkString(" ")).getOrElse(""),
+        bootrom = chipyardSystem.bootROMContents.headOption.map(_().toArray.mkString(" ")).getOrElse(""),
         has_dtm = useSimDTM,
         mems = mems,
         // Connect using the legacy API.
