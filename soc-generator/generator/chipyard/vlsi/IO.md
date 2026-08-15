@@ -2,15 +2,14 @@
 
 `TapeoutConfig` uses SP018RP pad cells directly. `TapeoutSimConfig` inherits
 the same IO replacement and adds the pad-connected SPI/I2C simulation models.
-`SMIC180TapeoutConfig` remains only as a compatibility alias.
 
 | Chipyard IO type | SP018RP cell | Current instance count |
 | --- | --- | ---: |
 | Digital input | `PIR` | 15 |
-| Digital output | `POT4R` | 9 |
-| GPIO / SPI / I2C | `PB4R` | 16 |
+| Digital output | `POT8R` | 9 |
+| GPIO / SPI / I2C | `PB8R` | 16 |
 
-`POT4R` and `PB4R` have active-low `OEN`; the wrappers invert Chipyard's
+`POT8R` and `PB8R` have active-low `OEN`; the wrappers invert Chipyard's
 active-high `oe` so the existing IO behavior is unchanged. `PIR` is used for
 the digital input path to avoid adding Schmitt-trigger behavior to the clock
 and Serial-TL inputs. Power, ground, corner, filler, ESD, and any analog pads

@@ -5,9 +5,9 @@ USE_SMIC180_SRAM ?= 0
 USE_SMIC180_IO ?= 0
 USE_SMIC180_STD ?= 0
 
-# TapeoutConfig itself is a physical SMIC180 configuration. Keep the
-# compatibility alias while existing scripts migrate to TapeoutConfig.
-SMIC180_TAPEOUT_CONFIGS ?= TapeoutConfig TapeoutSimConfig SMIC180TapeoutConfig
+# TapeoutConfig and TapeoutSimConfig are the supported physical SMIC180
+# configurations.
+SMIC180_TAPEOUT_CONFIGS ?= TapeoutConfig TapeoutSimConfig
 ifneq ($(filter $(CONFIG),$(SMIC180_TAPEOUT_CONFIGS)),)
 override USE_SMIC180_IO := 1
 override USE_SMIC180_STD := 1
