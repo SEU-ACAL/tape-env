@@ -77,11 +77,11 @@ run_in_nix '
   }
 
   first_config="${CI_VCS_BUILD_CONFIGS%% *}"
-  make -C soc-generator/sims/vcs CONFIG="${first_config}" \
+  make -C soc-generator/sims/vcs SIM=vcs CONFIG="${first_config}" \
     CLASSPATH_CACHE="${CI_SHARED_ROOT}/empty-classpath-cache/${GITHUB_RUN_ID}" clean
   for attempt in 1 2 3; do
     remove_invalid_jars
-    if make -C soc-generator/sims/vcs CONFIG="${first_config}" firrtl \
+    if make -C soc-generator/sims/vcs SIM=vcs CONFIG="${first_config}" firrtl \
       "${CI_CLASSPATH_CACHE}/tapeout.jar"; then
       break
     fi
