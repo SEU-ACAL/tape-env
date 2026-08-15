@@ -20,13 +20,15 @@ private class SMICPIR extends BlackBox {
   })
 }
 
-private class SMICPOT4R extends BlackBox {
-  override def desiredName = "POT4R"
+private class SMICPB8ROut extends BlackBox {
+  override def desiredName = "PB8R"
   val io = IO(new Bundle {
-    // POT4R drives PAD and uses an active-low output enable.
+    // PB8R has an inout PAD in the PDK. This wrapper exposes it as an
+    // output-only pad because DigitalOutIOCell has no input path.
     val PAD = Output(Bool())
     val OEN = Input(Bool())
     val I = Input(Bool())
+    val C = Output(Bool())
   })
 }
 
@@ -49,11 +51,11 @@ class SMIC180DigitalInIOCell extends RawModule with DigitalInIOCell {
   io.i := Mux(io.ie, cell.io.C, false.B)
 }
 
-/** SMIC POT4R output pad. OEN is active low in the SP018RP library. */
+/** SMIC PB8R output pad. OEN is active low in the SP018RP library. */
 class SMIC180DigitalOutIOCell extends RawModule with DigitalOutIOCell {
   val io = IO(new DigitalOutIOCellBundle)
 
-  private val cell = Module(new SMICPOT4R)
+  private val cell = Module(new SMICPB8ROut)
   cell.io.I := io.o
   cell.io.OEN := !io.oe
   io.pad := cell.io.PAD
