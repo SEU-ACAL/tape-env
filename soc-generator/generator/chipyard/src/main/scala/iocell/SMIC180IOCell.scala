@@ -20,20 +20,18 @@ private class SMICPIR extends BlackBox {
   })
 }
 
-private class SMICPB8ROut extends BlackBox {
-  override def desiredName = "PB8R"
+private class SMICPOT8R extends BlackBox {
+  override def desiredName = "POT8R"
   val io = IO(new Bundle {
-    // PB8R has an inout PAD in the PDK. This wrapper exposes it as an
-    // output-only pad because DigitalOutIOCell has no input path.
+    // POT8R is the 8X tri-state output cell matching DigitalOutIOCell.
     val PAD = Output(Bool())
     val OEN = Input(Bool())
     val I = Input(Bool())
-    val C = Output(Bool())
   })
 }
 
-private class SMICPB4R extends BlackBox {
-  override def desiredName = "PB4R"
+private class SMICPB8RGPIO extends BlackBox {
+  override def desiredName = "PB8R"
   val io = IO(new Bundle {
     val PAD = Analog(1.W)
     val OEN = Input(Bool())
@@ -51,21 +49,21 @@ class SMIC180DigitalInIOCell extends RawModule with DigitalInIOCell {
   io.i := Mux(io.ie, cell.io.C, false.B)
 }
 
-/** SMIC PB8R output pad. OEN is active low in the SP018RP library. */
+/** SMIC POT8R output pad. OEN is active low in the SP018RP library. */
 class SMIC180DigitalOutIOCell extends RawModule with DigitalOutIOCell {
   val io = IO(new DigitalOutIOCellBundle)
 
-  private val cell = Module(new SMICPB8ROut)
+  private val cell = Module(new SMICPOT8R)
   cell.io.I := io.o
   cell.io.OEN := !io.oe
   io.pad := cell.io.PAD
 }
 
-/** SMIC PB4R bidirectional pad, preserving GenericDigitalGPIOCell semantics. */
+/** SMIC PB8R bidirectional pad, preserving GenericDigitalGPIOCell semantics. */
 class SMIC180DigitalGPIOCell extends RawModule with DigitalGPIOCell {
   val io = IO(new DigitalGPIOCellBundle)
 
-  private val cell = Module(new SMICPB4R)
+  private val cell = Module(new SMICPB8RGPIO)
   cell.io.I := io.o
   cell.io.OEN := !io.oe
   io.pad <> cell.io.PAD

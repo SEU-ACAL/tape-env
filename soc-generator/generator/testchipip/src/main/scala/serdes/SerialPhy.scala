@@ -53,7 +53,12 @@ DEADLOCK-FREEDOM IS NECESSARY.
     Module(new PhitArbiter(phyParams.phitWidth, phyParams.flitWidth, channels))
   }
   out_arb.io.in <> out_phits
-  io.outer_ser.out <> out_arb.io.out
+  // Add one registered stage at the pad-facing boundary while preserving
+  // Decoupled backpressure semantics.
+  val out_pad_q = withClockAndReset(io.outer_clock, io.outer_reset) {
+    Queue(out_arb.io.out, 1)
+  }
+  io.outer_ser.out <> out_pad_q
 
   val in_phits = (0 until channels).map { i =>
     val in_async = Module(new AsyncQueue(new Phit(phyParams.phitWidth)))
@@ -70,7 +75,10 @@ DEADLOCK-FREEDOM IS NECESSARY.
     Module(new PhitDemux(phyParams.phitWidth, phyParams.flitWidth, channels))
   }
 
-  in_demux.io.in <> io.outer_ser.in
+  val in_pad_q = withClockAndReset(io.outer_clock, io.outer_reset) {
+    Queue(io.outer_ser.in, 1)
+  }
+  in_demux.io.in <> in_pad_q
   in_demux.io.out <> in_phits
 
   // Prevent accepting data from external world when in reset
@@ -145,14 +153,26 @@ class CreditedSerialPhy(channels: Int, phyParams: SerialPhyParams) extends RawMo
   }
   out_arb.io.in <> (out_data_phits ++ in_credit_phits)
   out_arb.io.out.ready := true.B
-  io.outer_ser.out.valid := out_arb.io.out.valid
-  io.outer_ser.out.bits := out_arb.io.out.bits
+  withClockAndReset(io.outgoing_clock, io.outgoing_reset) {
+    val out_valid_q = RegInit(false.B)
+    val out_bits_q = RegInit(0.U.asTypeOf(out_arb.io.out.bits))
+    out_valid_q := out_arb.io.out.valid
+    out_bits_q := out_arb.io.out.bits
+    io.outer_ser.out.valid := out_valid_q
+    io.outer_ser.out.bits := out_bits_q
+  }
 
   val in_demux = withClockAndReset(io.incoming_clock, io.incoming_reset) {
     Module(new PhitDemux(phyParams.phitWidth, phyParams.flitWidth, channels * 2))
   }
-  in_demux.io.in.valid := io.outer_ser.in.valid
-  in_demux.io.in.bits := io.outer_ser.in.bits
+  withClockAndReset(io.incoming_clock, io.incoming_reset) {
+    val in_valid_q = RegInit(false.B)
+    val in_bits_q = RegInit(0.U.asTypeOf(io.outer_ser.in.bits))
+    in_valid_q := io.outer_ser.in.valid
+    in_bits_q := io.outer_ser.in.bits
+    in_demux.io.in.valid := in_valid_q
+    in_demux.io.in.bits := in_bits_q
+  }
   withClockAndReset(io.incoming_clock, io.incoming_reset) { when (io.outer_ser.in.valid) { assert(in_demux.io.in.ready) } }
 
   in_data_phits.zip(in_demux.io.out.take(channels)).map(t => t._1 <> t._2)
