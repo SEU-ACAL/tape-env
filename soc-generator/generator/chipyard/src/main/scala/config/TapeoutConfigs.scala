@@ -3,6 +3,7 @@ package chipyard
 import org.chipsalliance.cde.config.Config
 import testchipip.soc.{OBUS}
 import freechips.rocketchip.subsystem.{MBUS}
+import chipyard.buckyball.WithPebbleBuckyballRoCC
 
 
 
@@ -53,6 +54,14 @@ class TapeoutSimConfig extends Config(
   new chipyard.harness.WithSimSPIFlashOnPads ++
   new chipyard.iobinders.WithSimSPIIOCells ++
   new chipyard.iobinders.WithSimI2CIOCells ++
+  new TapeoutConfig)
+
+/**
+  * Tapeout Rocket CPU + Pebble Buckyball accelerator (RoCC wire attach).
+  */
+class TapeoutBuckyballPebbleConfig extends Config(
+  new WithPebbleBuckyballRoCC ++
+  new chipyard.config.WithSystemBusWidth(128) ++
   new TapeoutConfig)
 
 

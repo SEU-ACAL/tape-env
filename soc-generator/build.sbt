@@ -87,7 +87,10 @@ def projectFromDir(name: String, dir: File): Project = {
   * overriding scalaSource and resourceDirectory.
   */
 def freshProject(name: String, dir: File): Project = {
-  val sourceRoot = dir / "src"
+  val absDir =
+    if (dir.isAbsolute) dir.getCanonicalFile
+    else (chipyardRootDir / dir.getPath).getCanonicalFile
+  val sourceRoot = absDir / "src"
   Project(id = name, base = projectBase(name, sourceRoot))
     .settings(
       sourceDirectory := sourceRoot,
@@ -185,7 +188,7 @@ lazy val chipyard = {
   // Use explicit Project(...) so the project id remains 'chipyard'
   val baseProjects: Seq[ProjectReference] =
     Seq(
-      testchipip, rocketchip, boom, gemmini, rocketchip_blocks, rocketchip_inclusive_cache,
+      testchipip, rocketchip, boom, gemmini, buckyball, rocketchip_blocks, rocketchip_inclusive_cache,
     ).map(sbt.Project.projectToRef)
 
   val baseDeps: Seq[sbt.ClasspathDep[sbt.ProjectReference]] =
@@ -284,6 +287,30 @@ lazy val gemmini = withInitCheck(freshProject("gemmini", file("generator/gemmini
   .dependsOn(rocketchip, chipyard_instrumentation)
   .settings(libraryDependencies ++= rocketLibDeps.value)
   .settings(commonSettings)
+
+lazy val buckyball = withInitCheck(
+  freshProject("buckyball", file("generator/buckyball/arch")),
+  "buckyball"
+)
+  .dependsOn(rocketchip, rocketchip_inclusive_cache)
+  .settings(libraryDependencies ++= rocketLibDeps.value)
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "com.lihaoyi" %% "upickle" % "3.3.1",
+      "tech.sparse" %% "toml-scala" % "0.2.2"
+    ),
+    Compile / unmanagedSourceDirectories ++= {
+      val root = (ThisBuild / baseDirectory).value / "generator" / "buckyball" / "examples"
+      val balls = ((root / "balls") * "*" / "arch" / "src" / "main" / "scala").get
+      val ballCfgs = ((root / "balls") * "*" / "configs").get
+      (balls ++ ballCfgs).filter(_.isDirectory)
+    },
+    Compile / unmanagedSources / excludeFilter := HiddenFileFilter || new SimpleFileFilter(f => {
+      val p = f.getAbsolutePath.replace('\\', '/')
+      p.contains("/sims/") || p.contains("/examples/balls/gemmini/")
+    })
+  )
 
 lazy val hpec_p2e = projectFromDir("hpec_p2e", file("../dependencies/p2e-runner/platform/tape-env"))
   .dependsOn(chipyard)
