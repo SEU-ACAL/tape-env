@@ -48,9 +48,12 @@ export CI_BUILD_CONFIGS CI_BUILD_JOBS CI_VERILATOR_MAKE_JOBS
 git -C "${REPO_ROOT}" submodule deinit --force --all
 git -C "${REPO_ROOT}" submodule sync --recursive
 
-# Chipyard aggregates Gemmini during Scala compilation even though these core
-# regressions do not exercise the accelerator. The root submodule is sufficient.
-git -C "${REPO_ROOT}" submodule update --init soc-generator/generator/gemmini
+# Chipyard aggregates Gemmini and Buckyball during Scala compilation even
+# though these core regressions do not exercise either accelerator. The root
+# submodules are sufficient.
+git -C "${REPO_ROOT}" submodule update --init \
+  soc-generator/generator/gemmini \
+  soc-generator/generator/buckyball
 
 # SBT and Coursier updates are not safe to share between independent builder
 # workspaces. Keep reusable caches local to one self-hosted runner.
