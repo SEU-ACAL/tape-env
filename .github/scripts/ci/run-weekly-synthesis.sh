@@ -249,7 +249,10 @@ if [[ ! -f "${SYNTHESIS_WORKBENCH}/2-SYN/scripts/tech/${SYNTHESIS_TECH}.tcl" ]];
 fi
 
 git -C "${REPO_ROOT}" submodule sync --recursive
-git -C "${REPO_ROOT}" submodule update --init soc-generator/generator/gemmini
+# The Chipyard build definition aggregates both optional accelerators.
+git -C "${REPO_ROOT}" submodule update --init \
+  soc-generator/generator/gemmini \
+  soc-generator/generator/buckyball
 
 mkdir -p "${CI_CLASSPATH_CACHE}" "${CI_COURSIER_CACHE}" \
   "${SBT_CACHE_ROOT}/ivy" "${SBT_CACHE_ROOT}/global" "${SBT_CACHE_ROOT}/boot"
