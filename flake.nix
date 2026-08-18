@@ -402,6 +402,7 @@ EOF
             pkgs.protobuf
             pkgs.python3Packages.west
             sbt
+            pkgs.ctags
             gcc11Pkgs.clang
             clangVerilator
             pkgs.which
