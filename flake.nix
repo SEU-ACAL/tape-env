@@ -13,6 +13,25 @@
         pkgs = import nixpkgs { inherit system; };
         gcc11Pkgs = import nixpkgs-gcc11 { inherit system; };
         gcc11Stdenv = gcc11Pkgs.overrideCC gcc11Pkgs.stdenv gcc11Pkgs.gcc11;
+        # Verilator's C++ frontend is substantially faster with Clang for the
+        # large BOOM-generated translation units. Build it from the same
+        # nixpkgs-gcc11 input as Spike so its glibc ABI remains compatible with
+        # Chipyard's prebuilt cosimulation libraries.
+        clangVerilator = (gcc11Pkgs.verilator.override {
+          stdenv = gcc11Pkgs.clangStdenv;
+        }).overrideAttrs (old: {
+          version = "5.048";
+          src = gcc11Pkgs.fetchFromGitHub {
+            owner = "verilator";
+            repo = "verilator";
+            rev = "v5.048";
+            hash = "sha256-xvqqgbW7L07+NBYzGN2KLhwir58ByShxo4VVPI3pgZk=";
+          };
+          # The upstream regression driver imports Python's optional `distro`
+          # module, which is not part of this package's test closure. Runtime
+          # Verilator functionality is validated by Chipyard's simulator test.
+          doCheck = false;
+        });
         riscvPkgs = pkgs.pkgsCross.riscv64-embedded;
         riscvCc = riscvPkgs.stdenv.cc;
         # Buildroot 2024.05 has Kconfig entries through GCC 14. The wrapper
@@ -396,7 +415,8 @@ EOF
             pkgs.python3Packages.west
             pkgs.ctags
             pkgs.sbt
-            pkgs.verilator
+            gcc11Pkgs.clang
+            clangVerilator
             pkgs.which
             pkgs.zlib
             circt
