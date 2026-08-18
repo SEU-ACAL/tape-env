@@ -15,6 +15,15 @@ class FDIPMegaBoomV3Config extends Config(
   new chipyard.config.WithSystemBusWidth(128) ++
   new chipyard.config.AbstractConfig)
 
+/** FDIP Mega BOOM configuration with Spike commit cosimulation enabled. */
+class FDIPMegaBoomV3CosimConfig extends Config(
+  new chipyard.harness.WithCospike ++
+  new chipyard.config.WithTraceIO ++
+  new boom.fdip.common.WithFDIPBoomTrace ++
+  new boom.fdip.common.WithNMegaBooms(1) ++
+  new chipyard.config.WithSystemBusWidth(128) ++
+  new chipyard.config.AbstractConfig)
+
 /** BOOMv3 configuration used by the upstream Verilator regression suite. */
 class MediumBoomV3CosimConfig extends Config(
   new chipyard.harness.WithCospike ++
