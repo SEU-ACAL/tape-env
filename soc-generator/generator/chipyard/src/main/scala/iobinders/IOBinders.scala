@@ -549,17 +549,34 @@ class WithTraceIOPunchthrough extends OverrideLazyIOBinder({
       val chipyardSystem = system.asInstanceOf[ChipyardSystem]
       val tiles = chipyardSystem.totalTiles.values
       val viewpointBus = system.asInstanceOf[HasConfigurableTLNetworkTopology].viewpointBus
+      val ignoreAddresses = Seq(
+        BigInt(0x10000) // bootrom is handled specially
+      )
+      // Debug is inaccessible outside debug mode, so Spike should not model it.
+      val debugAddresses = p(DebugModuleKey).toSeq.map(_.address.base)
+      val skipAddresses = ignoreAddresses ++ debugAddresses
+      val memRegionTypes = Seq(RegionType.CACHED, RegionType.TRACKED,
+                               RegionType.UNCACHED, RegionType.IDEMPOTENT)
       val mems = viewpointBus.unifyManagers.filter { m =>
-        val regionTypes = Seq(RegionType.CACHED, RegionType.TRACKED, RegionType.UNCACHED, RegionType.IDEMPOTENT)
-        val ignoreAddresses = Seq(
-          0x10000 // bootrom is handled specially
-        )
-        regionTypes.contains(m.regionType) && !ignoreAddresses.contains(m.address.map(_.base).min)
+        memRegionTypes.contains(m.regionType) && !skipAddresses.contains(m.address.map(_.base).min)
       }.map { m =>
         val base = m.address.map(_.base).min
         val size = m.address.map(_.max).max - base + 1
         (base, size)
       }
+      // Treat every non-memory region as a device so new Rocket region types do
+      // not silently disappear from the Spike model.
+      val devices = viewpointBus.unifyManagers.filter { m =>
+        !memRegionTypes.contains(m.regionType) && !skipAddresses.contains(m.address.map(_.base).min)
+      }.map { m =>
+        val base = m.address.map(_.base).min
+        val size = m.address.map(_.max).max - base + 1
+        (base, size)
+      }
+      require(!devices.exists { case (base, size) =>
+                debugAddresses.exists(d => d >= base && d < base + size) },
+              s"cospike: debug module must not be registered as a device " +
+              s"(devices=$devices, debug=$debugAddresses)")
       val useSimDTM = p(ExportDebug).protocols.contains(DMI) // assume that exposing clockeddmi means we will connect SimDTM
       val cfg = SpikeCosimConfig(
         isa = tiles.headOption.map(_.isaDTS).getOrElse(""),
@@ -570,6 +587,20 @@ class WithTraceIOPunchthrough extends OverrideLazyIOBinder({
         bootrom = chipyardSystem.bootROM.headOption.map(_.module.contents.toArray.mkString(" ")).getOrElse(""),
         has_dtm = useSimDTM,
         mems = mems,
+        devices = devices,
+        customCSRs = tiles.headOption.toSeq.flatMap { t =>
+          t.tileParams.core.customCSRs(t.p).decls.map(c =>
+            (c.id, c.mask, c.init.getOrElse(BigInt(0))))
+        },
+        paddrBits = viewpointBus.busView.bundle.addressBits,
+        vaddrBitsExtended = tiles.headOption.map { t =>
+          val pa = viewpointBus.busView.bundle.addressBits
+          val va = if (t.usingVM) t.maxHVAddrBits else ((pa + 1) min t.xLen)
+          va + (if (va < t.xLen) 1 + (if (t.usingHypervisor) 1 else 0) else 0)
+        }.getOrElse(0),
+        npmpcsrs = tiles.headOption.map(t =>
+          if (t.tileParams.core.nPMPs > 0) freechips.rocketchip.rocket.CSR.maxPMPs
+          else 0).getOrElse(0),
         // Connect using the legacy API.
         mem0_base = p(ExtMem).map(_.master.base).getOrElse(BigInt(0)),
         mem0_size = p(ExtMem).map(_.master.size).getOrElse(BigInt(0)),
