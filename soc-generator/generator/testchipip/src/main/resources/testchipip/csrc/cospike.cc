@@ -19,6 +19,11 @@ extern "C" void cospike_set_sysinfo_wrapper(char* isa, char* priv, int pmpregion
   std::vector<std::string> args;
   for (int i = 1; i < vinfo.argc; i++) {
     std::string arg(vinfo.argv[i]);
+    // These are simulator/TestDriver controls, not Spike HTIF arguments.
+    // cospike receives the complete Verilator argv through VPI and would
+    // otherwise try to interpret them as ELF/HTIF arguments.
+    if (arg == "+cycle-count" || arg == "+xsperf" || arg.rfind("+max-cycles=", 0) == 0)
+      continue;
     args.push_back(arg);
   }
 
