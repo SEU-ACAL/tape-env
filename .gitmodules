@@ -35,3 +35,6 @@
 [submodule "applications_linux_buildroot"]
 	path = applications/linux-workloads/buildroot
 	url = https://github.com/buildroot/buildroot.git
+[submodule "applications/embench/embench-iot"]
+	path = applications/embench/embench-iot
+	url = https://github.com/embench/embench-iot.git
