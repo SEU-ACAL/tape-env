@@ -75,3 +75,7 @@ endif
 $(SMIC180_SRAM_SIM_FILELIST): $(SMIC180_SRAM_SIM_SOURCES) $(SMIC180_SRAM_CONFIG_STAMP)
 	mkdir -p $(dir $@)
 	sed 's|^|$(SMIC180_SRAM_ROOT)/|' $< > $@
+
+ifneq ($(findstring Buckyball,$(CONFIG)),)
+EXTRA_SIM_SOURCES += $(base_dir)/generator/chipyard/src/main/resources/csrc/buckyball_dpi.cc
+endif

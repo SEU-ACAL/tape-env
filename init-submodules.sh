@@ -46,6 +46,7 @@ function usage
     echo "  -h            Display this help message"
     echo "  --full        Initialize all submodules"
     echo "  --gemmini     Initialize the optional Gemmini accelerator submodule"
+    echo "  --buckyball   Initialize the optional Buckyball accelerator submodule"
     echo "  --linux       Initialize Linux workload build dependencies"
     echo "  --p2e         Initialize the optional P2E runner submodule"
     echo ""
@@ -53,6 +54,7 @@ function usage
 
 ENABLE_FULL=0
 ENABLE_GEMMINI=0
+ENABLE_BUCKYBALL=0
 ENABLE_LINUX=0
 ENABLE_P2E=0
 
@@ -71,6 +73,9 @@ do
 	--gemmini)
 	    ENABLE_GEMMINI=1
 	    ;;
+        --buckyball)
+            ENABLE_BUCKYBALL=1
+            ;;
         --linux|--firemarshal)
             ENABLE_LINUX=1
             ;;
@@ -127,8 +132,14 @@ init_linux_workloads() {
 
 # Keep the focused optional initialization from updating unrelated generator
 # submodules in an existing workspace.
-if [[ "$ENABLE_LINUX" -eq 1 && "$ENABLE_FULL" -eq 0 && "$ENABLE_GEMMINI" -eq 0 && "$ENABLE_P2E" -eq 0 ]]; then
+if [[ "$ENABLE_LINUX" -eq 1 && "$ENABLE_FULL" -eq 0 && "$ENABLE_GEMMINI" -eq 0 && "$ENABLE_BUCKYBALL" -eq 0 && "$ENABLE_P2E" -eq 0 ]]; then
     init_linux_workloads
+    exit 0
+fi
+
+# Keep a P2E-only checkout independent from the default recursive update.
+if [[ "$ENABLE_P2E" -eq 1 && "$ENABLE_FULL" -eq 0 && "$ENABLE_GEMMINI" -eq 0 && "$ENABLE_LINUX" -eq 0 ]]; then
+    update_submodule dependencies/p2e-runner
     exit 0
 fi
 
@@ -138,6 +149,7 @@ if [[ "$ENABLE_FULL" -eq 1 ]]; then
 else
     excluded_submodules=(
         soc-generator/generator/gemmini
+        soc-generator/generator/buckyball
         soc-generator/generator/rocket-chip
         applications/zephyr
         applications/linux-workloads/buildroot
@@ -187,11 +199,16 @@ else
         git -C soc-generator/generator/gemmini submodule update --init --recursive software/gemmini-rocc-tests
     fi
 
+    if [[ "$ENABLE_BUCKYBALL" -eq 1 ]]; then
+        update_submodule soc-generator/generator/buckyball
+    fi
+
     if [[ "$ENABLE_LINUX" -eq 1 ]]; then
         init_linux_workloads
     fi
 
     if [[ "$ENABLE_P2E" -eq 1 ]]; then
+        echo "P2E INIT"
         update_submodule dependencies/p2e-runner
     fi
 fi

@@ -34,13 +34,14 @@ cd chipyard
 ./init-submodules.sh
 ```
 
-默认初始化 RTL 仿真所需的子模块，不初始化 Gemmini 和 Zephyr。按需使用：
+默认初始化 RTL 仿真所需的子模块，不初始化 Gemmini、Buckyball 和 Zephyr。按需使用：
 
 ```sh
-./init-submodules.sh --gemmini  # Gemmini 及其 RoCC 测试工作负载
-./init-submodules.sh --linux    # Linux workload 构建依赖（兼容 --firemarshal）
-./init-submodules.sh --p2e      # HPEC P2E runner
-./init-submodules.sh --full     # 所有已登记子模块
+./init-submodules.sh --gemmini   # Gemmini 及其 RoCC 测试工作负载
+./init-submodules.sh --buckyball # Buckyball（Pebble）加速器子模块
+./init-submodules.sh --linux     # Linux workload 构建依赖（兼容 --firemarshal）
+./init-submodules.sh --p2e       # HPEC P2E runner
+./init-submodules.sh --full      # 所有已登记子模块
 ```
 
 进入开发环境：
@@ -112,6 +113,7 @@ make SIM=vcs CONFIG=RocketConfig run BINARY=/absolute/path/to/program.elf
 - `QuadChannelRocketConfig`：CI 使用的多通道 Rocket 配置。
 - `MediumBoomV3CosimFastConfig`、`MediumBoomV4CosimFastConfig`：CI 使用的 BOOM 配置。
 - `GemminiRocketConfig`：Gemmini 加速器配置，使用前执行 `./init-submodules.sh --gemmini`。
+- `TapeoutBuckyballPebbleConfig`：Tapeout Rocket + Pebble Buckyball（RoCC），使用前执行 `./init-submodules.sh --buckyball`。
 
 ## TapeoutConfig 与 SRAM
 
@@ -205,6 +207,7 @@ RISC-V Linux benchmark 示例见
 | BOOM | [SEU-ACAL/acal-boom](https://github.com/SEU-ACAL/acal-boom) | 高性能 RISC-V 核 |
 | Inclusive Cache | [SEU-ACAL/rocket-chip-inclusive-cache](https://github.com/SEU-ACAL/rocket-chip-inclusive-cache) | 共享 L2 缓存 |
 | Gemmini | [ucb-bar/gemmini](https://github.com/ucb-bar/gemmini) | 可选矩阵乘加速器 |
+| Buckyball | [DangoSys/buckyball](https://github.com/DangoSys/buckyball) | 可选 Pebble 加速器（RoCC） |
 | TestChipIP、rocket-chip-blocks | 本仓库受控源码 | Chipyard SoC 集成模块，不作为子模块管理 |
 | DRAMSim2 | `dependencies/tools/` 子模块 | 常规仿真内存模型 |
 | CDE | `dependencies/tools/` 子模块 | Rocket/Chipyard 配置基础设施 |

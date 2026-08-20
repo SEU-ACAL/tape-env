@@ -221,7 +221,11 @@ JAVA ?= $(shell if [ -n "$$JAVA_HOME" ] && [ -x "$$JAVA_HOME/bin/java" ]; then p
 SCALA_BUILDTOOL_DEPS = $(SBT_SOURCES)
 
 # passes $(JAVA_TOOL_OPTIONS) from env to java
+# Force UTF-8 for jar paths: toml-scala -> shapeless ships class names with λ;
+# sbt-assembly Paths.get() throws InvalidPathException if sun.jnu.encoding is not UTF-8.
+# buckyball need '-Dfile.encoding=UTF-8' and '-Dsun.jnu.encoding=UTF-8' to parse the toml files
 export SBT_OPTS ?= -Dsbt.ivy.home=$(base_dir)/../.ivy2 -Dsbt.global.base=$(base_dir)/../.sbt -Dsbt.boot.directory=$(base_dir)/../.sbt/boot/ -Dsbt.color=always -Dsbt.supershell=false -Dsbt.server.forcestart=true
+export SBT_OPTS := $(SBT_OPTS) -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8
 SBT ?= sbt $(SBT_OPTS)
 
 # (1) - classpath of the fat jar

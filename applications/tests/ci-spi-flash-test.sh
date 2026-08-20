@@ -8,7 +8,7 @@ set -euo pipefail
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "$script_dir/../.." && pwd)"
 
-simv="${SIMV:-$repo_root/soc-generator/sims/vcs/simv-chipyard.harness-TapeoutConfig}"
+simv="${SIMV:-$repo_root/soc-generator/sims/vcs/simv-chipyard.harness-TapeoutSimConfig}"
 dram_ini="${DRAM_INI:-$repo_root/soc-generator/generator/testchipip/src/main/resources/dramsim2_ini}"
 rounds="${SPI_FLASH_STRESS_ROUNDS:-16}"
 transfer_bytes="${SPI_FLASH_STRESS_TRANSFER_BYTES:-64}"

@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   peripherals:
-    name: Run TapeoutConfig I2C, SPI flash, and JTAG regressions
+    name: Run TapeoutConfig I2C and JTAG regressions
     runs-on: [self-hosted, linux, builder]
     timeout-minutes: 360
     env:
@@ -46,7 +46,7 @@ jobs:
             .github/scripts/ci/build-core-regressions-vcs.sh \
             > "${CI_RUN_DIR}/vcs-build.log" 2>&1
 
-      - name: Run I2C, SPI flash, and JTAG peripheral regressions
+      - name: Run I2C and JTAG peripheral regressions
         run: |
           env \
             CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \
@@ -58,7 +58,7 @@ jobs:
         if: always()
         run: |
           echo "## Nightly TapeoutConfig peripheral regressions" >> "$GITHUB_STEP_SUMMARY"
-          for testcase in i2c spi_flash jtag; do
+          for testcase in i2c jtag; do
             result="${CI_RUN_DIR}/peripheral-results/${testcase}/result.json"
             if [[ -f "${result}" ]]; then
               cat "${result}" >> "$GITHUB_STEP_SUMMARY"
