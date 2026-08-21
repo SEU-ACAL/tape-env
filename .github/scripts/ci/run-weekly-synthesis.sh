@@ -25,7 +25,7 @@ CI_SUMMARY_FILE="${CI_SYNTHESIS_RUN_ROOT}/synthesis-summary.md"
 
 case "${SYNTHESIS_TECH}" in
   smic180)
-    CLOCK_PERIOD="${CLOCK_PERIOD:-2.0}"
+    CLOCK_PERIOD="${CLOCK_PERIOD:-10.0}"
     ;;
   tsmc28)
     CLOCK_PERIOD="${CLOCK_PERIOD:-1.0}"
@@ -76,8 +76,9 @@ clock_frequency_mhz() {
 }
 
 write_qor_summary() {
-  local report_dir area_report group_report slack constraint_sdc time_unit workbench_revision summary_file
+  local report_dir area_report group_report group_name slack constraint_sdc time_unit workbench_revision summary_file
   local clock_period clock_frequency input_delay output_delay clock_uncertainty
+  local -a setup_reports
 
   summary_file="${CI_SUMMARY_FILE:-}"
   if [[ -z "${summary_file}" ]]; then
@@ -151,9 +152,21 @@ write_qor_summary() {
       echo "| Total cell area | unavailable |"
     fi
 
-    for group in I2R R2R R2O I2O; do
-      group_report="${report_dir}/${TOP_MODULE}_${group}_setup.rpt"
-      if [[ -f "${group_report}" ]]; then
+    # Tapeout-Workbench emits one setup report per timing group. The current
+    # flow has core, JTAG, and Serial-TL groups; scanning the reports keeps the
+    # summary aligned if a future flow adds or renames a group.
+    setup_reports=()
+    while IFS= read -r -d '' group_report; do
+      setup_reports+=("${group_report}")
+    done < <(find "${report_dir}" -maxdepth 1 -type f -name "${TOP_MODULE}_*_setup.rpt" -print0 | sort -z)
+
+    if [[ "${#setup_reports[@]}" -eq 0 ]]; then
+      echo "| Setup slack by timing group | unavailable |"
+    else
+      for group_report in "${setup_reports[@]}"; do
+        group_name="${group_report##*/}"
+        group_name="${group_name#${TOP_MODULE}_}"
+        group_name="${group_name%_setup.rpt}"
         # Each report can contain many paths. The minimum is the group's WNS.
         slack="$(awk '
           /slack \(/ {
@@ -165,11 +178,9 @@ write_qor_summary() {
           }
           END { if (found) printf "%.4f", minimum }
         ' "${group_report}")"
-        echo "| ${group} setup slack | ${slack:-unavailable} |"
-      else
-        echo "| ${group} setup slack | unavailable |"
-      fi
-    done
+        echo "| ${group_name} setup slack | ${slack:-unavailable} |"
+      done
+    fi
 
     echo
     echo "Configuration: \`${SYNTHESIS_CONFIG}\`; top module: \`${TOP_MODULE}\`."
@@ -249,7 +260,10 @@ if [[ ! -f "${SYNTHESIS_WORKBENCH}/2-SYN/scripts/tech/${SYNTHESIS_TECH}.tcl" ]];
 fi
 
 git -C "${REPO_ROOT}" submodule sync --recursive
-git -C "${REPO_ROOT}" submodule update --init soc-generator/generator/gemmini
+# The Chipyard build definition aggregates both optional accelerators.
+git -C "${REPO_ROOT}" submodule update --init \
+  soc-generator/generator/gemmini \
+  soc-generator/generator/buckyball
 
 mkdir -p "${CI_CLASSPATH_CACHE}" "${CI_COURSIER_CACHE}" \
   "${SBT_CACHE_ROOT}/ivy" "${SBT_CACHE_ROOT}/global" "${SBT_CACHE_ROOT}/boot"

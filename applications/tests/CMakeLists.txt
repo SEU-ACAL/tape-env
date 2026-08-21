@@ -80,6 +80,9 @@ add_executable(streaming-fir streaming-fir.c)
 add_executable(nvdla nvdla.c)
 add_executable(spiflashread spiflashread.c)
 add_executable(spiflashwrite spiflashwrite.c)
+add_executable(tapeout_i2c_stress tapeout_i2c_stress.c)
+add_executable(tapeout_spi_flash tapeout_spi_flash.c)
+add_executable(tapeout_spi_flash_stress tapeout_spi_flash_stress.c)
 add_executable(fft fft.c)
 add_executable(gcd gcd.c)
 add_executable(hello hello.c)
@@ -88,6 +91,40 @@ add_executable(symmetric symmetric.c)
 add_executable(ctc-test ctc-test.c)
 add_executable(multi-ctc-test multi-ctc-test.c)
 add_executable(triple-chiplet triple-chiplet.c)
+
+#################################
+# Buckyball (Pebble) RoCC tests
+#################################
+
+set(BB_ROOT "${CMAKE_SOURCE_DIR}/../../soc-generator/generator/buckyball")
+set(BB_LIB "${BB_ROOT}/bb-tests/workloads/lib")
+set(BB_COMMON "${BB_ROOT}/examples/chips/toy/workloads/common")
+set(BB_MATRIX_CTESTS "${BB_ROOT}/examples/balls/matrix/workloads/ctests")
+
+if(EXISTS "${BB_LIB}/bbhw/isa/isa.h")
+  set(BB_RUNTIME
+    "${CMAKE_SOURCE_DIR}/buckyball/util.c"
+    "${BB_LIB}/bbhw/mem/mem.c"
+  )
+  set(BB_INCLUDES
+    "${BB_LIB}"
+    "${BB_COMMON}"
+    "${BB_MATRIX_CTESTS}"
+  )
+
+  function(add_buckyball_test target_name source_file)
+    add_executable(${target_name} ${source_file} ${BB_RUNTIME})
+    target_include_directories(${target_name} PRIVATE ${BB_INCLUDES})
+  endfunction()
+
+  add_buckyball_test(bb-mvin-mvout buckyball/mvin_mvout.c)
+  add_buckyball_test(bb-transpose-i8-16x16 buckyball/transpose_i8_16x16.c)
+  add_buckyball_test(bb-matrix-os-4x4 buckyball/matrix_os_4x4.c)
+  set(BB_DUMP_TARGETS bb-mvin-mvout bb-transpose-i8-16x16 bb-matrix-os-4x4)
+else()
+  message(STATUS "Skipping Buckyball tests (run ./init-submodules.sh --buckyball)")
+  set(BB_DUMP_TARGETS)
+endif()
 
 #################################
 # Disassembly
@@ -121,6 +158,9 @@ add_dump_target(streaming-fir)
 add_dump_target(nvdla)
 add_dump_target(spiflashread)
 add_dump_target(spiflashwrite)
+add_dump_target(tapeout_i2c_stress)
+add_dump_target(tapeout_spi_flash)
+add_dump_target(tapeout_spi_flash_stress)
 add_dump_target(fft)
 add_dump_target(gcd)
 add_dump_target(hello)
@@ -129,6 +169,9 @@ add_dump_target(symmetric)
 add_dump_target(ctc-test)
 add_dump_target(multi-ctc-test)
 add_dump_target(triple-chiplet)
+foreach(bb_t ${BB_DUMP_TARGETS})
+  add_dump_target(${bb_t})
+endforeach()
 
 
 # Add custom command to generate spiflash.img from spiflash.py

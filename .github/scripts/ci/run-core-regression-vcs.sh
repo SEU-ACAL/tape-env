@@ -52,7 +52,7 @@ run_in_nix '
   fi
 
   riscv_tests_root="${CI_WORKLOAD_ROOT}/riscv-tests"
-  common_args=(-j1 -C "${sim_dir}" CONFIG="${CI_CONFIG}" RISCV="${riscv_tests_root}" sim="${simulator}" BREAK_SIM_PREREQ=1 output_dir="${CI_VCS_SIM_OUTPUT_DIR}")
+  common_args=(-j1 -C "${sim_dir}" SIM=vcs CONFIG="${CI_CONFIG}" RISCV="${riscv_tests_root}" sim="${simulator}" BREAK_SIM_PREREQ=1 output_dir="${CI_VCS_SIM_OUTPUT_DIR}")
 
   case "${CI_TESTCASE}" in
     rocket-asm|boom-asm)

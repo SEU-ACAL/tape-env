@@ -40,7 +40,11 @@ export CI_VCS_BUILD_CONFIGS CI_VCS_BUILD_JOBS
 git -C "${REPO_ROOT}" submodule deinit --force --all
 git -C "${REPO_ROOT}" submodule sync --recursive
 
-git -C "${REPO_ROOT}" submodule update --init soc-generator/generator/gemmini
+# Chipyard aggregates Gemmini and Buckyball during Scala compilation. Their
+# root submodules are sufficient for the VCS regression build.
+git -C "${REPO_ROOT}" submodule update --init \
+  soc-generator/generator/gemmini \
+  soc-generator/generator/buckyball
 
 CI_CACHE_KEY="${RUNNER_NAME:-${HOSTNAME:-local}}"
 SBT_CACHE_ROOT="${CI_CACHE_ROOT}/sbt/${CI_CACHE_KEY}"
@@ -73,11 +77,11 @@ run_in_nix '
   }
 
   first_config="${CI_VCS_BUILD_CONFIGS%% *}"
-  make -C soc-generator/sims/vcs CONFIG="${first_config}" \
+  make -C soc-generator/sims/vcs SIM=vcs CONFIG="${first_config}" \
     CLASSPATH_CACHE="${CI_SHARED_ROOT}/empty-classpath-cache/${GITHUB_RUN_ID}" clean
   for attempt in 1 2 3; do
     remove_invalid_jars
-    if make -C soc-generator/sims/vcs CONFIG="${first_config}" firrtl \
+    if make -C soc-generator/sims/vcs SIM=vcs CONFIG="${first_config}" firrtl \
       "${CI_CLASSPATH_CACHE}/tapeout.jar"; then
       break
     fi

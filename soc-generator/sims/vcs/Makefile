@@ -55,6 +55,10 @@ $(sim_files): $(SIM_COPIED_FILE_REQS) $(ALL_MODS_FILELIST) $(sim_dir)/Makefile |
 #########################################################################################
 include $(base_dir)/common.mk
 
+# firtool recreates GEN_COLLATERAL_DIR from scratch.  Copy TestDriver only
+# after that step so a VCS run cannot retain a stale filelist entry.
+$(SIM_COPIED_FILE_REQS): $(FIRTOOL_STAMP)
+
 #########################################################################################
 # vcs binary and arguments
 #########################################################################################

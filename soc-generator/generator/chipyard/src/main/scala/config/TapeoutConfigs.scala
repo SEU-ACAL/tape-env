@@ -3,8 +3,25 @@ package chipyard
 import org.chipsalliance.cde.config.Config
 import testchipip.soc.{OBUS}
 import freechips.rocketchip.subsystem.{MBUS}
+import chipyard.buckyball.WithPebbleBuckyballRoCC
+import freechips.rocketchip.util.{ClockGate, ClockGateImpl, ClockGateModelFile}
+import chipyard.iobinders.IOCellKey
+import chipyard.iocell.SMIC180IOCellParams
 
+/** Select SMIC SP018RP IO wrappers for all Tapeout configurations. */
+class WithSMIC180IOCells extends Config((site, here, up) => {
+  case IOCellKey => SMIC180IOCellParams()
+})
 
+/** Map generic Rocket-Chip clock gates to SMIC UHD integrated clock gates. */
+class SMIC180ClockGate extends ClockGate {
+  override def desiredName = "SMIC180ClockGate"
+}
+
+class WithSMIC180ClockGates extends Config((site, here, up) => {
+  case ClockGateImpl => () => new SMIC180ClockGate
+  case ClockGateModelFile => Some("/vsrc/SMIC180ClockGate.v")
+})
 
 /**
   * Tapeout target based on the current chip-like Rocket configuration.
@@ -17,6 +34,9 @@ class TapeoutConfig extends Config(
 
   new WithSMIC180BootROMFromEnv ++
   new testchipip.boot.WithTapeBootROM ++
+  // All Tapeout configurations use SMIC physical clock gates and IO wrappers.
+  new WithSMIC180ClockGates ++
+  new WithSMIC180IOCells ++
   new freechips.rocketchip.subsystem.WithoutTLMonitors ++
   new WithTapeoutRocket ++
   // AbstractConfig adds an MBUS scratchpad; remove all subsystem scratchpads.
@@ -24,14 +44,14 @@ class TapeoutConfig extends Config(
   new chipyard.clocking.WithNdmResetInSystemReset ++
   new WithTapeoutSingleClock(100) ++
   new chipyard.harness.WithSimTSIOverSerialTL(fast = true) ++
+  // Keep tapeout-style pads while attaching the behavioral EEPROM in the
+  // simulation harness used by TapeoutConfig VCS regressions.
+  new chipyard.harness.WithSimI2CEepromOnPads ++
   new chipyard.WithSerialConnect ++
 
   // Replace AbstractConfig's SPI/I2C punchthrough ports with General IO cells.
-  // IOCellKey remains GenericIOCellParams for simulation and must be replaced
-  // with the PDK General IO implementation before physical tapeout.
   new chipyard.iobinders.WithSPIIOCells ++
-  new chipyard.iobinders.WithI2CIOCells ++
-
+  new chipyard.iobinders.WithSimI2CIOCells ++
   // MMIO peripherals.  AbstractConfig supplies a default UART; replace it
   // here so this tapeout configuration owns the complete peripheral map.
   new chipyard.config.WithUART(
@@ -45,6 +65,26 @@ class TapeoutConfig extends Config(
   new chipyard.config.WithGPIO(address = 0x10010000, width = 8) ++
 
   new chipyard.config.AbstractConfig)
+
+
+/**
+ * TapeoutConfig with pad-connected SPI and I2C simulation models. The SPI
+ * flash still requires +spiflash0=<binary-image>; the I2C EEPROM is preloaded
+ * with byte[i] = i.
+  */
+class TapeoutSimConfig extends Config(
+  new chipyard.harness.WithSimSPIFlashOnPads ++
+  new chipyard.iobinders.WithSimSPIIOCells ++
+  new TapeoutConfig)
+
+/**
+  * Tapeout Rocket CPU + Pebble Buckyball accelerator (RoCC wire attach).
+  */
+class TapeoutBuckyballPebbleConfig extends Config(
+  new WithPebbleBuckyballRoCC ++
+  new chipyard.config.WithSystemBusWidth(128) ++
+  new TapeoutConfig)
+
 
 // Rocket tile and cache sizing for the tapeout target.
 class WithTapeoutRocket extends Config(

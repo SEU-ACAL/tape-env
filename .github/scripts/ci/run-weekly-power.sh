@@ -23,6 +23,29 @@ POWER_FLOW_DIR="${CI_SYNTHESIS_RUN_ROOT}/power-flow"
 POWER_GLS_DIR="${POWER_FLOW_DIR}/3-Pre_PR_NETSIM"
 POWER_PT_DIR="${POWER_FLOW_DIR}/4-Pre_PR_STA_POWER"
 
+case "${SYNTHESIS_TECH}" in
+  smic180)
+    CLOCK_PERIOD="${CLOCK_PERIOD:-10.0}"
+    ;;
+  tsmc28)
+    CLOCK_PERIOD="${CLOCK_PERIOD:-1.0}"
+    ;;
+  *)
+    echo "Unsupported SYNTHESIS_TECH: ${SYNTHESIS_TECH}" >&2
+    exit 1
+    ;;
+esac
+
+if ! awk -v period="${CLOCK_PERIOD}" '
+  BEGIN {
+    valid = "^[0-9]+([.][0-9]+)?$"
+    exit !(period ~ valid && period + 0 > 0)
+  }
+'; then
+  echo "CLOCK_PERIOD must be a positive number of nanoseconds: ${CLOCK_PERIOD}" >&2
+  exit 1
+fi
+
 case "${POWER_USE_SDF}" in
   0|1) ;;
   *)
@@ -228,6 +251,7 @@ run_in_nix '
       TAPE_ENV="${REPO_ROOT}" \
       CONFIG="${power_sim_config}" \
       TECH="${SYNTHESIS_TECH}" \
+      CLOCK_PERIOD="${CLOCK_PERIOD}" \
       NETLIST_RUN="${run_label}" \
       NETLIST="${netlist}" \
       SDF="${POWER_SDF}" \
@@ -239,6 +263,7 @@ run_in_nix '
       TAPE_ENV="${REPO_ROOT}" \
       CONFIG="${power_sim_config}" \
       TECH="${SYNTHESIS_TECH}" \
+      CLOCK_PERIOD="${CLOCK_PERIOD}" \
       NETLIST_RUN="${run_label}" \
       NETLIST="${netlist}" \
       SDF="${POWER_SDF}" \
@@ -251,6 +276,7 @@ run_in_nix '
       TAPE_ENV="${REPO_ROOT}" \
       CONFIG="${power_sim_config}" \
       TECH="${SYNTHESIS_TECH}" \
+      CLOCK_PERIOD="${CLOCK_PERIOD}" \
       NETLIST_RUN="${run_label}" \
       NETLIST="${netlist}" \
       RANDOM_SEED="${POWER_RANDOM_SEED}" \
@@ -261,6 +287,7 @@ run_in_nix '
       TAPE_ENV="${REPO_ROOT}" \
       CONFIG="${power_sim_config}" \
       TECH="${SYNTHESIS_TECH}" \
+      CLOCK_PERIOD="${CLOCK_PERIOD}" \
       NETLIST_RUN="${run_label}" \
       NETLIST="${netlist}" \
       RANDOM_SEED="${POWER_RANDOM_SEED}" \
