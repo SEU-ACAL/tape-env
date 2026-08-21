@@ -55,15 +55,31 @@ if [[ $(wc -l < "$codefile") -ne $words ]] || [[ $(awk -v bits="$bits" 'length !
   exit 1
 fi
 
-ensure_mode() {
+prepare_dir() {
   local path=$1
   local requested_mode=$2
-  local actual_mode
-  local expected_mode=${requested_mode#0}
+  local was_existing=0
 
-  actual_mode=$(stat -c '%a' "$path")
-  if [[ $actual_mode != "$expected_mode" ]]; then
+  if [[ -d "$path" ]]; then
+    was_existing=1
+  elif [[ -e "$path" ]]; then
+    echo "SMIC180 ROM cache path is not a directory: $path" >&2
+    exit 1
+  else
+    mkdir -p "$path"
+  fi
+
+  # Do not chmod a shared directory that may have been created by another
+  # user (or by root). Existing directories only need to be usable by this
+  # process; the requested mode is applied when this script creates them.
+  if [[ $was_existing -eq 0 ]]; then
     chmod "$requested_mode" "$path"
+  fi
+
+  if [[ ! -r "$path" || ! -w "$path" || ! -x "$path" ]]; then
+    echo "SMIC180 ROM cache directory must be readable, writable, and searchable: $path" >&2
+    echo "Adjust its permissions or set SMIC180_ROM_CACHE_DIR to a usable location" >&2
+    exit 1
   fi
 }
 
@@ -72,9 +88,8 @@ cdk_dir=$(realpath "$cdk_dir")
 codefile=$(realpath "$codefile")
 cache_dir=$(dirname "$output_dir")
 umask 000
-mkdir -p "$output_dir"
-ensure_mode "$cache_dir" "$cache_mode"
-ensure_mode "$output_dir" "$output_mode"
+prepare_dir "$cache_dir" "$cache_mode"
+prepare_dir "$output_dir" "$output_mode"
 
 macro_v=$output_dir/$macro_name.v
 cached_codefile=$output_dir/$macro_name.code

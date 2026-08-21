@@ -56,8 +56,9 @@ make -C soc-generator/sims/verilator CONFIG=TapeoutConfig \
 codefile 和 fingerprint。仅当对应 BootROM/Debug ROM 的内容、宏规格、compiler JAR
 或生成脚本变更时，才重新调用 ROM compiler；否则直接复用缓存。可用
 `SMIC180_ROM_CACHE_DIR=/path/to/rom-ip` 覆盖缓存根目录。不使用压缩包，也不会修改 CDK。
-默认缓存根目录的权限为 `1777`，输出目录及产物为所有用户可写；可分别通过
-`SMIC180_ROM_CACHE_MODE` 和 `SMIC180_ROM_OUTPUT_MODE` 覆盖。
+新建缓存根目录时默认使用 `1777`，新建输出目录及产物为所有用户可写；已有共享目录不会被强制
+执行 `chmod`，只要当前用户具备读、写和进入权限即可复用。可分别通过
+`SMIC180_ROM_CACHE_MODE` 和 `SMIC180_ROM_OUTPUT_MODE` 覆盖新建目录的权限。
 Debug ROM 使用同步 64-bit 宏，并在请求后的下一个周期返回对应的 64-bit word。
 `USE_SMIC180_ROM=0`（默认）不生成厂商 ROM
 模型。P2E 配置会忽略该选项，始终保留普通 ROM。S018VM compiler 需要 Java 8；默认 `nix develop` 会提供并设置
