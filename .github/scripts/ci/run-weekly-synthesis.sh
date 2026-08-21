@@ -283,6 +283,7 @@ run_in_nix '
     smic180)
       make -C soc-generator SIM=vcs CONFIG="${SYNTHESIS_CONFIG}" \
         USE_SMIC180_SRAM=1 \
+        USE_SMIC180_ROM=1 \
         SMIC180_SRAM_ROOT="${SMIC180_SRAM_ROOT:-/data2/smic180/SRAM/S018SP_v0p1pc_CDK/SMIC180_S018SP_v0p1c_20260722}" \
         verilog
       ;;
