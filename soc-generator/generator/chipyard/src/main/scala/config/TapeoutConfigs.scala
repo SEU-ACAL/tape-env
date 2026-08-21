@@ -4,8 +4,24 @@ import org.chipsalliance.cde.config.Config
 import testchipip.soc.{OBUS}
 import freechips.rocketchip.subsystem.{MBUS}
 import chipyard.buckyball.WithPebbleBuckyballRoCC
+import freechips.rocketchip.util.{ClockGate, ClockGateImpl, ClockGateModelFile}
+import chipyard.iobinders.IOCellKey
+import chipyard.iocell.SMIC180IOCellParams
 
+/** Select SMIC SP018RP IO wrappers for all Tapeout configurations. */
+class WithSMIC180IOCells extends Config((site, here, up) => {
+  case IOCellKey => SMIC180IOCellParams()
+})
 
+/** Map generic Rocket-Chip clock gates to SMIC UHD integrated clock gates. */
+class SMIC180ClockGate extends ClockGate {
+  override def desiredName = "SMIC180ClockGate"
+}
+
+class WithSMIC180ClockGates extends Config((site, here, up) => {
+  case ClockGateImpl => () => new SMIC180ClockGate
+  case ClockGateModelFile => Some("/vsrc/SMIC180ClockGate.v")
+})
 
 /**
   * Tapeout target based on the current chip-like Rocket configuration.
@@ -16,6 +32,9 @@ import chipyard.buckyball.WithPebbleBuckyballRoCC
 
 class TapeoutConfig extends Config(
 
+  // All Tapeout configurations use SMIC physical clock gates and IO wrappers.
+  new WithSMIC180ClockGates ++
+  new WithSMIC180IOCells ++
   new freechips.rocketchip.subsystem.WithoutTLMonitors ++
   new WithTapeoutRocket ++
   // AbstractConfig adds an MBUS scratchpad; remove all subsystem scratchpads.
@@ -29,8 +48,6 @@ class TapeoutConfig extends Config(
   new chipyard.WithSerialConnect ++
 
   // Replace AbstractConfig's SPI/I2C punchthrough ports with General IO cells.
-  // IOCellKey remains GenericIOCellParams for simulation and must be replaced
-  // with the PDK General IO implementation before physical tapeout.
   new chipyard.iobinders.WithSPIIOCells ++
   new chipyard.iobinders.WithSimI2CIOCells ++
   // MMIO peripherals.  AbstractConfig supplies a default UART; replace it
@@ -49,9 +66,10 @@ class TapeoutConfig extends Config(
 
 
 /**
- * TapeoutConfig with the SPI flash simulation target. The I2C EEPROM model is
- * already part of TapeoutConfig so its VCS image can run I2C regressions.
- */
+ * TapeoutConfig with pad-connected SPI and I2C simulation models. The SPI
+ * flash still requires +spiflash0=<binary-image>; the I2C EEPROM is preloaded
+ * with byte[i] = i.
+  */
 class TapeoutSimConfig extends Config(
   new chipyard.harness.WithSimSPIFlashOnPads ++
   new chipyard.iobinders.WithSimSPIIOCells ++

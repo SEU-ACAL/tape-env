@@ -58,7 +58,7 @@ GitHub Actions 手动触发。它按所选的 SMIC180（默认）或 TSMC28 SRAM
 Verdi 许可及该流程所需的 PDK 挂载。Design Compiler 和 PrimeTime 通过
 `docker exec -i ci_env bash -lc` 在 `ci_env` 容器运行；GitHub Actions 没有 TTY，因此使用
 `-i` 而不是 `-it`。手动运行可选择 `smic180` 或 `tsmc28`，定时运行使用 `smic180`。
-SMIC180 默认时钟周期为 2.0 ns（500 MHz），TSMC28 为 1.0 ns（1 GHz）。手动运行的
+SMIC180 默认时钟周期为 10.0 ns（100 MHz），TSMC28 为 1.0 ns（1 GHz）。手动运行的
 `Clock period in ns` 可留空以采用工艺默认值，也可通过 `CLOCK_PERIOD`（单位 ns）覆盖。
 
 该工作流依次执行“生成 RTL 并运行 Design Compiler”和“运行 PrimeTime 功耗分析”。手动运行
@@ -69,6 +69,6 @@ SMIC180 默认时钟周期为 2.0 ns（500 MHz），TSMC28 为 1.0 ns（1 GHz）
 与工艺路径。SMIC180 的标准单元和 SRAM 库采用相同的 SS、125C 工艺与电压角。
 
 功耗步骤需要 PrimeTime W-2024，默认版本为 W-2024.09-SP1。结果是基于工作负载的布局前
-估算，不是签核结果。任务不会上传实现文件；摘要会报告总单元面积、I2R/R2R/R2O/I2O 路径的
-最差建立时间裕量、按宏类型和 MDF 端口族（例如 `1rw`）统计的硬 SRAM 实例数，以及
-PrimeTime 的内部、开关、漏电和总功耗。
+估算，不是签核结果。任务不会上传实现文件；摘要会报告总单元面积，以及 core、JTAG 和
+Serial-TL 三个时钟组内 I2R/R2R/R2O/I2O 路径的最差建立时间裕量。它还会按宏类型和 MDF
+端口族（例如 `1rw`）统计硬 SRAM 实例数，并报告 PrimeTime 的内部、开关、漏电和总功耗。

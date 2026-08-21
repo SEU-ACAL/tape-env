@@ -193,8 +193,10 @@ class WithMultiIOCellsClockGenerator extends OverrideLazyIOBinder({
 
 class WithClockTapIOCells extends OverrideIOBinder({
   (system: CanHaveClockTap) => {
+    val p = GetSystemParameters(system)
     system.clockTapIO.map { tap =>
-      val (clock_tap_io, clock_tap_cell) = IOCell.generateIOFromSignal(tap.getWrappedValue, "clock_tap")
+      val (clock_tap_io, clock_tap_cell) =
+        IOCell.generateIOFromSignal(tap.getWrappedValue, "clock_tap", p(IOCellKey))
       (Seq(ClockTapPort(() => clock_tap_io)), clock_tap_cell)
     }.getOrElse((Nil, Nil))
   }
