@@ -14,11 +14,7 @@ VCS 仿真器 -> SimJTAG Remote Bitbang -> OpenOCD -> GDB
 
 ## 前置条件
 
-- 初始化 P2E 子模块，其中包含 `gdb-loop` 工作负载：
-
-  ```sh
-  ./init-submodules.sh --p2e
-  ```
+- JTAG 工作负载已放在 `applications/tests/jtag`，本测试不再依赖 P2E 子模块。
 
 - 使用正常开发 shell 构建和运行 VCS：
 
@@ -38,7 +34,7 @@ VCS 仿真器 -> SimJTAG Remote Bitbang -> OpenOCD -> GDB
 在仓库根目录、正常开发 shell 中执行：
 
 ```sh
-make -C dependencies/p2e-runner/examples/gdb-loop
+make -C applications/tests/jtag
 
 make -C soc-generator \
   SIM=vcs \
@@ -76,7 +72,7 @@ make -C soc-generator \
 
 ```sh
 simv=$PWD/soc-generator/sims/vcs/simv-chipyard.harness-TapeoutConfig
-elf=$PWD/dependencies/p2e-runner/examples/gdb-loop/build/gdb-loop.elf
+elf=$PWD/applications/tests/jtag/build/gdb-loop.elf
 dram_ini=$PWD/soc-generator/generator/testchipip/src/main/resources/dramsim2_ini
 
 "$simv" \
@@ -145,7 +141,7 @@ Listening on port 3335 for gdb connections
 下列定向命令会让目标最终保持暂停状态。
 
 ```sh
-elf=$PWD/dependencies/p2e-runner/examples/gdb-loop/build/gdb-loop.elf
+elf=$PWD/applications/tests/jtag/build/gdb-loop.elf
 
 riscv64-unknown-elf-gdb -batch \
   -ex 'set pagination off' \
@@ -174,7 +170,7 @@ JTAG_A0=$2 = 0x1234abcd
 JTAG_MEM=0x80100000:  0x4a544147
 ```
 
-由于 halt 请求到达时 `gdb-loop` 仍在执行，PC 的具体值可能不同。`a0` 和内存的读回值必须
+由于 halt 请求到达时 JTAG 工作负载仍在执行，PC 的具体值可能不同。`a0` 和内存的读回值必须
 与上述数值完全一致。
 
 ## 通过标准和清理
