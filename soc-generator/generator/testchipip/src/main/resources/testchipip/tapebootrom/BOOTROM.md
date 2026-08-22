@@ -15,17 +15,16 @@
 ## 内存布局
 
 - BootROM 起始地址：0x00010000
-- SoC BootROM 地址映射：0x00010000-0x0001ffff（64 KiB）
+- SoC BootROM 地址映射：0x00010000-0x00011fff（8 KiB）
 - 当前 tapebootrom 源镜像链接空间：0x00002000（8 KiB）
 - DDR 起始地址：0x80000000
 
-`TapeoutConfig` 通过 `WithBootROM` 将 BootROM 参数配置为 `size = 0x10000`，因此
-SoC 侧的 ROM 地址空间是 64 KiB。`linker/memory.lds` 中的 `LENGTH = 0x2000`
-只限制 `tapeboot.bin` 这个源镜像最多能生成 8 KiB，并不改变 SoC 的 ROM 映射大小；
-实际镜像不足的部分由 ROM 实现补零。
+`TapeoutConfig` 通过 `WithBootROM` 将 BootROM 参数配置为 `size = 0x2000`，因此
+SoC 侧的 ROM 地址空间是 8 KiB。`linker/memory.lds` 中的 `LENGTH = 0x2000`
+同时限制 `tapeboot.bin` 这个源镜像最多能生成 8 KiB；实际镜像不足的部分由 ROM 实现补零。
 
-启用 `USE_SMIC180_ROM=1` 时，使用的 `S018VM_X512Y16D64_PM` 宏为
-`8192 x 64 bit = 65536 bytes = 64 KiB`，与 `TapeoutConfig` 的 BootROM 参数一致。
+启用 `USE_SMIC180_ROM=1` 时，使用的 `S018VM_X64Y16D64_PM` 宏为
+`1024 x 64 bit = 8192 bytes = 8 KiB`，与 `TapeoutConfig` 的 BootROM 参数一致。
 
 ## 当前启动流程
 
@@ -73,9 +72,8 @@ sd.c 保留了 SD 卡初始化和 payload 读取逻辑，属于尚未接入的�
 - BootROM 不初始化 DDR，直接跳转前提是 0x80000000 已经可访问，且其中已有可执行的下一阶段程序。
 - BootROM 不执行 PLL 或时钟初始化。
 - .dtb section 目前只有空的 dtb 标签；传入 a1 的不是有效设备树。
-- 当前 `tapebootrom` 源镜像的代码和数据空间只有 8 KiB；如果启动代码超过这个大小，
-  需要扩大 `linker/memory.lds` 的 `bootrom_mem`，同时确保最终镜像仍不超过 SoC
-  BootROM 的 64 KiB 容量。
+- 当前 `tapebootrom` 源镜像和 SoC BootROM 的代码/数据空间都是 8 KiB；如果启动代码超过
+  这个大小，需要同步扩大 `linker/memory.lds`、`WithBootROM` 和对应的 SMIC ROM 宏容量。
 
 ## 构建
 

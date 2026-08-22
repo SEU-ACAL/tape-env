@@ -26,7 +26,7 @@ SRAM/ROM 需要区分两件事：
 当前仓库已经明确禁止 P2E 配置启用 SMIC180 ROM 宏：`chipyard.mk` 只有在
 `CONFIG= TapeoutConfig` 且显式打开 `USE_SMIC180_ROM` 时才设置
 `SMIC180_ROM_ENABLED`；`HpecP2ETapeoutConfig` 会被排除。因此当前 P2E 生成的是普通
-`TLROM`，而不是 `S018VM_X512Y16D64_PM`。
+`TLROM`，而不是 `S018VM_X64Y16D64_PM`。
 
 ## 2. P2E 的完整流程
 
@@ -59,7 +59,7 @@ rg -n 'S018VM|SMIC180|TLROM' \
 ```
 
 正常的当前 P2E 结果应能看到 `TLROM.sv`，而不应看到由
-`USE_SMIC180_ROM=1` 生成的 `S018VM_X512Y16D64_PM` BootROM 实例。
+`USE_SMIC180_ROM=1` 生成的 `S018VM_X64Y16D64_PM` BootROM 实例。
 
 ### 2.2 远端 P2E build
 

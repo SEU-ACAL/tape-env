@@ -124,10 +124,10 @@ class SMIC180TLROM(
 }
 
 object SMIC180BootROM {
-  val macroName = "S018VM_X512Y16D64_PM"
+  val macroName = "S018VM_X64Y16D64_PM"
   val beatBytes = 8
   val dataBits = beatBytes * 8
-  val sizeBytes = 0x10000
+  val sizeBytes = 0x2000
   val addressBits = log2Ceil(sizeBytes / beatBytes)
 
   def contents(params: BootROMParams, subsystem: BaseSubsystem): Seq[Byte] = {

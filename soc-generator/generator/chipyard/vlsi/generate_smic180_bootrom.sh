@@ -10,8 +10,8 @@ fi
 cdk_dir=$1
 codefile=$2
 output_dir=$3
-macro_name=${SMIC180_ROM_MACRO_NAME:-S018VM_X512Y16D64_PM}
-words=${SMIC180_ROM_WORDS:-8192}
+macro_name=${SMIC180_ROM_MACRO_NAME:-S018VM_X64Y16D64_PM}
+words=${SMIC180_ROM_WORDS:-1024}
 bits=${SMIC180_ROM_BITS:-64}
 cache_mode=${SMIC180_ROM_CACHE_MODE:-1777}
 output_mode=${SMIC180_ROM_OUTPUT_MODE:-0777}

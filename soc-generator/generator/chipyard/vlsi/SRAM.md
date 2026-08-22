@@ -40,7 +40,7 @@ make -C soc-generator SIM=vcs USE_SMIC180_SRAM=1 verilog
 ## SMIC180 BootROM
 
 `TapeoutConfig` 默认保留原来的可综合 ROM。设置 `USE_SMIC180_ROM=1` 后，会以
-S018VM 的固定 `8192x64` 宏 `S018VM_X512Y16D64_PM` 替换 BootROM，并以 `128x64`
+S018VM 的固定 `1024x64` 宏 `S018VM_X64Y16D64_PM` 替换 BootROM，并以 `128x64`
 宏 `S018VM_X8Y16D64_PM` 替换 JTAG Debug Module 的 Debug ROM。后者物理容量为
 1 KiB，其中仅前 128B 是 Debug ROM 镜像，其余内容补零：
 
