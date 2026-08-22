@@ -108,6 +108,8 @@ jobs:
               CI_RESULT_ROOT="${CI_RUN_DIR}/vcs-results" \
               CI_VCS_BUILD_JOBS=8 \
               CI_VCS_BUILD_CONFIGS=TapeoutConfig \
+              USE_SMIC180_IO=1 \
+              USE_SMIC180_STD=1 \
               USE_SMIC180_SRAM=1 \
               USE_SMIC180_ROM=1 \
               SMIC180_SRAM_ROOT=/data2/smic180/SRAM/S018SP_v0p1pc_CDK/SMIC180_S018SP_v0p1c_20260722 \
@@ -143,6 +145,8 @@ jobs:
               CI_RESULT_ROOT="${CI_RUN_DIR}/vcs-results" \
               CI_VCS_TEST_JOBS=8 \
               CI_VCS_SIM_TEST_JOBS=4 \
+              USE_SMIC180_IO=1 \
+              USE_SMIC180_STD=1 \
               USE_SMIC180_SRAM=1 \
               USE_SMIC180_ROM=1 \
               SMIC180_SRAM_ROOT=/data2/smic180/SRAM/S018SP_v0p1pc_CDK/SMIC180_S018SP_v0p1c_20260722 \

@@ -7,13 +7,12 @@ on:
   workflow_dispatch:
     inputs:
       technology:
-        description: Standard-cell and SRAM technology
+        description: Full-replacement standard-cell, IO, ROM, and SRAM technology
         required: true
         default: smic180
         type: choice
         options:
           - smic180
-          - tsmc28
       benchmark:
         description: Power-analysis workload
         required: true

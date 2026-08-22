@@ -4,8 +4,12 @@
 目标分支为 `main` 的拉取请求中运行，也可以手动触发。
 
 `Nightly Peripheral Regression`（`.github/workflows/nightly-peripheral-regression.yml`）每天
-北京时间 00:00 运行，也可手动触发。它构建一次 `TapeoutConfig` VCS 仿真器，并串行执行 I2C
-EEPROM 压力测试（4 轮、每轮 16 字节）和 JTAG RSP 压力测试（32 步、64 次内存操作）。
+北京时间 00:00 运行，也可手动触发。它构建 `TapeoutConfig` VCS 仿真器，并串行执行 I2C
+EEPROM 压力测试（4 轮、每轮 16 字节）、SPI Flash 压力测试（16 轮、每轮 64 字节）和
+JTAG RSP 压力测试（32 步、64 次内存操作）。三项测试全部使用同一个
+`TapeoutConfig`，其中 SPI Flash 和 I2C EEPROM 行为模型直接挂在该配置的 VCS harness 上。
+夜间构建通过 `TAPEOUT_ENABLE_SPI_FLASH_MODEL=1` 启用 SPI 模型；普通回归不启用该模型，
+因此不需要额外的 SPI Flash 镜像参数。
 测试失败时会上传各测试日志和保留的 VCS 运行目录。
 
 该工作流为下列配置构建 Verilator 仿真器：
@@ -51,14 +55,14 @@ memmap 和原始 regmap JSON 文件。
 ## 每周综合
 
 `Weekly Synthesis` 在每周一 Asia/Shanghai 时间 02:00（UTC 周日 18:00）运行，也可通过
-GitHub Actions 手动触发。它按所选的 SMIC180（默认）或 TSMC28 SRAM 宏映射生成
+GitHub Actions 手动触发。它使用 SMIC180 IO、BootROM/Debug ROM 和 SRAM 宏全替换生成
 `TapeoutConfig`，并执行当前 `SEU-ACAL/Tapeout-Workbench` 的 Design Compiler 流程。
 
 任务必须在标记为 `builder` 的自托管运行器执行，并具备 Design Compiler、VCS、PrimeTime、
 Verdi 许可及该流程所需的 PDK 挂载。Design Compiler 和 PrimeTime 通过
 `docker exec -i ci_env bash -lc` 在 `ci_env` 容器运行；GitHub Actions 没有 TTY，因此使用
-`-i` 而不是 `-it`。手动运行可选择 `smic180` 或 `tsmc28`，定时运行使用 `smic180`。
-SMIC180 默认时钟周期为 10.0 ns（100 MHz），TSMC28 为 1.0 ns（1 GHz）。手动运行的
+`-i` 而不是 `-it`。为保证 IO、ROM、SRAM 全部使用物理宏，CI 仅允许 `smic180`。
+SMIC180 默认时钟周期为 10.0 ns（100 MHz）。手动运行的
 `Clock period in ns` 可留空以采用工艺默认值，也可通过 `CLOCK_PERIOD`（单位 ns）覆盖。
 
 该工作流依次执行“生成 RTL 并运行 Design Compiler”和“运行 PrimeTime 功耗分析”。手动运行
