@@ -25,6 +25,7 @@ jobs:
       HTTPS_PROXY: http://127.0.0.1:12000
       NO_PROXY: localhost,127.0.0.1
       USE_SMIC180_SRAM: 1
+      USE_SMIC180_ROM: 1
       SMIC180_SRAM_ROOT: /data2/smic180/SRAM/S018SP_v0p1pc_CDK/SMIC180_S018SP_v0p1c_20260722
     steps:
       - uses: actions/checkout@v4

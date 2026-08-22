@@ -32,6 +32,10 @@ class WithSMIC180ClockGates extends Config((site, here, up) => {
 
 class TapeoutConfig extends Config(
 
+  new WithSMIC180BootROMFromEnv ++
+  new testchipip.boot.WithTapeBootROM ++
+  // The tapeout boot image is linked into an 8 KiB ROM window.
+  new chipyard.config.WithBootROM(size = 0x2000) ++
   // All Tapeout configurations use SMIC physical clock gates and IO wrappers.
   new WithSMIC180ClockGates ++
   new WithSMIC180IOCells ++

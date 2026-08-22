@@ -105,7 +105,7 @@ run_in_nix '
         exit 1
       fi
       make "${common_args[@]}" run-binary-fast \
-        BINARY="${hello_binary}"
+        BINARY="${hello_binary}" LOADMEM=1
       ;;
     rocket-zephyr-hello)
       zephyr_binary="${CI_WORKLOAD_ROOT}/zephyr/zephyr.elf"

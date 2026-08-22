@@ -65,7 +65,7 @@ run_in_nix '
       make "${common_args[@]}" run-binary-fast BINARY="${CI_WORKLOAD_ROOT}/hello.riscv" LOADMEM=1
       ;;
     rocket-hello)
-      make "${common_args[@]}" run-binary-fast BINARY="${CI_WORKLOAD_ROOT}/hello.riscv"
+      make "${common_args[@]}" run-binary-fast BINARY="${CI_WORKLOAD_ROOT}/hello.riscv" LOADMEM=1
       ;;
     rocket-zephyr-hello)
       make "${common_args[@]}" run-binary-fast BINARY="${CI_WORKLOAD_ROOT}/zephyr/zephyr.elf" LOADMEM=1
