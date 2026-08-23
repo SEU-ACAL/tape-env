@@ -71,6 +71,7 @@ timeout "$sim_timeout" "$simv" \
   +max-cycles=0 \
   +notimingcheck \
   +spiflash0="$flash_image" \
+  +loadmem="$elf" \
   +permissive-off \
   "$elf" >"$log_file" 2>&1
 

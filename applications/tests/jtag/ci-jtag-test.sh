@@ -42,6 +42,7 @@ for required_file in "$simv" "$elf" "$dram_ini"; do
 done
 
 log_dir="$(mktemp -d "${TMPDIR:-/tmp}/chipyard-jtag-ci.XXXXXX")"
+flash_image="$log_dir/spiflash.img"
 sim_stdout="$log_dir/sim.stdout"
 sim_stderr="$log_dir/sim.stderr"
 openocd_log="$log_dir/openocd.log"
@@ -72,6 +73,11 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+# TapeoutConfig includes the SPI flash pad model for every peripheral test.
+# Mount an inert image so the model does not terminate the JTAG-only run at
+# time zero.
+"$python_bin" "$repo_root/applications/tests/spiflash.py" --outfile "$flash_image"
+
 printf 'CI JTAG: ELF=%s steps=%s memory=%s\n' \
   "$elf" "$stress_steps" "$stress_memory"
 
@@ -81,6 +87,8 @@ printf 'CI JTAG: ELF=%s steps=%s memory=%s\n' \
   +dramsim_ini_dir="$dram_ini" \
   +max-cycles=0 \
   +notimingcheck \
+  +spiflash0="$flash_image" \
+  +loadmem="$elf" \
   +jtag_rbb_enable=1 \
   +permissive-off \
   "$elf" >"$sim_stdout" 2>"$sim_stderr" &

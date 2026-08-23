@@ -16,7 +16,7 @@ timeout_polls="${I2C_TIMEOUT_POLLS:-1000000}"
 sim_timeout="${I2C_CI_TIMEOUT:-300}"
 build_test="${BUILD_TEST:-1}"
 
-for required in cmake timeout; do
+for required in cmake python3 timeout; do
   if ! command -v "$required" >/dev/null 2>&1; then
     printf 'CI I2C error: required command not found: %s\n' "$required" >&2
     exit 2
@@ -32,6 +32,7 @@ done
 
 work_dir="$(mktemp -d "${TMPDIR:-/tmp}/chipyard-i2c-ci.XXXXXX")"
 build_dir="$work_dir/build"
+flash_image="$work_dir/spiflash.img"
 log_file="$work_dir/i2c-vcs.log"
 
 cleanup() {
@@ -59,6 +60,11 @@ if [[ ! -e "$elf" ]]; then
   exit 2
 fi
 
+# TapeoutConfig includes the SPI flash pad model even for I2C-only tests. The
+# model requires a valid image plusarg at time zero, so provide an inert image
+# for this test as well.
+python3 "$script_dir/spiflash.py" --outfile "$flash_image"
+
 printf 'CI I2C: ELF=%s rounds=%s page_bytes=%s\n' \
   "$elf" "$rounds" "$page_bytes"
 
@@ -68,6 +74,8 @@ sim_args=(
   +dramsim_ini_dir="$dram_ini"
   +max-cycles=0
   +notimingcheck
+  +spiflash0="$flash_image"
+  +loadmem="$elf"
 )
 if [[ -n "$spiflash_image" ]]; then
   if [[ ! -e "$spiflash_image" ]]; then
