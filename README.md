@@ -122,10 +122,11 @@ make SIM=vcs CONFIG=RocketConfig run BINARY=/absolute/path/to/program.elf
 
 - TSMC 28nm：使用 `USE_TSMC28_SRAM=1`，默认库根目录为
   `/data2/TSMC28/Memory/SRAM`。
-- SMIC 180nm：使用 `USE_SMIC180_SRAM=1`，默认库根目录由
+- SMIC 180nm：`TapeoutConfig` 默认强制使用 `USE_SMIC180_SRAM=1`，库根目录由
   `soc-generator/generator/chipyard/chipyard.mk` 的 `SMIC180_SRAM_ROOT` 指定。
-- SMIC 180nm BootROM：`TapeoutConfig` 默认使用普通 `TLROM`，容量为 8 KiB；增加
-  `USE_SMIC180_ROM=1` 才使用 `S018VM_X64Y16D64_PM` ROM IP。默认 CDK 路径为
+- SMIC 180nm BootROM：`TapeoutConfig` 默认强制使用
+  `S018VM_X64Y16D64_PM` ROM IP，并以 `S018VM_X8Y16D64_PM` 替换 Debug ROM。
+  默认 CDK 路径为
   `/data2/smic180/S018VM_V0P1PC_CDK`，ROM IP 固定缓存于
   `/data2/smic180/rom-ip`；相同 BootROM/Debug ROM 内容会复用缓存，内容变化才重编。
   缓存根目录默认所有用户可写。P2E 配置不启用该替换。
@@ -144,11 +145,11 @@ make -C soc-generator/sims/vcs CONFIG=TapeoutConfig USE_SMIC180_SRAM=1 verilog
 make -C soc-generator/sims/vcs CONFIG=TapeoutConfig USE_SMIC180_SRAM=1
 ```
 
-使用 SMIC180 ROM IP：
+使用 SMIC180 ROM IP（`TapeoutConfig` 已默认启用）：
 
 ```sh
-make -C soc-generator/sims/vcs CONFIG=TapeoutConfig USE_SMIC180_ROM=1 verilog
-make -C soc-generator/sims/vcs CONFIG=TapeoutConfig USE_SMIC180_ROM=1
+make -C soc-generator/sims/vcs CONFIG=TapeoutConfig verilog
+make -C soc-generator/sims/vcs CONFIG=TapeoutConfig
 ```
 
 生成的 RTL 在：
