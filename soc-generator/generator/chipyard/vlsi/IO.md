@@ -1,7 +1,7 @@
 # SMIC180 IO Cell Replacement
 
-`TapeoutConfig` uses SP018RP pad cells directly. `TapeoutSimConfig` inherits
-the same IO replacement and adds the pad-connected SPI/I2C simulation models.
+`TapeoutConfig` uses SP018RP pad cells directly and attaches the pad-connected
+SPI/I2C simulation models in its VCS harness.
 
 | Chipyard IO type | SP018RP cell | Current instance count |
 | --- | --- | ---: |
@@ -19,18 +19,17 @@ pad-ring implementation flow.
 ## Tapeout Simulation
 
 All Tapeout simulations use the PDK IO functional model and therefore require
-VCS. The Makefile enables the PDK model automatically for `TapeoutConfig` and
-`TapeoutSimConfig`:
+VCS. The Makefile enables the PDK model automatically for `TapeoutConfig`:
 
 ```sh
 make -C soc-generator SIM=vcs CONFIG=TapeoutConfig run-binary \
   BINARY=<binary>
 ```
 
-To run the SPI flash/I2C EEPROM pad models, select `TapeoutSimConfig`:
+The SPI flash/I2C EEPROM pad models are included in `TapeoutConfig`:
 
 ```sh
-make -C soc-generator SIM=vcs CONFIG=TapeoutSimConfig \
+make -C soc-generator SIM=vcs CONFIG=TapeoutConfig \
   BINARY=<binary> run-binary
 ```
 

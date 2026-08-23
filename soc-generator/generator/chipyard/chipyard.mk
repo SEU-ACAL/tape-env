@@ -2,19 +2,19 @@
 # sequential memories with the corresponding hard SRAM macros.
 USE_TSMC28_SRAM ?= 0
 USE_SMIC180_SRAM ?= 0
-# Set USE_SMIC180_ROM=1 to replace TapeoutConfig's BootROM with the SMIC
-# S018VM macro. The default keeps the ordinary synthesizable TLROM. P2E
-# configurations are intentionally excluded below.
+# TapeoutConfig always uses the physical SMIC180 BootROM and Debug ROM macros.
+# The default for unrelated configurations remains the ordinary TLROM.
 USE_SMIC180_ROM ?= 0
 USE_SMIC180_IO ?= 0
 USE_SMIC180_STD ?= 0
 
-# TapeoutConfig and TapeoutSimConfig are the supported physical SMIC180
-# configurations.
-SMIC180_TAPEOUT_CONFIGS ?= TapeoutConfig TapeoutSimConfig
+# TapeoutConfig is the supported physical SMIC180 configuration.
+SMIC180_TAPEOUT_CONFIGS ?= TapeoutConfig
 ifneq ($(filter $(CONFIG),$(SMIC180_TAPEOUT_CONFIGS)),)
 override USE_SMIC180_IO := 1
 override USE_SMIC180_STD := 1
+override USE_SMIC180_SRAM := 1
+override USE_SMIC180_ROM := 1
 endif
 
 TSMC28_SRAM_ROOT ?= /data2/TSMC28/Memory/SRAM
@@ -31,9 +31,9 @@ SMIC180_SRAM_SIM_FILELIST ?= $(build_dir)/smic180_sram_sim.f
 SMIC180_SRAM_SIM_FLAGS ?= +notimingcheck
 SMIC180_SRAM_CONFIG_STAMP ?= $(build_dir)/.smic180-sram-config.stamp
 
-# TapeoutConfig uses SMIC S018VM BootROM and Debug ROM macros only when
-# explicitly enabled. The effective value is exported for the Chisel config;
-# checking CONFIG here also prevents P2E's HpecP2E* configs from enabling it.
+# Tapeout configurations use SMIC S018VM BootROM and Debug ROM macros. The
+# effective value is exported for the Chisel config; checking CONFIG here
+# prevents unrelated P2E configs from enabling it.
 SMIC180_ROM_ENABLED := $(if $(and $(filter TapeoutConfig,$(CONFIG)), $(filter 1 yes true,$(USE_SMIC180_ROM))),1,0)
 export SMIC180_ROM_ENABLED
 SMIC180_ROM_CDK_DIR ?= /data2/smic180/S018VM_V0P1PC_CDK

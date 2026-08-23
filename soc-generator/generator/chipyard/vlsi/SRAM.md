@@ -23,10 +23,10 @@ make -C soc-generator SIM=vcs USE_TSMC28_SRAM=1 verilog
 
 ## SMIC180
 
-设置 `USE_SMIC180_SRAM=1`，可将 `TapeoutConfig` 的顶层时序存储器替换为 SMIC S018SP 宏：
+`TapeoutConfig` 默认强制设置 `USE_SMIC180_SRAM=1`，将顶层时序存储器替换为 SMIC S018SP 宏：
 
 ```sh
-make -C soc-generator SIM=vcs USE_SMIC180_SRAM=1 verilog
+make -C soc-generator SIM=vcs CONFIG=TapeoutConfig verilog
 ```
 
 位于 `chipyard.mk` 默认路径的 SMIC 库提供 `TapeoutConfig` 所使用的六种宏尺寸。宏采用
@@ -39,14 +39,13 @@ make -C soc-generator SIM=vcs USE_SMIC180_SRAM=1 verilog
 
 ## SMIC180 BootROM
 
-`TapeoutConfig` 默认保留原来的可综合 ROM。设置 `USE_SMIC180_ROM=1` 后，会以
-S018VM 的固定 `1024x64` 宏 `S018VM_X64Y16D64_PM` 替换 BootROM，并以 `128x64`
+`TapeoutConfig` 默认强制使用 S018VM 的固定 `1024x64` 宏
+`S018VM_X64Y16D64_PM` 替换 BootROM，并以 `128x64`
 宏 `S018VM_X8Y16D64_PM` 替换 JTAG Debug Module 的 Debug ROM。后者物理容量为
 1 KiB，其中仅前 128B 是 Debug ROM 镜像，其余内容补零：
 
 ```sh
-make -C soc-generator/sims/verilator CONFIG=TapeoutConfig \
-  USE_SMIC180_ROM=1 verilog
+make -C soc-generator/sims/vcs CONFIG=TapeoutConfig verilog
 ```
 
 默认 CDK 目录为 `/data2/smic180/S018VM_V0P1PC_CDK`，可用
@@ -60,8 +59,8 @@ codefile 和 fingerprint。仅当对应 BootROM/Debug ROM 的内容、宏规格�
 执行 `chmod`，只要当前用户具备读、写和进入权限即可复用。可分别通过
 `SMIC180_ROM_CACHE_MODE` 和 `SMIC180_ROM_OUTPUT_MODE` 覆盖新建目录的权限。
 Debug ROM 使用同步 64-bit 宏，并在请求后的下一个周期返回对应的 64-bit word。
-`USE_SMIC180_ROM=0`（默认）不生成厂商 ROM
-模型。P2E 配置会忽略该选项，始终保留普通 ROM。S018VM compiler 需要 Java 8；默认 `nix develop` 会提供并设置
+非 `TapeoutConfig` 配置仍可通过 `USE_SMIC180_ROM=0` 保留普通 ROM；P2E 配置会忽略该选项，始终保留普通 ROM。
+S018VM compiler 需要 Java 8；默认 `nix develop` 会提供并设置
 `SMIC180_ROM_JAVA`。需要固定 Java 时可传 `SMIC180_ROM_JAVA=/path/to/java`。
 
 ## TapeoutConfig 检查

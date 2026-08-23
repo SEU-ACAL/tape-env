@@ -23,6 +23,20 @@ class WithSMIC180ClockGates extends Config((site, here, up) => {
   case ClockGateModelFile => Some("/vsrc/SMIC180ClockGate.v")
 })
 
+private object TapeoutSPIFlashModel {
+  val enabled: Boolean = sys.env.get("TAPEOUT_ENABLE_SPI_FLASH_MODEL").exists { value =>
+    value.trim.equalsIgnoreCase("1") ||
+      value.trim.equalsIgnoreCase("yes") ||
+      value.trim.equalsIgnoreCase("true")
+  }
+
+  val config: Config = if (enabled) {
+    new chipyard.harness.WithSimSPIFlashOnPads
+  } else {
+    new Config((_, _, _) => PartialFunction.empty[Any, Any])
+  }
+}
+
 /**
   * Tapeout target based on the current chip-like Rocket configuration.
   *
@@ -46,13 +60,15 @@ class TapeoutConfig extends Config(
   new chipyard.clocking.WithNdmResetInSystemReset ++
   new WithTapeoutSingleClock(100) ++
   new chipyard.harness.WithSimTSIOverSerialTL(fast = true) ++
-  // Keep tapeout-style pads while attaching the behavioral EEPROM in the
-  // simulation harness used by TapeoutConfig VCS regressions.
+  // Keep tapeout-style pads while attaching the behavioral SPI Flash and I2C
+  // models in the VCS harness used by TapeoutConfig regressions.
   new chipyard.harness.WithSimI2CEepromOnPads ++
+  TapeoutSPIFlashModel.config ++
   new chipyard.WithSerialConnect ++
 
-  // Replace AbstractConfig's SPI/I2C punchthrough ports with General IO cells.
-  new chipyard.iobinders.WithSPIIOCells ++
+  // Replace AbstractConfig's SPI/I2C punchthrough ports with tapeout IO cells
+  // while exposing the same pads to the behavioral VCS models.
+  new chipyard.iobinders.WithSimSPIIOCells ++
   new chipyard.iobinders.WithSimI2CIOCells ++
   // MMIO peripherals.  AbstractConfig supplies a default UART; replace it
   // here so this tapeout configuration owns the complete peripheral map.
@@ -68,16 +84,6 @@ class TapeoutConfig extends Config(
 
   new chipyard.config.AbstractConfig)
 
-
-/**
- * TapeoutConfig with pad-connected SPI and I2C simulation models. The SPI
- * flash still requires +spiflash0=<binary-image>; the I2C EEPROM is preloaded
- * with byte[i] = i.
-  */
-class TapeoutSimConfig extends Config(
-  new chipyard.harness.WithSimSPIFlashOnPads ++
-  new chipyard.iobinders.WithSimSPIIOCells ++
-  new TapeoutConfig)
 
 /**
   * Tapeout Rocket CPU + Pebble Buckyball accelerator (RoCC wire attach).

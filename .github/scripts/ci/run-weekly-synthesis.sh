@@ -27,11 +27,8 @@ case "${SYNTHESIS_TECH}" in
   smic180)
     CLOCK_PERIOD="${CLOCK_PERIOD:-10.0}"
     ;;
-  tsmc28)
-    CLOCK_PERIOD="${CLOCK_PERIOD:-1.0}"
-    ;;
   *)
-    echo "Unsupported SYNTHESIS_TECH: ${SYNTHESIS_TECH}" >&2
+    echo "Full-replacement synthesis CI requires SYNTHESIS_TECH=smic180" >&2
     exit 1
     ;;
 esac
@@ -282,15 +279,11 @@ run_in_nix '
   case "${SYNTHESIS_TECH}" in
     smic180)
       make -C soc-generator SIM=vcs CONFIG="${SYNTHESIS_CONFIG}" \
+        USE_SMIC180_IO=1 \
+        USE_SMIC180_STD=1 \
         USE_SMIC180_SRAM=1 \
         USE_SMIC180_ROM=1 \
         SMIC180_SRAM_ROOT="${SMIC180_SRAM_ROOT:-/data2/smic180/SRAM/S018SP_v0p1pc_CDK/SMIC180_S018SP_v0p1c_20260722}" \
-        verilog
-      ;;
-    tsmc28)
-      make -C soc-generator SIM=vcs CONFIG="${SYNTHESIS_CONFIG}" \
-        USE_TSMC28_SRAM=1 \
-        TSMC28_SRAM_ROOT="${TSMC28_SRAM_ROOT:-/data2/TSMC28/Memory/SRAM}" \
         verilog
       ;;
   esac
@@ -306,6 +299,20 @@ for required_file in "${HDL_FILELIST}" "${SRAM_WRAPPER_FILE}"; do
     exit 1
   fi
 done
+
+# The synthesis job is intentionally all-or-nothing: fail before Design
+# Compiler if any physical replacement was lost during RTL generation.
+for required_pattern in SMIC180DigitalInIOCell SMIC180DigitalOutIOCell SMIC180DigitalGPIOCell \
+  S018VM_X64Y16D64_PM chipyard_sram_; do
+  if ! rg -q "${required_pattern}" "${HDL_FILELIST}" "${SRAM_WRAPPER_FILE}" "${SOURCE_CODE_HOME}"; then
+    echo "Full-replacement RTL is missing required hard macro: ${required_pattern}" >&2
+    exit 1
+  fi
+done
+if rg -q '(^|/)TLROM\.sv$|module TLROM' "${HDL_FILELIST}"; then
+  echo "Full-replacement RTL still contains synthesizable TLROM" >&2
+  exit 1
+fi
 
 rm -rf "${FLOW_DIR}"
 mkdir -p "${FLOW_DIR}"
@@ -345,6 +352,22 @@ popd >/dev/null
 if [[ "${dc_status}" -ne 0 ]]; then
   echo "Design Compiler failed with exit status ${dc_status}" >&2
   exit "${dc_status}"
+fi
+
+netlist="$(find "${FLOW_DIR}/outputs/${run_label}" -type f -name "${TOP_MODULE}.v" -print -quit 2>/dev/null || true)"
+if [[ -z "${netlist}" ]]; then
+  echo "Full-replacement synthesis did not produce ${TOP_MODULE}.v" >&2
+  exit 1
+fi
+for required_cell in PIR POT8R PB8R S018VM_X64Y16D64_PM chipyard_sram_; do
+  if ! rg -q "${required_cell}" "${netlist}"; then
+    echo "Synthesized netlist is missing required physical macro/cell: ${required_cell}" >&2
+    exit 1
+  fi
+done
+if rg -q '(^|[[:space:]])TLROM([[:space:]]|\()|TLROM\.sv' "${netlist}"; then
+  echo "Synthesized netlist still contains synthesizable TLROM" >&2
+  exit 1
 fi
 
 if [[ -n "${GITHUB_ENV:-}" ]]; then

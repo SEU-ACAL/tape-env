@@ -8,25 +8,24 @@ source "${SCRIPT_DIR}/lib.sh"
 : "${CI_ARTIFACT_ROOT:?CI_ARTIFACT_ROOT must be set}"
 : "${CI_RESULT_ROOT:?CI_RESULT_ROOT must be set}"
 
-config="${CI_PERIPHERAL_CONFIG:-TapeoutConfig}"
-artifact_dir="${CI_ARTIFACT_ROOT}/${config}"
-simulator="simv-chipyard.harness-${config}"
-source_simulator="${artifact_dir}/${simulator}"
-source_runtime="${source_simulator}.daidir"
-
-for path in "$source_simulator" "$source_runtime"; do
-  if [[ ! -e "$path" ]]; then
-    printf 'Peripheral VCS artifact is missing: %s\n' "$path" >&2
-    exit 1
-  fi
-done
-
 run_test() {
   local testcase="$1"
-  shift
+  local config="$2"
+  shift 2
+  local artifact_dir="${CI_ARTIFACT_ROOT}/${config}"
+  local simulator="simv-chipyard.harness-${config}"
+  local source_simulator="${artifact_dir}/${simulator}"
+  local source_runtime="${source_simulator}.daidir"
   local result_dir="${CI_RESULT_ROOT}/${testcase}"
   local runtime_dir="${result_dir}/runtime"
   local started_at status finished_at
+
+  for path in "$source_simulator" "$source_runtime"; do
+    if [[ ! -e "$path" ]]; then
+      printf 'Peripheral VCS artifact is missing: %s\n' "$path" >&2
+      exit 1
+    fi
+  done
 
   mkdir -p "$result_dir"
   rm -rf "$runtime_dir"
@@ -57,6 +56,15 @@ run_i2c() {
     run_in_nix './applications/tests/ci-i2c-test.sh'
 }
 
+run_spi() {
+  SIMV="$1" \
+    SPI_FLASH_STRESS_ROUNDS="${SPI_FLASH_STRESS_ROUNDS:-16}" \
+    SPI_FLASH_STRESS_TRANSFER_BYTES="${SPI_FLASH_STRESS_TRANSFER_BYTES:-64}" \
+    SPI_FLASH_TIMEOUT_POLLS="${SPI_FLASH_TIMEOUT_POLLS:-1000000}" \
+    SPI_FLASH_CI_TIMEOUT="${SPI_FLASH_CI_TIMEOUT:-900}" \
+    run_in_nix './applications/tests/ci-spi-flash-test.sh'
+}
+
 run_jtag() {
   local simv="$1"
   run_in_nix 'make -C applications/tests/jtag all' || return
@@ -74,6 +82,7 @@ run_jtag() {
 }
 
 status=0
-run_test i2c run_i2c || status=1
-run_test jtag run_jtag || status=1
+run_test spi TapeoutConfig run_spi || status=1
+run_test i2c TapeoutConfig run_i2c || status=1
+run_test jtag TapeoutConfig run_jtag || status=1
 exit "$status"
