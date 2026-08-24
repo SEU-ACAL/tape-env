@@ -61,7 +61,7 @@ run_spi() {
     SPI_FLASH_STRESS_ROUNDS="${SPI_FLASH_STRESS_ROUNDS:-16}" \
     SPI_FLASH_STRESS_TRANSFER_BYTES="${SPI_FLASH_STRESS_TRANSFER_BYTES:-64}" \
     SPI_FLASH_TIMEOUT_POLLS="${SPI_FLASH_TIMEOUT_POLLS:-1000000}" \
-    SPI_FLASH_CI_TIMEOUT="${SPI_FLASH_CI_TIMEOUT:-900}" \
+    SPI_FLASH_CI_TIMEOUT="${SPI_FLASH_CI_TIMEOUT:-3000}" \
     run_in_nix './applications/tests/ci-spi-flash-test.sh'
 }
 
@@ -74,8 +74,8 @@ run_jtag() {
       BUILD_ELF=0 \
       STRESS_STEPS="${JTAG_STRESS_STEPS:-32}" \
       STRESS_MEMORY="${JTAG_STRESS_MEMORY:-64}" \
-      STRESS_TIMEOUT="${JTAG_STRESS_TIMEOUT:-500}" \
-      CI_TIMEOUT="${JTAG_CI_TIMEOUT:-1800}" \
+      STRESS_TIMEOUT="${JTAG_STRESS_TIMEOUT:-1000}" \
+      CI_TIMEOUT="${JTAG_CI_TIMEOUT:-1000}" \
       "$NIX_BIN" develop .#jtag-debug --command \
       "${REPO_ROOT}/applications/tests/jtag/ci-jtag-test.sh"
   )

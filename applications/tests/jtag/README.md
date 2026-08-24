@@ -31,7 +31,7 @@ Remote Bitbang transport. ROM ranges can be overridden with `BOOTROM_BASE`,
 `BOOTROM_SIZE`, `DEBUGROM_BASE`, `DEBUGROM_SIZE`, and `ROM_READ_CHUNK`.
 
 The CI wrapper uses `STRESS_TIMEOUT` for an individual RSP request and
-`CI_TIMEOUT` for the complete run; their defaults are 500 and 1800 seconds.
+`CI_TIMEOUT` for the complete run; their defaults are 1000 and 1000 seconds.
 Set `JTAG_COMMAND_TIMEOUT_SEC` to increase OpenOCD's system-bus command timeout
 when SMIC180 ROM simulation makes the first SBA DDR access slow; it defaults to
 500 seconds. For example:
