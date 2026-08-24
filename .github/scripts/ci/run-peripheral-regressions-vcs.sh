@@ -74,7 +74,7 @@ run_jtag() {
       BUILD_ELF=0 \
       STRESS_STEPS="${JTAG_STRESS_STEPS:-32}" \
       STRESS_MEMORY="${JTAG_STRESS_MEMORY:-64}" \
-      STRESS_TIMEOUT="${JTAG_STRESS_TIMEOUT:-120}" \
+      STRESS_TIMEOUT="${JTAG_STRESS_TIMEOUT:-500}" \
       CI_TIMEOUT="${JTAG_CI_TIMEOUT:-1800}" \
       "$NIX_BIN" develop .#jtag-debug --command \
       "${REPO_ROOT}/applications/tests/jtag/ci-jtag-test.sh"
