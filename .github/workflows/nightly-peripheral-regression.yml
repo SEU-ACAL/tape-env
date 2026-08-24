@@ -6,6 +6,17 @@ on:
     # the weekly synthesis starts at 02:00 on Monday.
     - cron: '0 16 * * *'
   workflow_dispatch:
+    inputs:
+      spi_timeout:
+        description: 'SPI flash regression timeout in seconds'
+        required: false
+        default: '1000'
+        type: number
+      jtag_timeout:
+        description: 'JTAG regression timeout in seconds'
+        required: false
+        default: '1000'
+        type: number
 
 permissions:
   contents: read
@@ -51,6 +62,9 @@ jobs:
             > "${CI_RUN_DIR}/vcs-build.log" 2>&1
 
       - name: Run SPI, I2C, and JTAG peripheral regressions
+        env:
+          SPI_FLASH_CI_TIMEOUT: ${{ inputs.spi_timeout || '1000' }}
+          JTAG_CI_TIMEOUT: ${{ inputs.jtag_timeout || '1000' }}
         run: |
           env \
             CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \

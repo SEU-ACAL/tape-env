@@ -12,6 +12,10 @@ JTAG RSP 压力测试（32 步、64 次内存操作）。三项测试全部使�
 因此不需要额外的 SPI Flash 镜像参数。
 测试失败时会上传各测试日志和保留的 VCS 运行目录。
 
+手动运行该工作流时，可以在 Actions 界面通过 `SPI flash regression timeout in seconds`
+和 `JTAG regression timeout in seconds` 设置超时（单位为秒，默认均为 1000）。定时运行
+未提供输入时也使用 1000 秒默认值。
+
 该工作流为下列配置构建 Verilator 仿真器：
 
 - `QuadChannelRocketConfig`
