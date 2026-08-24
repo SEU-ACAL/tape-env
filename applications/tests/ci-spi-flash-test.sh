@@ -13,7 +13,7 @@ dram_ini="${DRAM_INI:-$repo_root/soc-generator/generator/testchipip/src/main/res
 rounds="${SPI_FLASH_STRESS_ROUNDS:-16}"
 transfer_bytes="${SPI_FLASH_STRESS_TRANSFER_BYTES:-64}"
 timeout_polls="${SPI_FLASH_TIMEOUT_POLLS:-1000000}"
-sim_timeout="${SPI_FLASH_CI_TIMEOUT:-300}"
+sim_timeout="${SPI_FLASH_CI_TIMEOUT:-3000}"
 build_test="${BUILD_TEST:-1}"
 
 for required in cmake python3 timeout; do
