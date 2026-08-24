@@ -18,9 +18,15 @@ gdb_host="${GDB_HOST:-127.0.0.1}"
 gdb_port="${GDB_PORT:-3335}"
 stress_steps="${STRESS_STEPS:-32}"
 stress_memory="${STRESS_MEMORY:-64}"
-stress_timeout="${STRESS_TIMEOUT:-120}"
+stress_timeout="${STRESS_TIMEOUT:-500}"
 ci_timeout="${CI_TIMEOUT:-1800}"
 startup_timeout="${STARTUP_TIMEOUT:-30}"
+command_timeout="${JTAG_COMMAND_TIMEOUT_SEC:-500}"
+bootrom_base="${BOOTROM_BASE:-0x10000}"
+bootrom_size="${BOOTROM_SIZE:-0x2000}"
+debugrom_base="${DEBUGROM_BASE:-0x800}"
+debugrom_size="${DEBUGROM_SIZE:-0x80}"
+rom_read_chunk="${ROM_READ_CHUNK:-0x40}"
 build_elf="${BUILD_ELF:-1}"
 
 for required in "$openocd_bin" "$python_bin"; do
@@ -122,7 +128,7 @@ fi
   -c 'target create riscv.cpu riscv -chain-position riscv.cpu' \
   -c 'reset_config none' \
   -c 'riscv set_reset_timeout_sec 30' \
-  -c 'riscv set_command_timeout_sec 30' \
+  -c "riscv set_command_timeout_sec $command_timeout" \
   -c init >"$openocd_log" 2>&1 &
 openocd_pid=$!
 
@@ -164,6 +170,11 @@ timeout "$ci_timeout" "$python_bin" "$script_dir/jtag-rsp-stress.py" \
   --port "$gdb_port" \
   --steps "$stress_steps" \
   --memory "$stress_memory" \
+  --bootrom-base "$bootrom_base" \
+  --bootrom-size "$bootrom_size" \
+  --debugrom-base "$debugrom_base" \
+  --debugrom-size "$debugrom_size" \
+  --rom-read-chunk "$rom_read_chunk" \
   --timeout "$stress_timeout"
 
 printf 'CI JTAG PASS steps=%s memory=%s\n' "$stress_steps" "$stress_memory"
