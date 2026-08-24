@@ -17,6 +17,11 @@ on:
         required: false
         default: '1000'
         type: number
+      jtag_stress_timeout:
+        description: 'JTAG per-request RSP timeout in seconds'
+        required: false
+        default: '1000'
+        type: number
 
 permissions:
   contents: read
@@ -65,6 +70,7 @@ jobs:
         env:
           SPI_FLASH_CI_TIMEOUT: ${{ inputs.spi_timeout || '1000' }}
           JTAG_CI_TIMEOUT: ${{ inputs.jtag_timeout || '1000' }}
+          JTAG_STRESS_TIMEOUT: ${{ inputs.jtag_stress_timeout || '1000' }}
         run: |
           env \
             CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \
