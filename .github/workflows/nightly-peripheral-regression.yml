@@ -66,7 +66,7 @@ jobs:
             .github/scripts/ci/build-core-regressions-vcs.sh \
             > "${CI_RUN_DIR}/vcs-build.log" 2>&1
 
-      - name: Run SPI, I2C, and JTAG peripheral regressions
+      - name: Run SPI, I2C, and JTAG peripheral regressions in parallel
         env:
           SPI_FLASH_CI_TIMEOUT: ${{ inputs.spi_timeout || '1000' }}
           JTAG_CI_TIMEOUT: ${{ inputs.jtag_timeout || '1000' }}
