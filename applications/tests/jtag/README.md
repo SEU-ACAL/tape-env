@@ -34,8 +34,9 @@ The CI wrapper uses `STRESS_TIMEOUT` for an individual RSP request and
 `CI_TIMEOUT` for the complete run; their defaults are 1000 and 1000 seconds.
 Set `JTAG_COMMAND_TIMEOUT_SEC` to increase OpenOCD's system-bus command timeout
 when SMIC180 ROM simulation makes the first SBA DDR access slow; it defaults to
-500 seconds. For example:
+twice `STRESS_TIMEOUT` (2000 seconds by default). For example:
 
 ```sh
-JTAG_COMMAND_TIMEOUT_SEC=500 make -C applications/tests/jtag ci-jtag-test
+STRESS_TIMEOUT=3000 JTAG_COMMAND_TIMEOUT_SEC=6000 \
+  make -C applications/tests/jtag ci-jtag-test
 ```
