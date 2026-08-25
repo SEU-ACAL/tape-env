@@ -4,7 +4,7 @@
 目标分支为 `main` 的拉取请求中运行，也可以手动触发。
 
 `Nightly Peripheral Regression`（`.github/workflows/nightly-peripheral-regression.yml`）每天
-北京时间 00:00 运行，也可手动触发。它构建 `TapeoutConfig` VCS 仿真器，并串行执行 I2C
+北京时间 00:00 运行，也可手动触发。它构建 `TapeoutConfig` VCS 仿真器，并并行执行 I2C
 EEPROM 压力测试（4 轮、每轮 16 字节）、SPI Flash 压力测试（16 轮、每轮 64 字节）和
 JTAG RSP 压力测试（32 步、64 次内存操作）。三项测试全部使用同一个
 `TapeoutConfig`，其中 SPI Flash 和 I2C EEPROM 行为模型直接挂在该配置的 VCS harness 上。

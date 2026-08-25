@@ -82,7 +82,21 @@ run_jtag() {
 }
 
 status=0
-run_test spi TapeoutConfig run_spi || status=1
-run_test i2c TapeoutConfig run_i2c || status=1
-run_test jtag TapeoutConfig run_jtag || status=1
+test_pids=()
+
+# Each test gets its own copied VCS runtime directory in run_test, and the
+# I2C/SPI drivers build into per-test temporary directories.  They can therefore
+# run concurrently while still producing independent result.json files.
+run_test spi TapeoutConfig run_spi &
+test_pids+=("$!")
+run_test i2c TapeoutConfig run_i2c &
+test_pids+=("$!")
+run_test jtag TapeoutConfig run_jtag &
+test_pids+=("$!")
+
+for pid in "${test_pids[@]}"; do
+  if ! wait "$pid"; then
+    status=1
+  fi
+done
 exit "$status"
