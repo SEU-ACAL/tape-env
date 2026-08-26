@@ -90,12 +90,6 @@ if [[ ! -r "${benchmark_list}" ]]; then
 fi
 
 configs=(FDIPMegaBoomV3CosimPerfConfig MegaBoomV3PerfConfig)
-perf_names=(
-  cycles commit_instr branch_resolved branch_mispredict
-  control_flow_target_mispredict flush icache_demand_miss dcache_miss
-  dtlb_miss l2tlb_miss icache_prefetch ftq_full
-  ftq_metadata_conflict ftq_redirect_conflict
-)
 declare -A simulators
 for config in "${configs[@]}"; do
   simulator="${sim_dir}/simulator-chipyard.harness-${config}"
@@ -142,7 +136,7 @@ run_one() {
   local log="${run_dir}/sim.log"
   local perf_file="${run_dir}/xsperf.tsv"
   local status_file="${run_dir}/status"
-  local rc cycles status perf_count perf_complete expected_names actual_names
+  local rc cycles status perf_count perf_complete
 
   mkdir -p "${run_dir}"
   printf '[start] %-28s %-32s log=%s\n' "${config}" "${benchmark}" "${log}"
@@ -173,10 +167,12 @@ run_one() {
     : >"${perf_file}"
   fi
   perf_count="$(wc -l <"${perf_file}")"
+  # Dynamic XSPerf records the complete module hierarchy. Require the two
+  # primary leaf event names used for cycle/instruction comparisons, but allow
+  # additional counters to be added without changing this runner.
   perf_complete=0
-  expected_names="$(printf '%s\n' "${perf_names[@]}" | sort)"
-  actual_names="$(cut -f1 "${perf_file}" | sort -u)"
-  if [[ "${perf_count}" -eq "${#perf_names[@]}" && "${actual_names}" == "${expected_names}" ]]; then
+  if [[ "${perf_count}" -gt 0 ]] && \
+      awk '$1 ~ /(^|\.)cycles$/ { cycles=1 } $1 ~ /(^|\.)commit_instr$/ { instr=1 } END { exit !(cycles && instr) }' "${perf_file}"; then
     perf_complete=1
   fi
 
@@ -199,9 +195,9 @@ run_one() {
   fi
   printf 'status=%s\ncycles=%s\nexit=%s\nxsperf_count=%s\n' \
     "${status}" "${cycles}" "${rc}" "${perf_count}" > "${status_file}"
-  printf '[done ] %-34s %-32s status=%s cycles=%s xsperf=%s/%s\n' \
+  printf '[done ] %-34s %-32s status=%s cycles=%s xsperf=%s\n' \
     "${config}" "${benchmark}" "${status}" "${cycles:-n/a}" \
-    "${perf_count}" "${#perf_names[@]}"
+    "${perf_count}"
 }
 
 pids=()
@@ -222,7 +218,7 @@ done
 summary="${run_root}/summary.tsv"
 printf 'benchmark\tfdip_status\tfdip_cycles\tboomv3_status\tboomv3_cycles\tfdip_over_boomv3\n' > "${summary}"
 perf_summary="${run_root}/xsperf-summary.tsv"
-printf 'benchmark\tconfig\tstatus\t%s\n' "$(IFS=$'\t'; printf '%s' "${perf_names[*]}")" > "${perf_summary}"
+printf 'benchmark\tconfig\tstatus\tname\tvalue\n' > "${perf_summary}"
 failures=0
 while IFS= read -r benchmark; do
   [[ -n "${benchmark}" ]] || continue
@@ -248,16 +244,14 @@ while IFS= read -r benchmark; do
       source "${run_dir}/status"
       status_value="${status:-unknown}"
     }
-    values=()
-    for name in "${perf_names[@]}"; do
-      value=""
-      if [[ -r "${run_dir}/xsperf.tsv" ]]; then
-        value="$(awk -v key="${name}" '$1 == key { value=$2 } END { print value }' "${run_dir}/xsperf.tsv")"
-      fi
-      values+=("${value}")
-    done
-    printf '%s\t%s\t%s\t%s\n' "${benchmark}" "${config}" "${status_value}" \
-      "$(IFS=$'\t'; printf '%s' "${values[*]}")" >> "${perf_summary}"
+    if [[ -r "${run_dir}/xsperf.tsv" ]]; then
+      while IFS=$'\t' read -r name value; do
+        [[ -n "${name}" ]] || continue
+        printf '%s\t%s\t%s\t%s\t%s\n' \
+          "${benchmark}" "${config}" "${status_value}" "${name}" "${value}" \
+          >> "${perf_summary}"
+      done < "${run_dir}/xsperf.tsv"
+    fi
   done
   [[ "${fdip_status_value}" == passed && "${boom_status_value}" == passed ]] || failures=1
 done < "${benchmark_list}"

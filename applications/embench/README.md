@@ -44,8 +44,9 @@ below one means FDIP used fewer RTL cycles.
 
 The runner prints a `[start]` line for every process and a `[done]` line when it
 finishes. Each run directory contains `sim.log`, `xsperf.tsv`, and `status`;
-the top-level `xsperf-summary.tsv` contains all 14 counters for every
-benchmark/config pair. During a long run, inspect the printed per-run `sim.log`
+the top-level `xsperf-summary.tsv` contains one row per dynamically registered
+counter and benchmark/config pair. Counter names include the Verilog module
+hierarchy, so counters with the same leaf name remain distinguishable. During a long run, inspect the printed per-run `sim.log`
 path, for example:
 
 ```sh
