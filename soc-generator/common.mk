@@ -417,13 +417,21 @@ run-binary-fast: check-binary $(BINARY).run.fast
 run-binaries-fast: check-binaries $(addsuffix .run.fast,$(wildcard $(BINARIES)))
 
 %.run.fast: %.check-exists $(SIM_PREREQ) | $(output_dir)
-	(set -o pipefail && $(NUMA_PREFIX) $(sim) \
+	( set -o pipefail; \
+	  $(NUMA_PREFIX) $(sim) \
 		$(PERMISSIVE_ON) \
 		$(call get_common_sim_flags,$*) \
 		$(PERMISSIVE_OFF) \
 		$* \
 		$(BINARY_ARGS) \
-		</dev/null | tee $(call get_sim_out_name,$*).log)
+		</dev/null 2>&1 | tee $(call get_sim_out_name,$*).log; \
+	  pipe_status=($${PIPESTATUS[@]}); \
+	  sim_status=$${pipe_status[0]}; tee_status=$${pipe_status[1]}; \
+	  if [ "$${sim_status}" -ne 0 ] || [ "$${tee_status}" -ne 0 ] || grep -Fq "*** FAILED ***" "$(call get_sim_out_name,$*).log"; then \
+	    printf 'Simulation failed for %s (sim_status=%s, tee_status=%s)\n' "$*" "$${sim_status}" "$${tee_status}" >&2; \
+	    exit 1; \
+	  fi; \
+	  touch "$@" )
 
 # run simulator with as much debug info as possible
 run-binary-debug: check-binary $(BINARY).run.debug
