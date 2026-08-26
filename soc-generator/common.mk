@@ -482,8 +482,17 @@ $(output_dir)/%: $(RISCV)/riscv64-unknown-elf/share/riscv-tests/isa/% | $(output
 	ln -sf $< $@
 endif
 
+# VCS may return zero after TestDriver invokes $fatal on a timeout, so inspect the log too.
 $(output_dir)/%.run: $(output_dir)/% $(SIM_PREREQ)
-	(set -o pipefail && $(NUMA_PREFIX) $(sim) $(PERMISSIVE_ON) $(call get_common_sim_flags,$<) $(PERMISSIVE_OFF)  $< </dev/null | tee $<.log) && touch $@
+	( set -o pipefail; \
+	  $(NUMA_PREFIX) $(sim) $(PERMISSIVE_ON) $(call get_common_sim_flags,$<) $(PERMISSIVE_OFF)  $< </dev/null 2>&1 | tee $<.log; \
+	  pipe_status=($${PIPESTATUS[@]}); \
+	  sim_status=$${pipe_status[0]}; tee_status=$${pipe_status[1]}; \
+	  if [ "$${sim_status}" -ne 0 ] || [ "$${tee_status}" -ne 0 ] || grep -Fq "*** FAILED ***" "$<.log"; then \
+	    printf 'Simulation failed for %s (sim_status=%s, tee_status=%s)\n' "$<" "$${sim_status}" "$${tee_status}" >&2; \
+	    exit 1; \
+	  fi; \
+	  touch "$@" )
 
 $(output_dir)/%.out: $(output_dir)/% $(SIM_PREREQ)
 	(set -o pipefail && $(NUMA_PREFIX) $(sim) $(PERMISSIVE_ON) $(call get_common_sim_flags,$<) $(PERMISSIVE_OFF) $< </dev/null 2> >(spike-dasm > $@) | tee $<.log)
