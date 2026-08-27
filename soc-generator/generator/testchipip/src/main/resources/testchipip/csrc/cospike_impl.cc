@@ -89,6 +89,7 @@ sim_t* sim = NULL;
 bool cospike_debug;
 bool cospike_enable = true;
 bool cospike_printf = true;
+bool cospike_clean_exit = false;
 reg_t tohost_addr = 0;
 reg_t fromhost_addr = 0;
 reg_t cospike_timeout = 0;
@@ -162,11 +163,19 @@ void cospike_set_sysinfo(char* isa, char* priv, int pmpregions, int maxpglevels,
 	cospike_printf = strtoull(arg.substr(16).c_str(), 0, 10) != 0;
       } else if (arg.find("+cospike-enable=") == 0) {
 	cospike_enable = strtoull(arg.substr(16).c_str(), 0, 10) != 0;
+      } else if (arg == "+cospike-clean-exit") {
+        cospike_clean_exit = true;
+      } else if (arg.find("+cospike-clean-exit=") == 0) {
+        cospike_clean_exit = strtoull(arg.substr(20).c_str(), 0, 10) != 0;
       } else if (!in_permissive) {
         info->htif_args.push_back(arg);
       }
     }
   }
+}
+
+bool cospike_clean_exit_requested() {
+  return cospike_clean_exit;
 }
 
 void cospike_register_memory(unsigned long long int base,
