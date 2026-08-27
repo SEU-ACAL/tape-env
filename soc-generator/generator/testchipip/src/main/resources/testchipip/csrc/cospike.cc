@@ -2,6 +2,7 @@
 #include <string>
 #include <vpi_user.h>
 #include <svdpi.h>
+#include <verilated.h>
 
 #include "cospike_impl.h"
 
@@ -69,7 +70,14 @@ extern "C" void cospike_cosim_wrapper(long long int cycle,
     wdata,
     priv
   );
-  if (rval) exit(rval);
+  if (rval) {
+    if (cospike_clean_exit_requested()) {
+      // exit() bypasses Verilator final(), which otherwise drains the FST writer.
+      Verilated::gotFinish(true);
+      return;
+    }
+    exit(rval);
+  }
 }
 
 extern "C" void cospike_register_memory_wrapper(long long int base,

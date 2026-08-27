@@ -36,4 +36,7 @@ void cospike_register_memory(
   unsigned long long int base,
   unsigned long long int size);
 
+// True when a cosim mismatch should let Verilator close waveform writers first.
+bool cospike_clean_exit_requested();
+
 #endif // __COSPIKE_IMPL_H
