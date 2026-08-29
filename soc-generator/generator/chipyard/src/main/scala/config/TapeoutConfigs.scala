@@ -4,6 +4,7 @@ import org.chipsalliance.cde.config.Config
 import testchipip.soc.{OBUS}
 import freechips.rocketchip.subsystem.{MBUS}
 import chipyard.buckyball.WithPebbleBuckyballRoCC
+import freechips.rocketchip.devices.debug.DebugModuleKey
 import freechips.rocketchip.util.{ClockGate, ClockGateImpl, ClockGateModelFile}
 import chipyard.iobinders.IOCellKey
 import chipyard.iocell.SMIC180IOCellParams
@@ -21,6 +22,11 @@ class SMIC180ClockGate extends ClockGate {
 class WithSMIC180ClockGates extends Config((site, here, up) => {
   case ClockGateImpl => () => new SMIC180ClockGate
   case ClockGateModelFile => Some("/vsrc/SMIC180ClockGate.v")
+})
+
+/** Keep the Debug Module inner clock running for Tapeout JTAG bring-up. */
+class WithNoDebugClockGate extends Config((site, here, up) => {
+  case DebugModuleKey => up(DebugModuleKey).map(_.copy(clockGate = false))
 })
 
 private object TapeoutSPIFlashModel {
@@ -52,6 +58,7 @@ class TapeoutConfig extends Config(
   new chipyard.config.WithBootROM(size = 0x2000) ++
   // All Tapeout configurations use SMIC physical clock gates and IO wrappers.
   new WithSMIC180ClockGates ++
+  new WithNoDebugClockGate ++
   new WithSMIC180IOCells ++
   new freechips.rocketchip.subsystem.WithoutTLMonitors ++
   new WithTapeoutRocket ++
