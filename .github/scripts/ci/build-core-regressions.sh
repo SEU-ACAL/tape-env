@@ -53,7 +53,7 @@ git -C "${REPO_ROOT}" submodule sync --recursive
 # submodules are sufficient.
 git -C "${REPO_ROOT}" submodule update --init \
   soc-generator/generator/gemmini \
-  soc-generator/generator/buckyball
+  soc-generator/generator/buckyball/src
 
 # SBT and Coursier updates are not safe to share between independent builder
 # workspaces. Keep reusable caches local to one self-hosted runner.

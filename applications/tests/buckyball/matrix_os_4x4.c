@@ -1,4 +1,4 @@
-#include "matrix_test_common.h"
+#include "matrix_common.h"
 
 #define M 4
 #define N 4
@@ -21,7 +21,7 @@ int main(void) {
   matrix_pack_a(a, pa, M, K);
   matrix_pack_b(b, pb, K, N);
   clear_u32_matrix(pc, M, MATRIX_ACC_LANES);
-  matrix_hw_mnk(pa, pb, pc, M, N, K, 0);
+  matrix_hw_os(pa, pb, pc, M, N, K);
   matrix_unpack_c(pc, out, M, N);
   if (!compare_u32_matrices(out, exp_, M, N)) {
     printf("matrix_os_4x4 FAILED\n");

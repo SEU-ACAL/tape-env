@@ -96,31 +96,9 @@ add_executable(triple-chiplet triple-chiplet.c)
 # Buckyball (Pebble) RoCC tests
 #################################
 
-set(BB_ROOT "${CMAKE_SOURCE_DIR}/../../soc-generator/generator/buckyball")
-set(BB_LIB "${BB_ROOT}/bb-tests/workloads/lib")
-set(BB_COMMON "${BB_ROOT}/examples/chips/toy/workloads/common")
-set(BB_MATRIX_CTESTS "${BB_ROOT}/examples/balls/matrix/workloads/ctests")
-
+set(BB_LIB "${CMAKE_SOURCE_DIR}/../../soc-generator/generator/buckyball/src/bb-tests/workloads/lib")
 if(EXISTS "${BB_LIB}/bbhw/isa/isa.h")
-  set(BB_RUNTIME
-    "${CMAKE_SOURCE_DIR}/buckyball/util.c"
-    "${BB_LIB}/bbhw/mem/mem.c"
-  )
-  set(BB_INCLUDES
-    "${BB_LIB}"
-    "${BB_COMMON}"
-    "${BB_MATRIX_CTESTS}"
-  )
-
-  function(add_buckyball_test target_name source_file)
-    add_executable(${target_name} ${source_file} ${BB_RUNTIME})
-    target_include_directories(${target_name} PRIVATE ${BB_INCLUDES})
-  endfunction()
-
-  add_buckyball_test(bb-mvin-mvout buckyball/mvin_mvout.c)
-  add_buckyball_test(bb-transpose-i8-16x16 buckyball/transpose_i8_16x16.c)
-  add_buckyball_test(bb-matrix-os-4x4 buckyball/matrix_os_4x4.c)
-  set(BB_DUMP_TARGETS bb-mvin-mvout bb-transpose-i8-16x16 bb-matrix-os-4x4)
+  add_subdirectory(buckyball)
 else()
   message(STATUS "Skipping Buckyball tests (run ./init-submodules.sh --buckyball)")
   set(BB_DUMP_TARGETS)

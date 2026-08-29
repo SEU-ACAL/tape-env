@@ -149,7 +149,7 @@ if [[ "$ENABLE_FULL" -eq 1 ]]; then
 else
     excluded_submodules=(
         soc-generator/generator/gemmini
-        soc-generator/generator/buckyball
+        soc-generator/generator/buckyball/src
         soc-generator/generator/rocket-chip
         applications/zephyr
         applications/linux-workloads/buildroot
@@ -200,7 +200,15 @@ else
     fi
 
     if [[ "$ENABLE_BUCKYBALL" -eq 1 ]]; then
-        update_submodule soc-generator/generator/buckyball
+        update_submodule soc-generator/generator/buckyball/src
+        bb_pb_src="$RDIR/soc-generator/generator/buckyball/configs/pebble.chip.pb"
+        bb_pb_dst="$RDIR/soc-generator/generator/buckyball/src/examples/chips/pebble/configs/generated/chip.pb"
+        if [[ ! -f "$bb_pb_src" ]]; then
+            echo "ERROR: missing vendored pebble chip.pb: $bb_pb_src" >&2
+            exit 1
+        fi
+        mkdir -p "$(dirname "$bb_pb_dst")"
+        cp -f "$bb_pb_src" "$bb_pb_dst"
     fi
 
     if [[ "$ENABLE_LINUX" -eq 1 ]]; then

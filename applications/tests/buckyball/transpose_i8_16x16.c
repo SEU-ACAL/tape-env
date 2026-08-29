@@ -1,4 +1,5 @@
 #include "buckyball.h"
+#include "transpose.h"
 #include <bbhw/isa/isa.h>
 #include <bbhw/mem/mem.h>
 #include <stdio.h>
