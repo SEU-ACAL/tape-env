@@ -1,6 +1,8 @@
 chipyard_sram_32x22/chipyard_sram_32x22.v
+chipyard_sram_32x128/chipyard_sram_32x128.v
 chipyard_sram_64x21/chipyard_sram_64x21.v
 chipyard_sram_64x22/chipyard_sram_64x22.v
 chipyard_sram_512x8/chipyard_sram_512x8.v
 chipyard_sram_512x32/chipyard_sram_512x32.v
 chipyard_sram_512x64/chipyard_sram_512x64.v
+chipyard_sram_1024x8/chipyard_sram_1024x8.v

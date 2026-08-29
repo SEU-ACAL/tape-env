@@ -298,8 +298,11 @@ lazy val buckyball = withInitCheck(
   .settings(
     libraryDependencies ++= Seq(
       "com.lihaoyi" %% "upickle" % "3.3.1",
-      "tech.sparse" %% "toml-scala" % "0.2.2"
+      "tech.sparse" %% "toml-scala" % "0.2.2",
+      "com.google.protobuf" % "protobuf-java" % "4.35.1"
     ),
+    Compile / unmanagedSourceDirectories +=
+      (ThisBuild / baseDirectory).value / "generator" / "buckyball" / "generated" / "proto",
     Compile / unmanagedSourceDirectories ++= {
       val root = (ThisBuild / baseDirectory).value / "generator" / "buckyball" / "src" / "examples"
       val balls = ((root / "balls") * "*" / "arch" / "src" / "main" / "scala").get

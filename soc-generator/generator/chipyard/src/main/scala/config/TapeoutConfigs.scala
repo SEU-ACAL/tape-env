@@ -54,6 +54,8 @@ class TapeoutConfig extends Config(
   new WithSMIC180ClockGates ++
   new WithSMIC180IOCells ++
   new freechips.rocketchip.subsystem.WithoutTLMonitors ++
+  // If we don't have enough space, just comment this line below
+  new WithPebbleBuckyballRoCC ++
   new WithTapeoutRocket ++
   // AbstractConfig adds an MBUS scratchpad; remove all subsystem scratchpads.
   new testchipip.soc.WithNoScratchpads ++
@@ -83,15 +85,6 @@ class TapeoutConfig extends Config(
   new chipyard.config.WithGPIO(address = 0x10010000, width = 8) ++
 
   new chipyard.config.AbstractConfig)
-
-
-/**
-  * Tapeout Rocket CPU + Pebble Buckyball accelerator (RoCC wire attach).
-  */
-class TapeoutBuckyballPebbleConfig extends Config(
-  new WithPebbleBuckyballRoCC ++
-  new chipyard.config.WithSystemBusWidth(128) ++
-  new TapeoutConfig)
 
 
 // Rocket tile and cache sizing for the tapeout target.

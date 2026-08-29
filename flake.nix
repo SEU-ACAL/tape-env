@@ -340,6 +340,8 @@ EOF
 
         jtagGdb = gcc11Pkgs.gdb;
 
+        sbt = pkgs.sbt.override { jre = pkgs.jdk17_headless; };
+
         riscvGdb = pkgs.writeShellScriptBin "riscv64-unknown-elf-gdb" ''
           exec ${jtagGdb}/bin/gdb "$@"
         '';
@@ -414,11 +416,12 @@ EOF
             # Keep it on the existing nixpkgs-gcc11 input, whose 2.0.16 package supports it.
             gcc11Pkgs.numactl
             pkgs.perl
+            pkgs.protobuf
             firemarshalPython
             pkgs.python3Packages.pyelftools
             pkgs.python3Packages.west
             pkgs.ctags
-            pkgs.sbt
+            sbt
             gcc11Pkgs.clang
             clangVerilator
             pkgs.which
