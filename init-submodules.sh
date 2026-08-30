@@ -149,7 +149,7 @@ if [[ "$ENABLE_FULL" -eq 1 ]]; then
 else
     excluded_submodules=(
         soc-generator/generator/gemmini
-        soc-generator/generator/buckyball
+        soc-generator/generator/buckyball/src
         soc-generator/generator/rocket-chip
         applications/zephyr
         applications/linux-workloads/buildroot
@@ -200,7 +200,33 @@ else
     fi
 
     if [[ "$ENABLE_BUCKYBALL" -eq 1 ]]; then
-        update_submodule soc-generator/generator/buckyball
+        update_submodule soc-generator/generator/buckyball/src
+        bb_pb_src="$RDIR/soc-generator/generator/buckyball/configs/pebble.chip.pb"
+        bb_pb_dst="$RDIR/soc-generator/generator/buckyball/src/examples/chips/pebble/configs/generated/chip.pb"
+        if [[ ! -f "$bb_pb_src" ]]; then
+            echo "ERROR: missing vendored pebble chip.pb: $bb_pb_src" >&2
+            exit 1
+        fi
+        mkdir -p "$(dirname "$bb_pb_dst")"
+        cp -f "$bb_pb_src" "$bb_pb_dst"
+
+        bb_proto="$RDIR/soc-generator/generator/buckyball/configs/chip.proto"
+        bb_java_out="$RDIR/soc-generator/generator/buckyball/generated/proto"
+        if [[ ! -f "$bb_proto" ]]; then
+            echo "ERROR: missing vendored chip.proto: $bb_proto" >&2
+            exit 1
+        fi
+        if ! command -v protoc >/dev/null; then
+            echo "ERROR: protoc not found; run ./init-submodules.sh --buckyball inside nix develop" >&2
+            exit 1
+        fi
+        rm -rf "$bb_java_out"
+        mkdir -p "$bb_java_out"
+        protoc -I "$(dirname "$bb_proto")" --java_out="$bb_java_out" "$bb_proto"
+        if [[ -z "$(find "$bb_java_out" -name '*.java' -print -quit)" ]]; then
+            echo "ERROR: protoc produced no Java files: $bb_java_out" >&2
+            exit 1
+        fi
     fi
 
     if [[ "$ENABLE_LINUX" -eq 1 ]]; then

@@ -14,20 +14,20 @@ import freechips.rocketchip.tilelink.{
   TLBuffer, TLClientNode, TLClientParameters, TLMasterPortParameters, TLWidthWidget, TLXbar, TLIdentityNode
 }
 
-import framework.system.configloader.TomlConfigLoader
+import framework.system.configloader.ChipLoader
 import framework.system.core.accelerator.BuckyballAccelerator
 import framework.system.core.rocket.RoCCCommandBB
 import framework.system.tile.BarrierUnit
 import framework.top.GlobalConfig
 
 object BuckyballRoCC {
-  def loadCfg(tomlPath: String): GlobalConfig = {
-    val topo = TomlConfigLoader.load(tomlPath)
-    require(topo.tiles.nonEmpty, s"no tiles in $tomlPath")
-    require(topo.tiles.size == 1, s"RoCC attach expects 1 tile, got ${topo.tiles.size} in $tomlPath")
+  def loadCfg(pbPath: String): GlobalConfig = {
+    val topo = ChipLoader.load(pbPath)
+    require(topo.tiles.nonEmpty, s"no tiles in $pbPath")
+    require(topo.tiles.size == 1, s"RoCC attach expects 1 tile, got ${topo.tiles.size} in $pbPath")
     val cores = topo.tiles.head.cores.flatten
-    require(cores.nonEmpty, s"no Buckyball cores in $tomlPath")
-    require(cores.size == 1, s"RoCC attach expects 1 Buckyball core, got ${cores.size} in $tomlPath")
+    require(cores.nonEmpty, s"no Buckyball cores in $pbPath")
+    require(cores.size == 1, s"RoCC attach expects 1 Buckyball core, got ${cores.size} in $pbPath")
     cores.head
   }
 
@@ -182,6 +182,7 @@ class BuckyballLazyRoCCModule(outer: BuckyballLazyRoCC) extends LazyRoCCModuleIm
   when (acc.io.shared_config.valid) {
     assert(false.B, "Buckyball shared config emitted while sharedMem is disabled")
   }
+  require(acc.io.shared_mem_req.isEmpty, "BuckyballLazyRoCC only supports sharedMem.enable=false (Pebble-style)")
 
   val barrier = Module(new BarrierUnit(1))
   barrier.io.arrive(0)   := acc.io.barrier_arrive
@@ -190,10 +191,10 @@ class BuckyballLazyRoCCModule(outer: BuckyballLazyRoCC) extends LazyRoCCModuleIm
 
 /** Attach Pebble Buckyball as RoCC on a standard Rocket tile. */
 class WithPebbleBuckyballRoCC(
-  tomlPath: String = "generator/buckyball/examples/chips/pebble/configs/pebble.toml"
+  pbPath: String = "generator/buckyball/src/examples/chips/pebble/configs/generated/chip.pb"
 ) extends Config((site, here, up) => {
   case BuildRoCC =>
-    val cfg = BuckyballRoCC.loadCfg(tomlPath)
+    val cfg = BuckyballRoCC.loadCfg(pbPath)
     up(BuildRoCC) ++ Seq((p: Parameters) => {
       implicit val q = p
       LazyModule(new BuckyballLazyRoCC(cfg))

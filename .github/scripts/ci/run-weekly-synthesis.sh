@@ -260,7 +260,7 @@ git -C "${REPO_ROOT}" submodule sync --recursive
 # The Chipyard build definition aggregates both optional accelerators.
 git -C "${REPO_ROOT}" submodule update --init \
   soc-generator/generator/gemmini \
-  soc-generator/generator/buckyball
+  soc-generator/generator/buckyball/src
 
 mkdir -p "${CI_CLASSPATH_CACHE}" "${CI_COURSIER_CACHE}" \
   "${SBT_CACHE_ROOT}/ivy" "${SBT_CACHE_ROOT}/global" "${SBT_CACHE_ROOT}/boot"

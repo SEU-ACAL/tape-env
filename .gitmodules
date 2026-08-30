@@ -35,6 +35,6 @@
 [submodule "applications_linux_buildroot"]
 	path = applications/linux-workloads/buildroot
 	url = https://github.com/buildroot/buildroot.git
-[submodule "soc-generator/generator/buckyball"]
-	path = soc-generator/generator/buckyball
+[submodule "soc-generator/generator/buckyball/src"]
+	path = soc-generator/generator/buckyball/src
 	url = https://github.com/DangoSys/buckyball.git

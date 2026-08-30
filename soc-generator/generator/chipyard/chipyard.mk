@@ -209,9 +209,7 @@ $(SMIC180_ROM_SIM_FILELIST): $(SMIC180_ROM_MACRO_V) $(SMIC180_DEBUG_ROM_MACRO_V)
 	printf '%s\n%s\n' '$(SMIC180_ROM_MACRO_V)' '$(SMIC180_DEBUG_ROM_MACRO_V)' > $@
 endif
 
-ifneq ($(findstring Buckyball,$(CONFIG)),)
 EXTRA_SIM_SOURCES += $(base_dir)/generator/chipyard/src/main/resources/csrc/buckyball_dpi.cc
-endif
 ifeq ($(USE_SMIC180_IO),1)
 EXT_FILELISTS += $(SMIC180_IO_SIM_FILELIST)
 EXTRA_SIM_PREPROC_DEFINES += $(SMIC180_IO_SIM_PREPROC_DEFINES)

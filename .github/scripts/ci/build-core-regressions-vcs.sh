@@ -44,7 +44,7 @@ git -C "${REPO_ROOT}" submodule sync --recursive
 # root submodules are sufficient for the VCS regression build.
 git -C "${REPO_ROOT}" submodule update --init \
   soc-generator/generator/gemmini \
-  soc-generator/generator/buckyball
+  soc-generator/generator/buckyball/src
 
 CI_CACHE_KEY="${RUNNER_NAME:-${HOSTNAME:-local}}"
 SBT_CACHE_ROOT="${CI_CACHE_ROOT}/sbt/${CI_CACHE_KEY}"
@@ -65,7 +65,7 @@ run_in_nix '
   export COURSIER_CACHE="${CI_COURSIER_CACHE}"
   export CLASSPATH_CACHE="${CI_CLASSPATH_CACHE}"
   export SBT_OPTS="${CI_SBT_OPTS}"
-  ./init-submodules.sh
+  nix develop --command ./init-submodules.sh --buckyball
 
   remove_invalid_jars() {
     while IFS= read -r -d "" jar; do

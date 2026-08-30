@@ -29,7 +29,7 @@ make -C soc-generator SIM=vcs USE_TSMC28_SRAM=1 verilog
 make -C soc-generator SIM=vcs CONFIG=TapeoutConfig verilog
 ```
 
-位于 `chipyard.mk` 默认路径的 SMIC 库提供 `TapeoutConfig` 所使用的六种宏尺寸。宏采用
+位于 `chipyard.mk` 默认路径的 SMIC 库提供 `TapeoutConfig` 所使用的六种宏尺寸，以及 Pebble Buckyball 的两种尺寸。宏采用
 `CLK/CEN/WEN/A/D/Q` 接口，其中 `CEN` 和 `WEN` 为低有效。`smic180_sram_sim.sources` 会展开为
 对应 Verilog 模型。默认 `SMIC180_SRAM_SIM_FLAGS=+notimingcheck` 保留功能仿真并关闭库的时序
 检查；时序签核应使用 SDF 或 STA。可通过 `SMIC180_SRAM_ROOT`、`SMIC180_SRAM_MDF`、
