@@ -275,7 +275,7 @@ run_in_nix '
   export COURSIER_CACHE="${CI_COURSIER_CACHE}"
   export CLASSPATH_CACHE="${CI_CLASSPATH_CACHE}"
   export SBT_OPTS="${CI_SBT_OPTS}"
-  ./init-submodules.sh
+  ./init-submodules.sh --buckyball
   case "${SYNTHESIS_TECH}" in
     smic180)
       make -C soc-generator SIM=vcs CONFIG="${SYNTHESIS_CONFIG}" \
