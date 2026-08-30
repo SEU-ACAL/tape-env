@@ -23,6 +23,14 @@ mkdir -p "${CI_RESULT_DIR}"
 started_at="$(date +%s)"
 CI_VCS_SIM_OUTPUT_DIR="${CI_VCS_SIM_OUTPUT_DIR:-${REPO_ROOT}/soc-generator/sims/vcs/output/${CI_TESTCASE}}"
 export CI_VCS_SIM_OUTPUT_DIR
+timeout_cycles="${CI_TIMEOUT_CYCLES:-200000000}"
+case "${timeout_cycles}" in
+  ''|*[!0-9]*)
+    echo "CI_TIMEOUT_CYCLES must be a non-negative integer: ${timeout_cycles}" >&2
+    exit 1
+    ;;
+esac
+export timeout_cycles
 
 write_result() {
   local status="$1"
@@ -52,7 +60,7 @@ run_in_nix '
   fi
 
   riscv_tests_root="${CI_WORKLOAD_ROOT}/riscv-tests"
-  common_args=(-j1 -C "${sim_dir}" SIM=vcs CONFIG="${CI_CONFIG}" RISCV="${riscv_tests_root}" sim="${simulator}" BREAK_SIM_PREREQ=1 output_dir="${CI_VCS_SIM_OUTPUT_DIR}")
+  common_args=(-j1 -C "${sim_dir}" SIM=vcs CONFIG="${CI_CONFIG}" RISCV="${riscv_tests_root}" sim="${simulator}" BREAK_SIM_PREREQ=1 output_dir="${CI_VCS_SIM_OUTPUT_DIR}" TIMEOUT_CYCLES="${timeout_cycles}")
 
   case "${CI_TESTCASE}" in
     rocket-asm|boom-asm)

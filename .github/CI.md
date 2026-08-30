@@ -27,6 +27,8 @@ JTAG RSP 压力测试（32 步、64 次内存操作）。三项测试全部使�
 其 Verilator 构建关闭断言检查。标准 BOOM 协同仿真配置仍可用于验证。Zephyr 仅覆盖
 `chipyard_riscv64` 上的裸机 `samples/chipyard/hello_world`，不覆盖其他示例、SMP、网络或
 Linux。构建在标记为 `builder` 的自托管运行器执行，测试在标记为 `runner` 的自托管运行器执行。
+核心回归仿真器的 cycle 超时由 `CI_TIMEOUT_CYCLES` 控制，当前默认设置为 `200000000`
+（200M cycles），并同时应用于 Verilator 和 VCS 回归。
 
 回归软件在工作流外预先构建，并由两个运行器共享：
 
