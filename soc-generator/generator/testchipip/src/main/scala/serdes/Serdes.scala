@@ -159,9 +159,13 @@ class PhitArbiter(phitWidth: Int, flitWidth: Int, channels: Int) extends Module 
     val flitBeats = (flitWidth - 1) / phitWidth + 1
     val beats = headerBeats + flitBeats
     val beat = RegInit(0.U(log2Ceil(beats).W))
+    // Latch the selected input before presenting a packet header.  Using the
+    // live priority encoder while beat==0 lets the header change whenever the
+    // downstream is stalled, violating Decoupled's valid/bits stability rule.
     val chosen_reg = Reg(UInt(headerWidth.W))
+    val chosen_valid = RegInit(false.B)
     val chosen_prio = PriorityEncoder(io.in.map(_.valid))
-    val chosen = Mux(beat === 0.U, chosen_prio, chosen_reg)
+    val chosen = Mux(beat === 0.U && !chosen_valid, chosen_prio, chosen_reg)
     val header_idx = if (headerBeats == 1) 0.U else beat(log2Ceil(headerBeats)-1,0)
 
     io.out.valid := VecInit(io.in.map(_.valid))(chosen)
@@ -173,9 +177,15 @@ class PhitArbiter(phitWidth: Int, flitWidth: Int, channels: Int) extends Module 
       io.in(i).ready := io.out.ready && beat >= headerBeats.U && chosen_reg === i.U
     }
 
+    // Once any header is offered, hold its channel until the complete packet
+    // has transferred.  This is required even when io.out.ready is low.
+    when (beat === 0.U && !chosen_valid && io.out.valid) {
+      chosen_reg := chosen_prio
+      chosen_valid := true.B
+    }
     when (io.out.fire) {
       beat := Mux(beat === (beats-1).U, 0.U, beat + 1.U)
-      when (beat === 0.U) { chosen_reg := chosen_prio }
+      when (beat === (beats-1).U) { chosen_valid := false.B }
     }
   }
 }
@@ -226,8 +236,18 @@ class DecoupledFlitToCreditedFlit(flitWidth: Int, bufferSz: Int) extends Module 
   val credits = RegInit(0.U((creditWidth+1).W))
   val credit_incr = io.out.fire
   val credit_decr = io.credit.fire
+  // Credits cross an independent source-synchronous clock domain.  A stale
+  // credit can therefore arrive in the same cycle as reset release, before
+  // the corresponding local data enqueue is visible.  Saturate the update
+  // instead of allowing unsigned subtraction to wrap to a falsely-full state.
+  val credit_return = Mux(credit_decr,
+    io.credit.bits.flit(creditWidth-1, 0) +& 1.U,
+    0.U((creditWidth+1).W))
+  val credit_available = credits +& credit_incr
   when (credit_incr || credit_decr) {
-    credits := credits + credit_incr - Mux(io.credit.valid, io.credit.bits.flit +& 1.U, 0.U)
+    credits := Mux(credit_return >= credit_available,
+      0.U,
+      credit_available - credit_return)
   }
 
   io.out.valid := io.in.valid && credits < bufferSz.U
@@ -251,6 +271,8 @@ class CreditedFlitToDecoupledFlit(flitWidth: Int, bufferSz: Int) extends Module 
   val credit_incr = buffer.io.deq.fire
   val credit_decr = io.credit.fire
   when (credit_incr || credit_decr) {
+    // The transmitted credit is cumulative; once emitted, restart the
+    // pending-credit accumulator while retaining a same-cycle dequeue.
     credits := credit_incr + Mux(credit_decr, 0.U, credits)
   }
 

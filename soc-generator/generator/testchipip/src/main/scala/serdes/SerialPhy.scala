@@ -53,12 +53,7 @@ DEADLOCK-FREEDOM IS NECESSARY.
     Module(new PhitArbiter(phyParams.phitWidth, phyParams.flitWidth, channels))
   }
   out_arb.io.in <> out_phits
-  // Add one registered stage at the pad-facing boundary while preserving
-  // Decoupled backpressure semantics.
-  val out_pad_q = withClockAndReset(io.outer_clock, io.outer_reset) {
-    Queue(out_arb.io.out, 1)
-  }
-  io.outer_ser.out <> out_pad_q
+  io.outer_ser.out <> out_arb.io.out
 
   val in_phits = (0 until channels).map { i =>
     val in_async = Module(new AsyncQueue(new Phit(phyParams.phitWidth)))
@@ -74,11 +69,7 @@ DEADLOCK-FREEDOM IS NECESSARY.
   val in_demux = withClockAndReset(io.outer_clock, io.outer_reset) {
     Module(new PhitDemux(phyParams.phitWidth, phyParams.flitWidth, channels))
   }
-
-  val in_pad_q = withClockAndReset(io.outer_clock, io.outer_reset) {
-    Queue(io.outer_ser.in, 1)
-  }
-  in_demux.io.in <> in_pad_q
+  in_demux.io.in <> io.outer_ser.in
   in_demux.io.out <> in_phits
 
   // Prevent accepting data from external world when in reset
@@ -153,27 +144,45 @@ class CreditedSerialPhy(channels: Int, phyParams: SerialPhyParams) extends RawMo
   }
   out_arb.io.in <> (out_data_phits ++ in_credit_phits)
   out_arb.io.out.ready := true.B
+  // Launch the stream from the transmitter clock domain.  The peer samples
+  // this registered value with the associated source-synchronous clock.
+  // Do not add a corresponding receiver register: it would replay the final
+  // phit of a packet after the sender has advanced to its next header.
   withClockAndReset(io.outgoing_clock, io.outgoing_reset) {
     val out_valid_q = RegInit(false.B)
     val out_bits_q = RegInit(0.U.asTypeOf(out_arb.io.out.bits))
     out_valid_q := out_arb.io.out.valid
     out_bits_q := out_arb.io.out.bits
-    io.outer_ser.out.valid := out_valid_q
+    // Valid is not meaningful while the source clock/reset domain is held in
+    // reset.  Explicitly suppress it at the pad boundary so the peer cannot
+    // capture reset-time/randomized phits as a packet header.
+    io.outer_ser.out.valid := out_valid_q && !io.outgoing_reset.asBool
     io.outer_ser.out.bits := out_bits_q
   }
 
   val in_demux = withClockAndReset(io.incoming_clock, io.incoming_reset) {
     Module(new PhitDemux(phyParams.phitWidth, phyParams.flitWidth, channels * 2))
   }
-  withClockAndReset(io.incoming_clock, io.incoming_reset) {
-    val in_valid_q = RegInit(false.B)
-    val in_bits_q = RegInit(0.U.asTypeOf(io.outer_ser.in.bits))
-    in_valid_q := io.outer_ser.in.valid
-    in_bits_q := io.outer_ser.in.bits
-    in_demux.io.in.valid := in_valid_q
-    in_demux.io.in.bits := in_bits_q
+  // The source-synchronous input has no ready signal.  Capture the stream
+  // before the packet-level demux so a stalled channel cannot hold the link
+  // hostage and cause other channels' phits to be dropped.  The depth covers
+  // one full credited window for every data and credit channel, with a small
+  // packet-boundary margin.
+  val flitBeats = (phyParams.flitWidth - 1) / phyParams.phitWidth + 1
+  val captureDepth = (channels * 2 * phyParams.flitBufferSz * (flitBeats + 1)).max(32)
+  val in_capture = withClockAndReset(io.incoming_clock, io.incoming_reset) {
+    Module(new Queue(new Phit(phyParams.phitWidth), captureDepth))
   }
-  withClockAndReset(io.incoming_clock, io.incoming_reset) { when (io.outer_ser.in.valid) { assert(in_demux.io.in.ready) } }
+  // The external interface has no ready; reset-time valid must therefore be
+  // filtered before it enters the elastic capture queue.
+  in_capture.io.enq.valid := io.outer_ser.in.valid && !io.incoming_reset.asBool
+  in_capture.io.enq.bits := io.outer_ser.in.bits
+  in_demux.io.in <> in_capture.io.deq
+  withClockAndReset(io.incoming_clock, io.incoming_reset) {
+    when (io.outer_ser.in.valid && !io.incoming_reset.asBool) {
+      assert(in_capture.io.enq.ready, "CreditedSerialPhy incoming phit capture overflow")
+    }
+  }
 
   in_data_phits.zip(in_demux.io.out.take(channels)).map(t => t._1 <> t._2)
   out_credit_phits.zip(in_demux.io.out.drop(channels)).map(t => t._1 <> t._2)

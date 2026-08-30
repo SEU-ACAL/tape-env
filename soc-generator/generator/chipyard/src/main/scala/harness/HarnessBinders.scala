@@ -269,7 +269,7 @@ class WithSimTSIOverSerialTL(fast: Boolean = false) extends HarnessBinder({
     port.io match {
       case io: HasClockOut =>
       case io: HasClockIn => io.clock_in := th.harnessBinderClock
-      case io: CreditedSourceSyncPhitIO => io.clock_in := th.harnessBinderClock; io.reset_in := th.harnessBinderReset
+      case _: CreditedSourceSyncPhitIO =>
     }
 
     port.io match {
@@ -283,17 +283,46 @@ class WithSimTSIOverSerialTL(fast: Boolean = false) extends HarnessBinder({
         withClock(clock) {
           if (fast) {
             val ram = Module(LazyModule(new FastRAM(port.serdesser, port.params, chipId = chipId)(port.serdesser.p)).module)
-            ram.io.ser.in <> io.out
-            io.in <> ram.io.ser.out
+            val ramSer = ram.io.ser.asInstanceOf[DecoupledPhitIO]
+            ram.io.ser match {
+              case clocked: HasClockIn => clocked.clock_in := clock
+              case _ =>
+            }
+            ramSer.in <> io.out
+            io.in <> ramSer.out
             val success = SimTSI.connect(ram.io.tsi, clock, th.harnessBinderReset, chipId)
             when (success) { th.chiptopSuccess(chipId) := true.B }
           } else {
             val ram = Module(LazyModule(new SerialRAM(port.serdesser, port.params)(port.serdesser.p)).module)
-            ram.io.ser.in <> io.out
-            io.in <> ram.io.ser.out
+            val ramSer = ram.io.ser.asInstanceOf[DecoupledPhitIO]
+            ram.io.ser match {
+              case clocked: HasClockIn => clocked.clock_in := clock
+              case _ =>
+            }
+            ramSer.in <> io.out
+            io.in <> ramSer.out
             val success = SimTSI.connect(ram.io.tsi, clock, th.harnessBinderReset, chipId)
             when (success) { th.chiptopSuccess(chipId) := true.B }
           }
+        }
+      }
+      case io: CreditedSourceSyncPhitIO => {
+        withClock(th.harnessBinderClock) {
+          val ram = Module(LazyModule(new FastRAM(port.serdesser, port.params, chipId = chipId)(port.serdesser.p)).module)
+          val ramSer = ram.io.ser.asInstanceOf[CreditedSourceSyncPhitIO]
+
+          // Each direction receives the source clock and reset from its peer.
+          ramSer.in.valid := io.out.valid
+          ramSer.in.bits := io.out.bits
+          io.in.valid := ramSer.out.valid
+          io.in.bits := ramSer.out.bits
+          ramSer.clock_in := io.clock_out
+          io.clock_in := ramSer.clock_out
+          ramSer.reset_in := io.reset_out
+          io.reset_in := ramSer.reset_out
+
+          val success = SimTSI.connect(ram.io.tsi, th.harnessBinderClock, th.harnessBinderReset, chipId)
+          when (success) { th.chiptopSuccess(chipId) := true.B }
         }
       }
     }
