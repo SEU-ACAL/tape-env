@@ -56,6 +56,29 @@ memmap 和原始 regmap JSON 文件。
 `Rocket Chip Logrotate` 用于维护回归构建产物，不执行验证；发布说明生成属于发布自动化，
 也不执行 CI 验证。
 
+## 每周 P2E Linux
+
+`Weekly P2E Linux`（`.github/workflows/weekly-p2e-linux.yml`）每周二
+Asia/Shanghai 时间 02:00（周一 18:00 UTC）运行，也可通过 GitHub Actions 手动触发。
+它不在推送或拉取请求时运行。工作流使用 P2E 的 `HpecP2ETapeoutConfig` 生成 RTL，构建
+HTIF-console、无磁盘的 Buildroot Linux workload，在远端 HPEC 服务器构建 bitstream，并在
+指定 FPGA 上启动 Linux。Linux 输出经 HTIF 返回；workload 完成后必须正常退出，CI 才会通过。
+
+该任务在标记为 `builder` 的自托管 Linux 运行器执行。运行器需要 Nix、`guestmount` 和到
+HPEC 服务器的 SSH 网络；HPEC/FusionDebug 工具和 FPGA 位于远端。首次启用前，在仓库的
+Actions Variables 中设置：
+
+- `P2E_HOST`：直接填写 SSH 目的地，例如 `user@server-address`。
+- `P2E_REMOTE_ROOT`：远端用户可写的绝对工作目录。
+- `P2E_PORT`：可选；服务器不使用 22 端口时填写端口号。
+- `P2E_FPGA_LOCATION`：可选；默认物理 FPGA 位置为 `4.A`。
+- `P2E_DESIGN_FPGA_LOCATION`：可选；默认 bitstream 逻辑位置为 `0.A`。
+
+若服务器不接受运行器的 SSH key，在 Actions Secret 中设置 `P2E_SSH_PASSWORD`。工作流会以
+`0600` 权限在本次隔离目录中创建密码文件，且不会上传该文件。它根据上述 Variables 创建本次
+运行私有的 `p2e.toml`，因此不依赖仓库根目录中被忽略的开发者本地配置。失败时会上传 RTL、
+Linux、P2E build/run 日志及远端回传的 P2E 报告；不会上传密码、bitstream 或完整远端 case。
+
 ## 每周综合
 
 `Weekly Synthesis` 在每周一 Asia/Shanghai 时间 02:00（UTC 周日 18:00）运行，也可通过

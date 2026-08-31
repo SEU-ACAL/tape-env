@@ -1,6 +1,8 @@
 [remote]
-# SSH config alias, or user@host.
-host = "hpec-p2e"
+# Use user@host directly; an SSH config alias is not required.
+host = "<user>@<server-address>"
+# Set this when the SSH server does not use port 22.
+port = 52123
 # Must be an absolute directory writable by the remote SSH user.
 remote_root = "/home/<user>/p2e"
 
