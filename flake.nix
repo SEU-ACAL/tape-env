@@ -12,6 +12,27 @@
       let
         pkgs = import nixpkgs { inherit system; };
         gcc11Pkgs = import nixpkgs-gcc11 { inherit system; };
+        p2ePackages = with pkgs; [
+          bash
+          binutils
+          cargo
+          clippy
+          cmake
+          coreutils
+          dtc
+          gcc13
+          git
+          gnumake
+          patchelf
+          pkg-config
+          rustc
+          rustfmt
+          rsync
+          spike
+          sshpass
+          openssh
+          which
+        ];
         gcc11Stdenv = gcc11Pkgs.overrideCC gcc11Pkgs.stdenv gcc11Pkgs.gcc11;
         # Verilator's C++ frontend is substantially faster with Clang for the
         # large BOOM-generated translation units. Build it from the same
@@ -366,6 +387,7 @@ EOF
           shellHook = ''
             export CY_DIR="$PWD"
             export PATH="$CY_DIR/bin:$VERDI_HOME/bin:$VCS_HOME/bin:$RISCV/bin:$FIREMARSHAL_RISCV/bin:$PATH"
+            export PATH="$JAVA_HOME/bin:$PATH"
             # A trailing colon means "search the current directory" to the
             # dynamic loader.  Buildroot rejects that unsafe environment.
             if [[ -n "''${LD_LIBRARY_PATH:-}" ]]; then
@@ -504,6 +526,22 @@ EOF
 
         devShells = {
           default = mkDevShell [ ];
+          p2e = pkgs.mkShell {
+            inputsFrom = [ (mkDevShell [ ]) ];
+            packages = p2ePackages;
+            shellHook = ''
+              if [[ -x "$PWD/dependencies/p2e-runner/bin/p2e" ]]; then
+                export P2E_RUNNER_ROOT="$PWD/dependencies/p2e-runner"
+              elif [[ -x "$PWD/bin/p2e" ]]; then
+                export P2E_RUNNER_ROOT="$PWD"
+              fi
+              export P2E_RUNNER_NIX_SHELL=1
+              if [[ -n "''${P2E_RUNNER_ROOT:-}" && -x "$P2E_RUNNER_ROOT/bin/p2e" ]]; then
+                export PATH="$P2E_RUNNER_ROOT/bin:$PATH"
+              fi
+              export HPEC_HOME="''${HPEC_HOME:-/home/x-epic/hpe-24.12.01.s008}"
+            '';
+          };
           firemarshal = firemarshalShell;
           jtag-debug = jtagDebugShell;
         };
