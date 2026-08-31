@@ -74,6 +74,7 @@ fi
   printf 'fpga_location = "%s"\n' "${P2E_FPGA_LOCATION}"
   printf 'design_fpga_location = "%s"\n' "${P2E_DESIGN_FPGA_LOCATION}"
   echo 'preload_ddr = true'
+  echo 'continuous = true'
 } > "${P2E_CONFIG}"
 
 run_firemarshal_in_nix() {
