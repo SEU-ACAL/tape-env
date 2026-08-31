@@ -311,13 +311,19 @@ class WithSimTSIOverSerialTL(fast: Boolean = false) extends HarnessBinder({
           val ram = Module(LazyModule(new FastRAM(port.serdesser, port.params, chipId = chipId)(port.serdesser.p)).module)
           val ramSer = ram.io.ser.asInstanceOf[CreditedSourceSyncPhitIO]
 
+          // Model a source-synchronous forwarded clock with a half-cycle phase
+          // shift. TX logic remains on the local rising edge while the peer
+          // captures on the opposite edge. In silicon this connection must be
+          // replaced by a characterized forwarded-clock/IO implementation.
+          def phaseShifted(clock: Clock): Clock = (!clock.asBool).asClock
+
           // Each direction receives the source clock and reset from its peer.
           ramSer.in.valid := io.out.valid
           ramSer.in.bits := io.out.bits
           io.in.valid := ramSer.out.valid
           io.in.bits := ramSer.out.bits
-          ramSer.clock_in := io.clock_out
-          io.clock_in := ramSer.clock_out
+          ramSer.clock_in := phaseShifted(io.clock_out)
+          io.clock_in := phaseShifted(ramSer.clock_out)
           ramSer.reset_in := io.reset_out
           io.reset_in := ramSer.reset_out
 
