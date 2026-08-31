@@ -190,14 +190,22 @@ class PhitArbiter(phitWidth: Int, flitWidth: Int, channels: Int) extends Module 
   }
 }
 
-class PhitDemux(phitWidth: Int, flitWidth: Int, channels: Int) extends Module {
-  override def desiredName = s"PhitDemux_p${phitWidth}_f${flitWidth}_n${channels}"
+class PhitDemux(phitWidth: Int, flitWidth: Int, channels: Int, ingressDepth: Int = 0) extends Module {
+  require(ingressDepth >= 0)
+  override def desiredName = s"PhitDemux_p${phitWidth}_f${flitWidth}_n${channels}" +
+    (if (ingressDepth == 0) "" else s"_i${ingressDepth}")
   val io = IO(new Bundle {
     val in = Flipped(Decoupled(new Phit(phitWidth)))
     val out = Vec(channels, Decoupled(new Phit(phitWidth)))
   })
   if (channels == 1) {
-    io.out(0) <> io.in
+    if (ingressDepth == 0) {
+      io.out(0) <> io.in
+    } else {
+      val ingress = Module(new Queue(new Phit(phitWidth), ingressDepth))
+      ingress.io.enq <> io.in
+      io.out(0) <> ingress.io.deq
+    }
   } else {
     val headerWidth = log2Ceil(channels)
     val headerBeats = (headerWidth - 1) / phitWidth + 1
@@ -208,10 +216,30 @@ class PhitDemux(phitWidth: Int, flitWidth: Int, channels: Int) extends Module {
     val channel = channel_vec.asUInt(log2Ceil(channels)-1,0)
     val header_idx = if (headerBeats == 1) 0.U else beat(log2Ceil(headerBeats)-1,0)
 
-    io.in.ready := beat < headerBeats.U || VecInit(io.out.map(_.ready))(channel)
+    // Once the header identifies a channel, buffer that channel's phits
+    // independently. This prevents a transient stall on one output from
+    // backpressuring already-classified traffic on the other outputs.
+    val ingress = if (ingressDepth == 0) {
+      Seq.empty[Queue[Phit]]
+    } else {
+      Seq.fill(channels)(Module(new Queue(new Phit(phitWidth), ingressDepth)))
+    }
+    val outputReady = if (ingressDepth == 0) {
+      VecInit(io.out.map(_.ready))
+    } else {
+      VecInit(ingress.map(_.io.enq.ready))
+    }
+
+    io.in.ready := beat < headerBeats.U || outputReady(channel)
     for (c <- 0 until channels) {
-      io.out(c).valid := io.in.valid && beat >= headerBeats.U && channel === c.U
-      io.out(c).bits.phit := io.in.bits.phit
+      if (ingressDepth == 0) {
+        io.out(c).valid := io.in.valid && beat >= headerBeats.U && channel === c.U
+        io.out(c).bits.phit := io.in.bits.phit
+      } else {
+        ingress(c).io.enq.valid := io.in.valid && beat >= headerBeats.U && channel === c.U
+        ingress(c).io.enq.bits := io.in.bits
+        io.out(c) <> ingress(c).io.deq
+      }
     }
 
     when (io.in.fire) {

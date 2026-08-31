@@ -161,26 +161,18 @@ class CreditedSerialPhy(channels: Int, phyParams: SerialPhyParams) extends RawMo
   }
 
   val in_demux = withClockAndReset(io.incoming_clock, io.incoming_reset) {
-    Module(new PhitDemux(phyParams.phitWidth, phyParams.flitWidth, channels * 2))
+    val flitBeats = (phyParams.flitWidth - 1) / phyParams.phitWidth + 1
+    val ingressDepth = (phyParams.flitBufferSz * (flitBeats + 1)).max(32)
+    Module(new PhitDemux(phyParams.phitWidth, phyParams.flitWidth, channels * 2, ingressDepth))
   }
-  // The source-synchronous input has no ready signal.  Capture the stream
-  // before the packet-level demux so a stalled channel cannot hold the link
-  // hostage and cause other channels' phits to be dropped.  The depth covers
-  // one full credited window for every data and credit channel, with a small
-  // packet-boundary margin.
-  val flitBeats = (phyParams.flitWidth - 1) / phyParams.phitWidth + 1
-  val captureDepth = (channels * 2 * phyParams.flitBufferSz * (flitBeats + 1)).max(32)
-  val in_capture = withClockAndReset(io.incoming_clock, io.incoming_reset) {
-    Module(new Queue(new Phit(phyParams.phitWidth), captureDepth))
-  }
-  // The external interface has no ready; reset-time valid must therefore be
-  // filtered before it enters the elastic capture queue.
-  in_capture.io.enq.valid := io.outer_ser.in.valid && !io.incoming_reset.asBool
-  in_capture.io.enq.bits := io.outer_ser.in.bits
-  in_demux.io.in <> in_capture.io.deq
+  // The per-channel ingress FIFOs are the first storage point after PAD
+  // sampling. The external interface has no ready, so a full selected FIFO
+  // is a protocol violation rather than a recoverable backpressure event.
+  in_demux.io.in.valid := io.outer_ser.in.valid && !io.incoming_reset.asBool
+  in_demux.io.in.bits := io.outer_ser.in.bits
   withClockAndReset(io.incoming_clock, io.incoming_reset) {
     when (io.outer_ser.in.valid && !io.incoming_reset.asBool) {
-      assert(in_capture.io.enq.ready, "CreditedSerialPhy incoming phit capture overflow")
+      assert(in_demux.io.in.ready, "CreditedSerialPhy per-channel ingress FIFO overflow")
     }
   }
 
