@@ -367,7 +367,7 @@ EOF
           exec ${jtagGdb}/bin/gdb "$@"
         '';
 
-        mkDevShell = extraPackages: pkgs.mkShellNoCC {
+        mkDevShell = extraPackages: extraShellHook: pkgs.mkShellNoCC {
           RISCV = "${chipyardRiscvTools}";
           # FireMarshal's Buildroot configuration requires a Linux-targeted
           # compiler under $RISCV, while Chipyard's existing $RISCV is the
@@ -412,6 +412,7 @@ EOF
             unset NIX_LDFLAGS
             export EXTRA_SIM_CXXFLAGS="-O1 ''${EXTRA_SIM_CXXFLAGS:-}"
             export EXTRA_SIM_LDFLAGS="-no-pie ''${EXTRA_SIM_LDFLAGS:-}"
+            ${extraShellHook}
           '';
 
           packages = [
@@ -525,23 +526,19 @@ EOF
         };
 
         devShells = {
-          default = mkDevShell [ ];
-          p2e = pkgs.mkShell {
-            inputsFrom = [ (mkDevShell [ ]) ];
-            packages = p2ePackages;
-            shellHook = ''
-              if [[ -x "$PWD/dependencies/p2e-runner/bin/p2e" ]]; then
-                export P2E_RUNNER_ROOT="$PWD/dependencies/p2e-runner"
-              elif [[ -x "$PWD/bin/p2e" ]]; then
-                export P2E_RUNNER_ROOT="$PWD"
-              fi
-              export P2E_RUNNER_NIX_SHELL=1
-              if [[ -n "''${P2E_RUNNER_ROOT:-}" && -x "$P2E_RUNNER_ROOT/bin/p2e" ]]; then
-                export PATH="$P2E_RUNNER_ROOT/bin:$PATH"
-              fi
-              export HPEC_HOME="''${HPEC_HOME:-/home/x-epic/hpe-24.12.01.s008}"
-            '';
-          };
+          default = mkDevShell [ ] "";
+          p2e = mkDevShell p2ePackages ''
+            if [[ -x "$PWD/dependencies/p2e-runner/bin/p2e" ]]; then
+              export P2E_RUNNER_ROOT="$PWD/dependencies/p2e-runner"
+            elif [[ -x "$PWD/bin/p2e" ]]; then
+              export P2E_RUNNER_ROOT="$PWD"
+            fi
+            export P2E_RUNNER_NIX_SHELL=1
+            if [[ -n "''${P2E_RUNNER_ROOT:-}" && -x "$P2E_RUNNER_ROOT/bin/p2e" ]]; then
+              export PATH="$P2E_RUNNER_ROOT/bin:$PATH"
+            fi
+            export HPEC_HOME="''${HPEC_HOME:-/home/x-epic/hpe-24.12.01.s008}"
+          '';
           firemarshal = firemarshalShell;
           jtag-debug = jtagDebugShell;
         };
