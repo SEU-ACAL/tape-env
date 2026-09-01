@@ -417,13 +417,21 @@ run-binary-fast: check-binary $(BINARY).run.fast
 run-binaries-fast: check-binaries $(addsuffix .run.fast,$(wildcard $(BINARIES)))
 
 %.run.fast: %.check-exists $(SIM_PREREQ) | $(output_dir)
-	(set -o pipefail && $(NUMA_PREFIX) $(sim) \
+	( set -o pipefail; \
+	  $(NUMA_PREFIX) $(sim) \
 		$(PERMISSIVE_ON) \
 		$(call get_common_sim_flags,$*) \
 		$(PERMISSIVE_OFF) \
 		$* \
 		$(BINARY_ARGS) \
-		</dev/null | tee $(call get_sim_out_name,$*).log)
+		</dev/null 2>&1 | tee $(call get_sim_out_name,$*).log; \
+	  pipe_status=($${PIPESTATUS[@]}); \
+	  sim_status=$${pipe_status[0]}; tee_status=$${pipe_status[1]}; \
+	  if [ "$${sim_status}" -ne 0 ] || [ "$${tee_status}" -ne 0 ] || grep -Fq "*** FAILED ***" "$(call get_sim_out_name,$*).log"; then \
+	    printf 'Simulation failed for %s (sim_status=%s, tee_status=%s)\n' "$*" "$${sim_status}" "$${tee_status}" >&2; \
+	    exit 1; \
+	  fi; \
+	  touch "$@" )
 
 # run simulator with as much debug info as possible
 run-binary-debug: check-binary $(BINARY).run.debug
@@ -482,8 +490,17 @@ $(output_dir)/%: $(RISCV)/riscv64-unknown-elf/share/riscv-tests/isa/% | $(output
 	ln -sf $< $@
 endif
 
+# VCS may return zero after TestDriver invokes $fatal on a timeout, so inspect the log too.
 $(output_dir)/%.run: $(output_dir)/% $(SIM_PREREQ)
-	(set -o pipefail && $(NUMA_PREFIX) $(sim) $(PERMISSIVE_ON) $(call get_common_sim_flags,$<) $(PERMISSIVE_OFF)  $< </dev/null | tee $<.log) && touch $@
+	( set -o pipefail; \
+	  $(NUMA_PREFIX) $(sim) $(PERMISSIVE_ON) $(call get_common_sim_flags,$<) $(PERMISSIVE_OFF)  $< </dev/null 2>&1 | tee $<.log; \
+	  pipe_status=($${PIPESTATUS[@]}); \
+	  sim_status=$${pipe_status[0]}; tee_status=$${pipe_status[1]}; \
+	  if [ "$${sim_status}" -ne 0 ] || [ "$${tee_status}" -ne 0 ] || grep -Fq "*** FAILED ***" "$<.log"; then \
+	    printf 'Simulation failed for %s (sim_status=%s, tee_status=%s)\n' "$<" "$${sim_status}" "$${tee_status}" >&2; \
+	    exit 1; \
+	  fi; \
+	  touch "$@" )
 
 $(output_dir)/%.out: $(output_dir)/% $(SIM_PREREQ)
 	(set -o pipefail && $(NUMA_PREFIX) $(sim) $(PERMISSIVE_ON) $(call get_common_sim_flags,$<) $(PERMISSIVE_OFF) $< </dev/null 2> >(spike-dasm > $@) | tee $<.log)

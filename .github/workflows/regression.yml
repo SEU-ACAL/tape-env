@@ -59,6 +59,7 @@ jobs:
     env:
       CI_SHARED_ROOT: /data1/ci-runner
       CI_WORKLOAD_ROOT: /data2/ci-workloads
+      CI_TIMEOUT_CYCLES: 200000000
       HTTP_PROXY: http://127.0.0.1:12000
       HTTPS_PROXY: http://127.0.0.1:12000
       NO_PROXY: localhost,127.0.0.1

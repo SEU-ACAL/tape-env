@@ -15,8 +15,9 @@ page_bytes="${I2C_STRESS_PAGE_BYTES:-1}"
 timeout_polls="${I2C_TIMEOUT_POLLS:-1000000}"
 sim_timeout="${I2C_CI_TIMEOUT:-300}"
 build_test="${BUILD_TEST:-1}"
+ci_log_dir="${CI_LOG_DIR:-${TMPDIR:-/tmp}/chipyard-ci-logs}"
 
-for required in cmake python3 timeout; do
+for required in cmake python3 timeout stdbuf; do
   if ! command -v "$required" >/dev/null 2>&1; then
     printf 'CI I2C error: required command not found: %s\n' "$required" >&2
     exit 2
@@ -34,12 +35,25 @@ work_dir="$(mktemp -d "${TMPDIR:-/tmp}/chipyard-i2c-ci.XXXXXX")"
 build_dir="$work_dir/build"
 flash_image="$work_dir/spiflash.img"
 log_file="$work_dir/i2c-vcs.log"
+elf=""
 
 cleanup() {
   local status=$?
   trap - EXIT INT TERM
-  if [[ "$status" -ne 0 ]]; then
-    printf 'CI I2C log: %s\n' "$log_file" >&2
+  local saved_log_dir="${ci_log_dir}/i2c-ci-$(date +%Y%m%d-%H%M%S)-$$"
+  mkdir -p "$saved_log_dir" 2>/dev/null || true
+  cp -f "$log_file" "$saved_log_dir/i2c-vcs.log" 2>/dev/null || true
+  if [[ -n "$elf" && -e "$elf" ]]; then
+    cp -f "$elf" "$saved_log_dir/$(basename "$elf")" 2>/dev/null || true
+  fi
+  if [[ -e "$flash_image" ]]; then
+    cp -f "$flash_image" "$saved_log_dir/spiflash.img" 2>/dev/null || true
+  fi
+  printf 'CI I2C log: %s\n' "$saved_log_dir/i2c-vcs.log" >&2
+  if [[ "$status" -eq 124 ]]; then
+    printf 'CI I2C TIMEOUT after %ss; simulator did not complete.\n' "$sim_timeout" >&2
+    tail -80 "$log_file" 2>/dev/null || true
+  elif [[ "$status" -ne 0 ]]; then
     tail -80 "$log_file" 2>/dev/null || true
   else
     rm -rf "$work_dir"
@@ -86,10 +100,18 @@ if [[ -n "$spiflash_image" ]]; then
 fi
 sim_args+=(+permissive-off "$elf")
 
-timeout "$sim_timeout" "$simv" "${sim_args[@]}" >"$log_file" 2>&1
+# Keep VCS in the caller's foreground process group. Without --foreground,
+# timeout creates a separate group and VCS can be stopped by terminal control.
+set +e
+timeout --foreground "$sim_timeout" /usr/bin/stdbuf -oL -eL "$simv" "${sim_args[@]}" 2>&1 | tee "$log_file"
+sim_status=${PIPESTATUS[0]}
+set -e
+if [[ "$sim_status" -ne 0 ]]; then
+  exit "$sim_status"
+fi
 
 expected="I2C stress passed: rounds=$rounds verified_bytes=$((rounds * (page_bytes + 1)))"
-if ! grep -Fqx "$expected" "$log_file"; then
+if ! tr -d '\r' <"$log_file" | grep -Fqx "$expected"; then
   printf 'CI I2C error: expected pass marker not found: %s\n' "$expected" >&2
   exit 1
 fi

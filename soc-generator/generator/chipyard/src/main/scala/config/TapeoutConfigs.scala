@@ -113,7 +113,7 @@ class WithTapeoutRocket extends Config(
 class WithSerialConnect extends Config (
   new testchipip.serdes.WithSerialTLMem(size = BigInt("10000000",16)) ++ // 8 GB of off-chip memory
   new testchipip.serdes.WithSerialTLPHYParams(
-  testchipip.serdes.DecoupledExternalSyncSerialPhyParams(phitWidth=4, flitWidth=16))++
+  testchipip.serdes.CreditedSourceSyncSerialPhyParams(phitWidth=4, flitWidth=16))++
   new chipyard.config.WithSerialTLBackingMemory  ++
   new testchipip.soc.WithOffchipBusClient(MBUS) ++                                      // offchip bus connects to MBUS, since the serial-tl needs to provide backing memory
   new testchipip.soc.WithOffchipBus

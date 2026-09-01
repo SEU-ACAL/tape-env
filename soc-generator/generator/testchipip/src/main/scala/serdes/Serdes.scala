@@ -159,9 +159,13 @@ class PhitArbiter(phitWidth: Int, flitWidth: Int, channels: Int) extends Module 
     val flitBeats = (flitWidth - 1) / phitWidth + 1
     val beats = headerBeats + flitBeats
     val beat = RegInit(0.U(log2Ceil(beats).W))
+    // Latch the selected input before presenting a packet header.  Using the
+    // live priority encoder while beat==0 lets the header change whenever the
+    // downstream is stalled, violating Decoupled's valid/bits stability rule.
     val chosen_reg = Reg(UInt(headerWidth.W))
+    val chosen_valid = RegInit(false.B)
     val chosen_prio = PriorityEncoder(io.in.map(_.valid))
-    val chosen = Mux(beat === 0.U, chosen_prio, chosen_reg)
+    val chosen = Mux(beat === 0.U && !chosen_valid, chosen_prio, chosen_reg)
     val header_idx = if (headerBeats == 1) 0.U else beat(log2Ceil(headerBeats)-1,0)
 
     io.out.valid := VecInit(io.in.map(_.valid))(chosen)
@@ -173,21 +177,35 @@ class PhitArbiter(phitWidth: Int, flitWidth: Int, channels: Int) extends Module 
       io.in(i).ready := io.out.ready && beat >= headerBeats.U && chosen_reg === i.U
     }
 
+    // Once any header is offered, hold its channel until the complete packet
+    // has transferred.  This is required even when io.out.ready is low.
+    when (beat === 0.U && !chosen_valid && io.out.valid) {
+      chosen_reg := chosen_prio
+      chosen_valid := true.B
+    }
     when (io.out.fire) {
       beat := Mux(beat === (beats-1).U, 0.U, beat + 1.U)
-      when (beat === 0.U) { chosen_reg := chosen_prio }
+      when (beat === (beats-1).U) { chosen_valid := false.B }
     }
   }
 }
 
-class PhitDemux(phitWidth: Int, flitWidth: Int, channels: Int) extends Module {
-  override def desiredName = s"PhitDemux_p${phitWidth}_f${flitWidth}_n${channels}"
+class PhitDemux(phitWidth: Int, flitWidth: Int, channels: Int, ingressDepth: Int = 0) extends Module {
+  require(ingressDepth >= 0)
+  override def desiredName = s"PhitDemux_p${phitWidth}_f${flitWidth}_n${channels}" +
+    (if (ingressDepth == 0) "" else s"_i${ingressDepth}")
   val io = IO(new Bundle {
     val in = Flipped(Decoupled(new Phit(phitWidth)))
     val out = Vec(channels, Decoupled(new Phit(phitWidth)))
   })
   if (channels == 1) {
-    io.out(0) <> io.in
+    if (ingressDepth == 0) {
+      io.out(0) <> io.in
+    } else {
+      val ingress = Module(new Queue(new Phit(phitWidth), ingressDepth))
+      ingress.io.enq <> io.in
+      io.out(0) <> ingress.io.deq
+    }
   } else {
     val headerWidth = log2Ceil(channels)
     val headerBeats = (headerWidth - 1) / phitWidth + 1
@@ -198,10 +216,30 @@ class PhitDemux(phitWidth: Int, flitWidth: Int, channels: Int) extends Module {
     val channel = channel_vec.asUInt(log2Ceil(channels)-1,0)
     val header_idx = if (headerBeats == 1) 0.U else beat(log2Ceil(headerBeats)-1,0)
 
-    io.in.ready := beat < headerBeats.U || VecInit(io.out.map(_.ready))(channel)
+    // Once the header identifies a channel, buffer that channel's phits
+    // independently. This prevents a transient stall on one output from
+    // backpressuring already-classified traffic on the other outputs.
+    val ingress = if (ingressDepth == 0) {
+      Seq.empty[Queue[Phit]]
+    } else {
+      Seq.fill(channels)(Module(new Queue(new Phit(phitWidth), ingressDepth)))
+    }
+    val outputReady = if (ingressDepth == 0) {
+      VecInit(io.out.map(_.ready))
+    } else {
+      VecInit(ingress.map(_.io.enq.ready))
+    }
+
+    io.in.ready := beat < headerBeats.U || outputReady(channel)
     for (c <- 0 until channels) {
-      io.out(c).valid := io.in.valid && beat >= headerBeats.U && channel === c.U
-      io.out(c).bits.phit := io.in.bits.phit
+      if (ingressDepth == 0) {
+        io.out(c).valid := io.in.valid && beat >= headerBeats.U && channel === c.U
+        io.out(c).bits.phit := io.in.bits.phit
+      } else {
+        ingress(c).io.enq.valid := io.in.valid && beat >= headerBeats.U && channel === c.U
+        ingress(c).io.enq.bits := io.in.bits
+        io.out(c) <> ingress(c).io.deq
+      }
     }
 
     when (io.in.fire) {
@@ -226,8 +264,18 @@ class DecoupledFlitToCreditedFlit(flitWidth: Int, bufferSz: Int) extends Module 
   val credits = RegInit(0.U((creditWidth+1).W))
   val credit_incr = io.out.fire
   val credit_decr = io.credit.fire
+  // Credits cross an independent source-synchronous clock domain.  A stale
+  // credit can therefore arrive in the same cycle as reset release, before
+  // the corresponding local data enqueue is visible.  Saturate the update
+  // instead of allowing unsigned subtraction to wrap to a falsely-full state.
+  val credit_return = Mux(credit_decr,
+    io.credit.bits.flit(creditWidth-1, 0) +& 1.U,
+    0.U((creditWidth+1).W))
+  val credit_available = credits +& credit_incr
   when (credit_incr || credit_decr) {
-    credits := credits + credit_incr - Mux(io.credit.valid, io.credit.bits.flit +& 1.U, 0.U)
+    credits := Mux(credit_return >= credit_available,
+      0.U,
+      credit_available - credit_return)
   }
 
   io.out.valid := io.in.valid && credits < bufferSz.U
@@ -251,6 +299,8 @@ class CreditedFlitToDecoupledFlit(flitWidth: Int, bufferSz: Int) extends Module 
   val credit_incr = buffer.io.deq.fire
   val credit_decr = io.credit.fire
   when (credit_incr || credit_decr) {
+    // The transmitted credit is cumulative; once emitted, restart the
+    // pending-credit accumulator while retaining a same-cycle dequeue.
     credits := credit_incr + Mux(credit_decr, 0.U, credits)
   }
 

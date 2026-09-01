@@ -272,10 +272,13 @@ mkdir -p "${JAVA_TMP_DIR}"
 trap 'write_ci_summary; rm -rf "${JAVA_TMP_DIR}"' EXIT
 
 run_in_nix '
+  # Keep generated RTL readable by the host and the Design Compiler
+  # container, even when the runner service has a restrictive umask.
+  umask 022
   export COURSIER_CACHE="${CI_COURSIER_CACHE}"
   export CLASSPATH_CACHE="${CI_CLASSPATH_CACHE}"
   export SBT_OPTS="${CI_SBT_OPTS}"
-  ./init-submodules.sh
+  ./init-submodules.sh --buckyball
   case "${SYNTHESIS_TECH}" in
     smic180)
       make -C soc-generator SIM=vcs CONFIG="${SYNTHESIS_CONFIG}" \
@@ -292,8 +295,21 @@ run_in_nix '
 SOURCE_CODE_HOME="${REPO_ROOT}/soc-generator/sims/vcs/generated-src/chipyard.harness.TestHarness.${SYNTHESIS_CONFIG}"
 HDL_FILELIST="${SOURCE_CODE_HOME}/chipyard.harness.TestHarness.${SYNTHESIS_CONFIG}.top.f"
 SRAM_WRAPPER_FILE="${SOURCE_CODE_HOME}/gen-collateral/chipyard.harness.TestHarness.${SYNTHESIS_CONFIG}.top.mems.v"
+FIRRTL_FILE="${SOURCE_CODE_HOME}/chipyard.harness.TestHarness.${SYNTHESIS_CONFIG}.fir"
+BOOTROM_RTL_FILE="${SOURCE_CODE_HOME}/gen-collateral/SMIC180TLROM.sv"
+DEBUG_ROM_RTL_FILE="${SOURCE_CODE_HOME}/gen-collateral/SMIC180DebugROMReader.sv"
 
-for required_file in "${HDL_FILELIST}" "${SRAM_WRAPPER_FILE}"; do
+# Keep this list explicit. A recursive scan of SOURCE_CODE_HOME can turn a
+# directory permission error into a misleading "macro is missing" failure.
+RTL_CHECK_FILES=(
+  "${HDL_FILELIST}"
+  "${SRAM_WRAPPER_FILE}"
+  "${FIRRTL_FILE}"
+  "${BOOTROM_RTL_FILE}"
+  "${DEBUG_ROM_RTL_FILE}"
+)
+
+for required_file in "${RTL_CHECK_FILES[@]}"; do
   if [[ ! -f "${required_file}" ]]; then
     echo "Missing generated synthesis input: ${required_file}" >&2
     exit 1
@@ -304,7 +320,7 @@ done
 # Compiler if any physical replacement was lost during RTL generation.
 for required_pattern in SMIC180DigitalInIOCell SMIC180DigitalOutIOCell SMIC180DigitalGPIOCell \
   S018VM_X64Y16D64_PM chipyard_sram_; do
-  if ! rg -q "${required_pattern}" "${HDL_FILELIST}" "${SRAM_WRAPPER_FILE}" "${SOURCE_CODE_HOME}"; then
+  if ! rg -q -- "${required_pattern}" "${RTL_CHECK_FILES[@]}"; then
     echo "Full-replacement RTL is missing required hard macro: ${required_pattern}" >&2
     exit 1
   fi

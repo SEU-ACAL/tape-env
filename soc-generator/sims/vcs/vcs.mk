@@ -44,6 +44,7 @@ VCS_NONCC_OPTS = \
 	-timescale=1ns/10ps \
 	-quiet \
 	-q \
+	-race \
 	+rad \
 	+vcs+lic+wait \
 	+vc+list \

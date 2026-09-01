@@ -73,19 +73,55 @@ class FastRAM(tl_serdesser: TLSerdesser, params: SerialTLParams, chipId: Int = 0
   lazy val module = new Impl
   class Impl extends LazyModuleImp(this) {
     val io = IO(new Bundle {
-      val ser = new DecoupledPhitIO(params.phyParams.phitWidth)
+      val ser = params.phyParams.genIO
       val tsi = tsi2tl.map(_ => new testchipip.tsi.TSIIO)
       val tsi2tl_state = Output(UInt())
     })
 
-    val phy = Module(new DecoupledSerialPhy(5, params.phyParams))
-    phy.io.outer_clock := clock
-    phy.io.outer_reset := reset
-    phy.io.inner_clock := clock
-    phy.io.inner_reset := reset
-    phy.io.outer_ser <> io.ser
-    for (i <- 0 until 5) {
-      serdesser.module.io.ser(i) <> phy.io.inner_ser(i)
+    io.ser match {
+      // DecoupledExternalSyncPhitIO carries an additional clock input.  Connect
+      // only the common handshake fields to the local PHY and provide the
+      // harness clock explicitly; bulk-connecting it to DecoupledPhitIO drops
+      // the clock field during Chisel elaboration.
+      case ser: DecoupledExternalSyncPhitIO => {
+        val phy = Module(new DecoupledSerialPhy(5, params.phyParams))
+        phy.io.outer_clock := clock
+        phy.io.outer_reset := reset
+        phy.io.inner_clock := clock
+        phy.io.inner_reset := reset
+        phy.io.outer_ser.in <> ser.in
+        ser.out <> phy.io.outer_ser.out
+        for (i <- 0 until 5) {
+          serdesser.module.io.ser(i) <> phy.io.inner_ser(i)
+        }
+      }
+      case ser: DecoupledPhitIO => {
+        val phy = Module(new DecoupledSerialPhy(5, params.phyParams))
+        phy.io.outer_clock := clock
+        phy.io.outer_reset := reset
+        phy.io.inner_clock := clock
+        phy.io.inner_reset := reset
+        phy.io.outer_ser <> ser
+        for (i <- 0 until 5) {
+          serdesser.module.io.ser(i) <> phy.io.inner_ser(i)
+        }
+      }
+      case ser: CreditedSourceSyncPhitIO => {
+        val phy = Module(new CreditedSerialPhy(5, params.phyParams))
+        phy.io.incoming_clock := ser.clock_in
+        phy.io.incoming_reset := ser.reset_in
+        phy.io.outgoing_clock := clock
+        phy.io.outgoing_reset := reset
+        phy.io.inner_clock := clock
+        phy.io.inner_reset := reset
+        phy.io.outer_ser.in := ser.in
+        ser.out := phy.io.outer_ser.out
+        ser.clock_out := clock
+        ser.reset_out := reset.asAsyncReset
+        for (i <- 0 until 5) {
+          serdesser.module.io.ser(i) <> phy.io.inner_ser(i)
+        }
+      }
     }
     io.tsi.foreach(_ <> tsi2tl.get.module.io.tsi)
     io.tsi2tl_state := tsi2tl.map(_.module.io.state).getOrElse(0.U(1.W))
