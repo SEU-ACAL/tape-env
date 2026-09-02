@@ -70,8 +70,8 @@ class BuckyballLazyRoCC(val cfg: GlobalConfig, opcodes: OpcodeSet = OpcodeSet.cu
   xbar := TLBuffer() := readerNode
   xbar := TLBuffer() := writerNode
 
-  override val tlNode = TLIdentityNode()
-  tlNode :=* TLWidthWidget(cfg.memDomain.dma_buswidth / 8) := TLBuffer() := xbar
+  override val atlNode = TLIdentityNode()
+  atlNode :=* TLWidthWidget(cfg.memDomain.dma_buswidth / 8) := TLBuffer() := xbar
 
   override lazy val module = new BuckyballLazyRoCCModule(this)
 }
