@@ -23,6 +23,11 @@ CI_SBT_OPTS="-Dsbt.ivy.home=${SBT_CACHE_ROOT}/ivy -Dsbt.global.base=${SBT_CACHE_
 FLOW_DIR="${CI_SYNTHESIS_RUN_ROOT}/dc-flow"
 CI_SUMMARY_FILE="${CI_SYNTHESIS_RUN_ROOT}/synthesis-summary.md"
 
+case "${SYNTHESIS_CONFIG}" in
+  [A-Za-z][A-Za-z0-9_]*) ;;
+  *) echo "Invalid Chipyard configuration name: ${SYNTHESIS_CONFIG}" >&2; exit 1 ;;
+esac
+
 case "${SYNTHESIS_TECH}" in
   smic180)
     CLOCK_PERIOD="${CLOCK_PERIOD:-10.0}"

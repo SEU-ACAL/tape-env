@@ -7,6 +7,12 @@ source "${SCRIPT_DIR}/lib.sh"
 
 : "${CI_ARTIFACT_ROOT:?CI_ARTIFACT_ROOT must be set}"
 : "${CI_RESULT_ROOT:?CI_RESULT_ROOT must be set}"
+: "${CI_CONFIG:=TapeoutConfig}"
+
+case "${CI_CONFIG}" in
+  [A-Za-z][A-Za-z0-9_]*) ;;
+  *) echo "Invalid Chipyard configuration name: ${CI_CONFIG}" >&2; exit 1 ;;
+esac
 
 run_test() {
   local testcase="$1"
@@ -88,11 +94,11 @@ test_pids=()
 # Each test gets its own copied VCS runtime directory in run_test, and the
 # I2C/SPI drivers build into per-test temporary directories.  They can therefore
 # run concurrently while still producing independent result.json files.
-run_test spi TapeoutConfig run_spi &
+run_test spi "${CI_CONFIG}" run_spi &
 test_pids+=("$!")
-run_test i2c TapeoutConfig run_i2c &
+run_test i2c "${CI_CONFIG}" run_i2c &
 test_pids+=("$!")
-run_test jtag TapeoutConfig run_jtag &
+run_test jtag "${CI_CONFIG}" run_jtag &
 test_pids+=("$!")
 
 for pid in "${test_pids[@]}"; do

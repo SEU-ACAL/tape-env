@@ -4,7 +4,7 @@
 目标分支为 `main` 的拉取请求中运行，也可以手动触发。
 
 `Nightly Peripheral Regression`（`.github/workflows/nightly-peripheral-regression.yml`）每天
-北京时间 00:00 运行，也可手动触发。它构建 `TapeoutConfig` VCS 仿真器，并并行执行 I2C
+北京时间 00:00 运行，也可手动触发。它默认构建 `TapeoutConfig` VCS 仿真器，并并行执行 I2C
 EEPROM 压力测试（4 轮、每轮 16 字节）、SPI Flash 压力测试（16 轮、每轮 64 字节）和
 JTAG RSP smoke 测试（4 步、8 次内存操作）。三项测试全部使用同一个
 `TapeoutConfig`，其中 SPI Flash 和 I2C EEPROM 行为模型直接挂在该配置的 VCS harness 上。
@@ -12,7 +12,8 @@ JTAG RSP smoke 测试（4 步、8 次内存操作）。三项测试全部使用�
 因此不需要额外的 SPI Flash 镜像参数。
 测试失败时会上传各测试日志和保留的 VCS 运行目录。
 
-手动运行该工作流时，可以在 Actions 界面通过 `SPI flash regression timeout in seconds`
+手动运行该工作流时，可以在 Actions 界面通过 `config` 选择配置（默认
+`TapeoutConfig`），并通过 `SPI flash regression timeout in seconds`
 、`JTAG regression timeout in seconds` 和 `JTAG per-request RSP timeout in seconds`
 设置超时（单位为秒，默认均为 1000）；也可勾选 `Run exhaustive JTAG RSP stress`，以运行
 32 步、64 次内存操作、完整 ELF SBA 写入和完整 ROM 校验。定时运行不启用该选项，且继续使用
@@ -32,6 +33,8 @@ Linux。构建在标记为 `builder` 的自托管运行器执行，测试在标�
 核心回归仿真器的 cycle 超时由 `CI_TIMEOUT_CYCLES` 控制，当前默认设置为 `200000000`
 （200M cycles），并同时应用于 Verilator 和 VCS 回归。
 
+手动触发时，`config` 下拉框只切换 VCS 回归到所选配置；Verilator 仍保持上述固定配置集合。
+
 回归软件在工作流外预先构建，并由两个运行器共享：
 
 ```text
@@ -40,6 +43,9 @@ Linux。构建在标记为 `builder` 的自托管运行器执行，测试在标�
   riscv-tests/riscv64-unknown-elf/share/riscv-tests/
   zephyr/zephyr.elf
 ```
+
+手动运行 `Regression Tests` 时可以通过 `config` 选择 VCS 配置；Verilator 回归保持固定
+的 Rocket/BOOM 配置集合。未手动触发的 PR 和定时运行保持各自 workflow 中的默认配置集合。
 
 使用以下命令创建该目录：
 
@@ -53,8 +59,8 @@ nix develop --command applications/scripts/build-ci-workloads.sh
 `riscv64-unknown-elf-` 工具链编译。CI 只验证每个测试用例所需的软件，不会在回归阶段编译
 工作负载。生成的 Verilator 仿真器和配置专属的 `test-rules.d` 是每次 CI 运行的构建产物。
 
-回归摘要还包含由 VCS elaboration 输出生成的 `TapeoutConfig` 地址映射。
-`tapeoutconfig-regmap` 构建产物包含完整的 Markdown 寄存器字段映射、标准化 JSON、DTS、
+回归摘要还包含由 VCS elaboration 输出生成的所选配置地址映射。
+`<config>-regmap` 构建产物包含完整的 Markdown 寄存器字段映射、标准化 JSON、DTS、
 memmap 和原始 regmap JSON 文件。
 
 `Rocket Chip Logrotate` 用于维护回归构建产物，不执行验证；发布说明生成属于发布自动化，
@@ -65,6 +71,9 @@ memmap 和原始 regmap JSON 文件。
 `Weekly Synthesis` 在每周一 Asia/Shanghai 时间 02:00（UTC 周日 18:00）运行，也可通过
 GitHub Actions 手动触发。它使用 SMIC180 IO、BootROM/Debug ROM 和 SRAM 宏全替换生成
 `TapeoutConfig`，并执行当前 `SEU-ACAL/Tapeout-Workbench` 的 Design Compiler 流程。
+
+手动运行时可通过 `config` 选择要生成和分析的 Chipyard 配置，默认值为 `TapeoutConfig`；
+该值会同时传递给 Design Compiler 和 PrimeTime 功耗分析步骤。
 
 任务必须在标记为 `builder` 的自托管运行器执行，并具备 Design Compiler、VCS、PrimeTime、
 Verdi 许可及该流程所需的 PDK 挂载。Design Compiler 和 PrimeTime 通过
