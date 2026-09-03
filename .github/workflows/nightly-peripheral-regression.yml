@@ -22,6 +22,11 @@ on:
         required: false
         default: '1000'
         type: number
+      jtag_full_stress:
+        description: 'Run exhaustive JTAG RSP stress (32 steps, 64 memory rounds, full ELF and ROM verification)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -71,6 +76,7 @@ jobs:
           SPI_FLASH_CI_TIMEOUT: ${{ inputs.spi_timeout || '1000' }}
           JTAG_CI_TIMEOUT: ${{ inputs.jtag_timeout || '1000' }}
           JTAG_STRESS_TIMEOUT: ${{ inputs.jtag_stress_timeout || '1000' }}
+          JTAG_FULL_STRESS: ${{ github.event_name == 'workflow_dispatch' && inputs.jtag_full_stress && '1' || '0' }}
         run: |
           env \
             CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \
