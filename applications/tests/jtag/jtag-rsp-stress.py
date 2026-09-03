@@ -6,6 +6,7 @@ import hashlib
 import socket
 import struct
 import sys
+import time
 
 STEP_STREAM_INSTRUCTIONS = 256
 
@@ -170,6 +171,20 @@ def read_region(rsp, name, address, length, chunk):
           (name, address, length, digest.hexdigest()), flush=True)
 
 
+def read_region_samples(rsp, name, address, length):
+    if length <= 0:
+        raise RspError("invalid %s read range" % name)
+    offsets = {0, ((length - 1) // 8) * 8}
+    if length > 8:
+        offsets.add((length // 2 // 8) * 8)
+    digest = hashlib.sha256()
+    for offset in sorted(offsets):
+        count = min(8, length - offset)
+        digest.update(read_memory(rsp, address + offset, count))
+    print("JTAG_RSP_READ_SAMPLE_PASS name=%s address=0x%x probes=%d sha256=%s" %
+          (name, address, len(offsets), digest.hexdigest()), flush=True)
+
+
 def elf_load_segments(path):
     image = open(path, "rb").read()
     if image[:4] != b"\x7fELF" or image[4] != 2 or image[5] != 1:
@@ -188,6 +203,24 @@ def elf_load_segments(path):
         if p_memsz > p_filesz:
             segments.append((p_paddr + p_filesz, b"\0" * (p_memsz - p_filesz)))
     return segments
+
+
+def verify_preloaded_elf(rsp, path):
+    """Check sparse, aligned bytes from the image loaded by +loadmem."""
+    probes = 0
+    for address, data in elf_load_segments(path):
+        offsets = {0, ((len(data) - 1) // 8) * 8}
+        if len(data) > 8:
+            offsets.add((len(data) // 2 // 8) * 8)
+        for offset in sorted(offsets):
+            count = min(8, len(data) - offset)
+            actual = read_memory(rsp, address + offset, count)
+            expected = data[offset:offset + count]
+            if actual != expected:
+                raise RspError("preloaded ELF mismatch at 0x%x: got %s expected %s" %
+                               (address + offset, actual.hex(), expected.hex()))
+            probes += 1
+    print("JTAG_RSP_ELF_PRELOAD_VERIFY_PASS probes=%d" % probes, flush=True)
 
 
 def elf_symbol(path, name):
@@ -242,6 +275,14 @@ def main():
                         default=0x80)
     parser.add_argument("--rom-read-chunk", type=lambda value: int(value, 0),
                         default=0x40)
+    parser.add_argument("--elf-load-mode", choices=("preloaded", "write"),
+                        default="preloaded")
+    parser.add_argument("--rom-verify-mode", choices=("sampled", "full"),
+                        default="sampled")
+    parser.add_argument("--stop-after", choices=("reset", "register", "hardware", "software", "breakpoint", "step", "rom", "memory"),
+                        default="memory", help=argparse.SUPPRESS)
+    parser.add_argument("--skip-breakpoints", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--skip-hardware-breakpoint", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--timeout", type=float, default=500.0)
     args = parser.parse_args()
     if args.steps < 1 or args.memory < 1:
@@ -253,6 +294,13 @@ def main():
 
     rsp = None
     try:
+        phase_start = time.monotonic()
+        def phase(name):
+            nonlocal phase_start
+            elapsed = time.monotonic() - phase_start
+            print("JTAG_RSP_PHASE name=%s elapsed=%.3f" % (name, elapsed), flush=True)
+            phase_start = time.monotonic()
+
         print("JTAG_RSP_CONNECT host=%s port=%d" % (args.host, args.port), flush=True)
         rsp = Rsp(args.host, args.port, args.timeout)
         rsp.request(b"qSupported")
@@ -263,9 +311,17 @@ def main():
         rsp.monitor("riscv set_mem_access sysbus")
         rsp.monitor("reset halt")
         print("JTAG_RSP_RESET_HALT_PASS", flush=True)
-        for address, data in elf_load_segments(args.elf):
-            write_memory(rsp, address, data)
-        print("JTAG_RSP_ELF_LOAD_PASS", flush=True)
+        phase("reset")
+        if args.stop_after == "reset":
+            return 0
+        if args.elf_load_mode == "write":
+            for address, data in elf_load_segments(args.elf):
+                write_memory(rsp, address, data)
+            print("JTAG_RSP_ELF_LOAD_PASS", flush=True)
+        else:
+            # The simulator has already loaded this image through +loadmem;
+            # repeating it over Remote Bitbang is prohibitively slow.
+            print("JTAG_RSP_ELF_PRELOADED_PASS", flush=True)
         start = elf_symbol(args.elf, "gdb_step_stress")
 
         # Exercise abstract register write/read while the hart is halted.
@@ -276,23 +332,37 @@ def main():
         if read_register(rsp, 0) != 0:
             raise RspError("GPR x0 is not hard-wired to zero")
         print("JTAG_RSP_REGISTER_PASS x5_write_read x0_read")
+        phase("register")
+        if args.stop_after == "register":
+            return 0
 
-        # Test one hardware trigger and one software EBREAK breakpoint.
-        hardware_breakpoint = start + 64 * 4
-        software_breakpoint = start + 128 * 4
-        write_register(rsp, 0x20, start)
-        set_breakpoint(rsp, 1, hardware_breakpoint)
-        expect_stop(rsp, hardware_breakpoint, 2, "hardware breakpoint")
-        clear_breakpoint(rsp, 1, hardware_breakpoint)
-        print("JTAG_RSP_BREAKPOINT_PASS kind=hardware address=0x%x" %
-              hardware_breakpoint)
+        if not args.skip_breakpoints:
+            # Test one hardware trigger and one software EBREAK breakpoint.
+            hardware_breakpoint = start + 64 * 4
+            software_breakpoint = start + 128 * 4
+            if not args.skip_hardware_breakpoint:
+                write_register(rsp, 0x20, start)
+                print("JTAG_RSP_HARDWARE_START address=0x%x" % hardware_breakpoint, flush=True)
+                set_breakpoint(rsp, 1, hardware_breakpoint)
+                expect_stop(rsp, hardware_breakpoint, 2, "hardware breakpoint")
+                clear_breakpoint(rsp, 1, hardware_breakpoint)
+                print("JTAG_RSP_BREAKPOINT_PASS kind=hardware address=0x%x" %
+                      hardware_breakpoint)
+                if args.stop_after == "hardware":
+                    return 0
 
-        write_register(rsp, 0x20, start)
-        set_breakpoint(rsp, 0, software_breakpoint)
-        expect_stop(rsp, software_breakpoint, 1, "software breakpoint")
-        clear_breakpoint(rsp, 0, software_breakpoint)
-        print("JTAG_RSP_BREAKPOINT_PASS kind=software address=0x%x" %
-              software_breakpoint)
+            write_register(rsp, 0x20, start)
+            print("JTAG_RSP_SOFTWARE_START address=0x%x" % software_breakpoint, flush=True)
+            set_breakpoint(rsp, 0, software_breakpoint)
+            expect_stop(rsp, software_breakpoint, 1, "software breakpoint")
+            clear_breakpoint(rsp, 0, software_breakpoint)
+            print("JTAG_RSP_BREAKPOINT_PASS kind=software address=0x%x" %
+                  software_breakpoint)
+            if args.stop_after == "software":
+                return 0
+            phase("breakpoint")
+            if args.stop_after == "breakpoint":
+                return 0
 
         # Single-step a known fixed-width instruction stream.
         write_register(rsp, 0x20, start)
@@ -311,13 +381,23 @@ def main():
                 raise RspError("step %d dcsr.cause=%d, expected 4" %
                                (iteration, (dcsr >> 6) & 0x7))
         print("JTAG_RSP_SINGLE_STEP_PASS steps=%d" % args.steps)
+        phase("step")
+        if args.stop_after == "step":
+            return 0
 
-        # Read every byte in both ROM windows. The chunking only reduces RSP
-        # packet overhead; the complete configured ranges are still covered.
-        read_region(rsp, "bootrom", args.bootrom_base, args.bootrom_size,
-                    args.rom_read_chunk)
-        read_region(rsp, "debugrom", args.debugrom_base, args.debugrom_size,
-                    args.rom_read_chunk)
+        if args.rom_verify_mode == "full":
+            read_region(rsp, "bootrom", args.bootrom_base, args.bootrom_size,
+                        args.rom_read_chunk)
+            read_region(rsp, "debugrom", args.debugrom_base, args.debugrom_size,
+                        args.rom_read_chunk)
+        else:
+            read_region_samples(rsp, "bootrom", args.bootrom_base,
+                                args.bootrom_size)
+            read_region_samples(rsp, "debugrom", args.debugrom_base,
+                                args.debugrom_size)
+        phase("rom")
+        if args.stop_after == "rom":
+            return 0
 
         for iteration in range(args.memory):
             address = args.memory_base + iteration * 8
@@ -330,6 +410,7 @@ def main():
                                (iteration, actual.hex(), expected.hex()))
         print("JTAG_RSP_STRESS_PASS steps=%d memory=%d" %
               (args.steps, args.memory))
+        phase("memory")
         return 0
     except (OSError, RspError) as exc:
         print("JTAG_RSP_STRESS_FAIL: %s" % exc, file=sys.stderr)

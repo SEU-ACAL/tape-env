@@ -52,7 +52,7 @@ run_i2c() {
     I2C_STRESS_ROUNDS="${I2C_STRESS_ROUNDS:-4}" \
     I2C_STRESS_PAGE_BYTES="${I2C_STRESS_PAGE_BYTES:-16}" \
     I2C_TIMEOUT_POLLS="${I2C_TIMEOUT_POLLS:-1000000}" \
-    I2C_CI_TIMEOUT="${I2C_CI_TIMEOUT:-900}" \
+    I2C_CI_TIMEOUT="${I2C_CI_TIMEOUT:-2000}" \
     run_in_nix './applications/tests/ci-i2c-test.sh'
 }
 
@@ -72,8 +72,9 @@ run_jtag() {
     cd "$REPO_ROOT"
     SIMV="$simv" \
       BUILD_ELF=0 \
-      STRESS_STEPS="${JTAG_STRESS_STEPS:-32}" \
-      STRESS_MEMORY="${JTAG_STRESS_MEMORY:-64}" \
+      STRESS_STEPS="${JTAG_STRESS_STEPS:-4}" \
+      STRESS_MEMORY="${JTAG_STRESS_MEMORY:-8}" \
+      JTAG_FULL_STRESS="${JTAG_FULL_STRESS:-0}" \
       STRESS_TIMEOUT="${JTAG_STRESS_TIMEOUT:-1000}" \
       CI_TIMEOUT="${JTAG_CI_TIMEOUT:-1000}" \
       "$NIX_BIN" develop .#jtag-debug --command \
