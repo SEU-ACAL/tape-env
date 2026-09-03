@@ -74,6 +74,8 @@ GitHub Actions 手动触发。它使用 SMIC180 IO、BootROM/Debug ROM 和 SRAM 
 
 手动运行时可通过 `config` 选择要生成和分析的 Chipyard 配置，默认值为 `TapeoutConfig`；
 该值会同时传递给 Design Compiler 和 PrimeTime 功耗分析步骤。
+可选配置包括 `TapeoutConfig`、`TapeoutRocketConfig`、`QuadChannelRocketConfig`、
+`MediumBoomV3CosimFastConfig` 和 `MediumBoomV4CosimFastConfig`。
 
 任务必须在标记为 `builder` 的自托管运行器执行，并具备 Design Compiler、VCS、PrimeTime、
 Verdi 许可及该流程所需的 PDK 挂载。Design Compiler 和 PrimeTime 通过

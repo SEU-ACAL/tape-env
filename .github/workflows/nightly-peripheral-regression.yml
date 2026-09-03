@@ -14,6 +14,7 @@ on:
         type: choice
         options:
           - TapeoutConfig
+          - TapeoutRocketConfig
           - QuadChannelRocketConfig
           - MediumBoomV3CosimFastConfig
           - MediumBoomV4CosimFastConfig
