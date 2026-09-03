@@ -15,9 +15,27 @@ openocd_bin="${OPENOCD:-openocd}"
 python_bin="${PYTHON:-python3}"
 rbb_host="${RBB_HOST:-127.0.0.1}"
 gdb_host="${GDB_HOST:-127.0.0.1}"
-gdb_port="${GDB_PORT:-3335}"
-stress_steps="${STRESS_STEPS:-32}"
-stress_memory="${STRESS_MEMORY:-64}"
+gdb_port="${GDB_PORT:-3338}"
+full_stress="${JTAG_FULL_STRESS:-0}"
+if [[ "$full_stress" == 1 ]]; then
+  default_steps=32
+  default_memory=64
+  default_elf_load_mode=write
+  default_rom_verify_mode=full
+  default_stop_after=memory
+  default_skip_breakpoints=0
+else
+  default_steps=4
+  default_memory=8
+  default_elf_load_mode=preloaded
+  default_rom_verify_mode=sampled
+  default_stop_after=memory
+  default_skip_breakpoints=0
+fi
+stress_steps="${STRESS_STEPS:-$default_steps}"
+stress_memory="${STRESS_MEMORY:-$default_memory}"
+elf_load_mode="${JTAG_ELF_LOAD_MODE:-$default_elf_load_mode}"
+rom_verify_mode="${JTAG_ROM_VERIFY_MODE:-$default_rom_verify_mode}"
 stress_timeout="${STRESS_TIMEOUT:-1000}"
 ci_timeout="${CI_TIMEOUT:-1000}"
 startup_timeout="${STARTUP_TIMEOUT:-30}"
@@ -27,6 +45,17 @@ bootrom_size="${BOOTROM_SIZE:-0x2000}"
 debugrom_base="${DEBUGROM_BASE:-0x800}"
 debugrom_size="${DEBUGROM_SIZE:-0x80}"
 rom_read_chunk="${ROM_READ_CHUNK:-0x40}"
+stop_after="${JTAG_STOP_AFTER:-$default_stop_after}"
+skip_breakpoints="${JTAG_SKIP_BREAKPOINTS:-$default_skip_breakpoints}"
+skip_hardware_breakpoint="${JTAG_SKIP_HARDWARE_BREAKPOINT:-0}"
+breakpoint_args=()
+if [[ "$skip_breakpoints" == 1 ]]; then
+  breakpoint_args+=(--skip-breakpoints)
+fi
+if [[ "$skip_hardware_breakpoint" == 1 ]]; then
+  breakpoint_args+=(--skip-hardware-breakpoint)
+fi
+fsdb_file="${FSDB_FILE:-}"
 build_elf="${BUILD_ELF:-1}"
 
 for required in "$openocd_bin" "$python_bin"; do
@@ -84,8 +113,9 @@ trap cleanup EXIT INT TERM
 # time zero.
 "$python_bin" "$repo_root/applications/tests/spiflash.py" --outfile "$flash_image"
 
-printf 'CI JTAG: ELF=%s steps=%s memory=%s\n' \
-  "$elf" "$stress_steps" "$stress_memory"
+printf 'CI JTAG: ELF=%s steps=%s memory=%s elf_load=%s rom_verify=%s stop_after=%s fsdb=%s\n' \
+  "$elf" "$stress_steps" "$stress_memory" "$elf_load_mode" "$rom_verify_mode" \
+  "$stop_after" "${fsdb_file:-off}"
 
 "$simv" \
   +permissive \
@@ -96,6 +126,7 @@ printf 'CI JTAG: ELF=%s steps=%s memory=%s\n' \
   +spiflash0="$flash_image" \
   +loadmem="$elf" \
   +jtag_rbb_enable=1 \
+  ${fsdb_file:+"+fsdbfile=$fsdb_file"} \
   +permissive-off \
   "$elf" >"$sim_stdout" 2>"$sim_stderr" &
 sim_pid=$!
@@ -133,15 +164,7 @@ fi
 openocd_pid=$!
 
 for ((attempt = 0; attempt < startup_timeout; ++attempt)); do
-  if "$python_bin" - "$gdb_host" "$gdb_port" 2>/dev/null <<'PY'
-import socket
-import sys
-
-with socket.socket() as sock:
-    sock.settimeout(1)
-    sock.connect((sys.argv[1], int(sys.argv[2])))
-PY
-  then
+  if rg -q 'Listening on port' "$openocd_log"; then
     break
   fi
   if ! kill -0 "$openocd_pid" 2>/dev/null; then
@@ -150,16 +173,7 @@ PY
   fi
   sleep 1
 done
-
-if ! "$python_bin" - "$gdb_host" "$gdb_port" 2>/dev/null <<'PY'
-import socket
-import sys
-
-with socket.socket() as sock:
-    sock.settimeout(1)
-    sock.connect((sys.argv[1], int(sys.argv[2])))
-PY
-then
+if ! rg -q 'Listening on port' "$openocd_log"; then
   printf 'CI JTAG error: timed out waiting for OpenOCD GDB port\n' >&2
   exit 1
 fi
@@ -175,6 +189,12 @@ timeout "$ci_timeout" "$python_bin" "$script_dir/jtag-rsp-stress.py" \
   --debugrom-base "$debugrom_base" \
   --debugrom-size "$debugrom_size" \
   --rom-read-chunk "$rom_read_chunk" \
+  --elf-load-mode "$elf_load_mode" \
+  --rom-verify-mode "$rom_verify_mode" \
+  --stop-after "$stop_after" \
+  "${breakpoint_args[@]}" \
   --timeout "$stress_timeout"
 
-printf 'CI JTAG PASS steps=%s memory=%s\n' "$stress_steps" "$stress_memory"
+printf 'CI JTAG PASS profile=%s steps=%s memory=%s\n' \
+  "$([[ "$full_stress" == 1 ]] && printf full || printf smoke)" \
+  "$stress_steps" "$stress_memory"

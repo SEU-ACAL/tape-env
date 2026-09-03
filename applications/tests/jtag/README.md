@@ -23,12 +23,28 @@ make -C applications/tests/jtag vcs-jtag-stress
 make -C applications/tests/jtag ci-jtag-test
 ```
 
-The RSP stress test covers abstract register read/write, hardware and software
-breakpoints, single-step execution, complete reads of the Tapeout BootROM and
-Debug ROM windows, and DDR write/read traffic. It accepts `STRESS_STEPS` and
-`STRESS_MEMORY`; the default values are intentionally bounded for the slow
-Remote Bitbang transport. ROM ranges can be overridden with `BOOTROM_BASE`,
-`BOOTROM_SIZE`, `DEBUGROM_BASE`, `DEBUGROM_SIZE`, and `ROM_READ_CHUNK`.
+The default RSP regression is a fast DRAMSim-backed smoke profile that runs the
+complete phase chain: reset/halt, register access, hardware and software
+breakpoints, single-step, sampled ROM reads, and DDR write/read traffic. It
+uses 4 steps, 8 memory rounds, a preloaded ELF, and sampled ROM verification.
+Set `JTAG_FULL_STRESS=1` for the exhaustive 32-step/64-round/full-ROM/full-ELF
+variant. `JTAG_STOP_AFTER` and `JTAG_SKIP_BREAKPOINTS=1` remain available for
+targeted diagnosis.
+
+Run the exhaustive transport variant explicitly when validating bulk SBA
+traffic. It restores the previous 32 single steps, 64 DDR write/read rounds,
+full SBA ELF transfer, and complete ROM-window reads:
+
+```sh
+JTAG_FULL_STRESS=1 make -C applications/tests/jtag ci-jtag-test
+```
+
+With a debug VCS binary, save the waveform by setting `FSDB_FILE`:
+
+```sh
+SIMV=soc-generator/sims/vcs/simv-chipyard.harness-TapeoutConfig-debug \
+FSDB_FILE=/tmp/jtag.fsdb make -C applications/tests/jtag ci-jtag-test
+```
 
 The CI wrapper uses `STRESS_TIMEOUT` for an individual RSP request and
 `CI_TIMEOUT` for the complete run; their defaults are 1000 and 1000 seconds.
