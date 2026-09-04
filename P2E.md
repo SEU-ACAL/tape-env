@@ -9,7 +9,7 @@
 
 ```sh
 cp p2e.toml.example p2e.toml
-# 编辑 p2e.toml，为当前用户设置 SSH 主机和 remote_root。
+# 编辑 p2e.toml，填写远端地址、端口和 remote_root。
 nix develop
 make -C dependencies/p2e-runner/platform/tape-env verilog
 
@@ -25,8 +25,8 @@ p2e run --image /path/to/workload.elf
 dependencies/p2e-runner/platform/tape-env/generated-src/chipyard.p2e.hpec.P2ETop.HpecP2ETapeoutConfig/gen-collateral/P2ETop.sv
 ```
 
-根目录的 `p2e.toml` 从模板创建后只保存本工程的非敏感默认值，例如 RTL 目录、SSH
-别名和远端工作目录；它被 Git 忽略。密码必须通过 `p2e configure-password` 写入
+根目录的 `p2e.toml` 从模板创建后只保存本工程的非敏感默认值，例如远端 SSH 地址、端口、
+RTL 目录和远端工作目录；它被 Git 忽略。密码必须通过 `p2e configure-password` 写入
 `.p2e/hpec-p2e.password`，不要加入 `p2e.toml` 或提交到仓库。
 
 `p2e` 命令和对应的 Cargo、Rust、SSH、rsync、sshpass 环境均由

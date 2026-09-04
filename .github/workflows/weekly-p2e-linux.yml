@@ -1,0 +1,89 @@
+name: Weekly P2E Linux
+
+on:
+  schedule:
+    # Monday 18:00 UTC is Tuesday 02:00 in Asia/Shanghai (UTC+8), after the
+    # weekly synthesis flow has had a full day to use the shared builder.
+    - cron: '0 18 * * 1'
+  workflow_dispatch:
+    inputs:
+      fpga_location:
+        description: Physical HPEC FPGA location (blank uses the repository variable or 4.A)
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-p2e-linux-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  p2e-linux:
+    name: Build P2E and boot HTIF-console Linux
+    # The runner must provide Nix, libguestfs/guestmount, and an SSH route to
+    # the HPEC server. P2E compilation and FPGA execution occur remotely.
+    runs-on: [self-hosted, linux, builder]
+    timeout-minutes: 720
+    env:
+      CI_SHARED_ROOT: /data1/ci-runner
+      HTTP_PROXY: http://127.0.0.1:12000
+      HTTPS_PROXY: http://127.0.0.1:12000
+      NO_PROXY: localhost,127.0.0.1
+      P2E_HOST: ${{ vars.P2E_HOST }}
+      P2E_PORT: ${{ vars.P2E_PORT }}
+      P2E_REMOTE_ROOT: ${{ vars.P2E_REMOTE_ROOT }}
+      P2E_FPGA_LOCATION: ${{ inputs.fpga_location || vars.P2E_FPGA_LOCATION || '4.A' }}
+      P2E_DESIGN_FPGA_LOCATION: ${{ vars.P2E_DESIGN_FPGA_LOCATION || '0.A' }}
+      P2E_LINUX_BUILD_JOBS: 8
+      P2E_SSH_PASSWORD: ${{ secrets.P2E_SSH_PASSWORD }}
+    steps:
+      - name: Checkout Tapeout
+        uses: actions/checkout@v4
+        with:
+          path: ci-workspaces/tape-env
+          submodules: false
+
+      - name: Prepare isolated P2E paths
+        run: |
+          run_dir="${CI_SHARED_ROOT}/weekly-p2e-linux/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:12}"
+          mkdir -p "${run_dir}"
+          echo "CI_P2E_RUN_ROOT=${run_dir}" >> "$GITHUB_ENV"
+          echo "CI_P2E_WORKSPACE=${GITHUB_WORKSPACE}/ci-workspaces/tape-env" >> "$GITHUB_ENV"
+
+      - name: Generate P2E RTL and run Linux
+        env:
+          GITHUB_WORKSPACE: ${{ env.CI_P2E_WORKSPACE }}
+        run: |
+          "${CI_P2E_WORKSPACE}/.github/scripts/ci/run-weekly-p2e-linux.sh"
+
+      - name: Publish P2E Linux summary
+        if: always()
+        run: |
+          summary_file="${CI_P2E_RUN_ROOT}/p2e-linux-summary.md"
+          if [[ -s "${summary_file}" ]]; then
+            cat "${summary_file}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo '## Weekly P2E Linux'
+              echo
+              echo 'No summary was produced. Check the P2E RTL, Linux workload, P2E build, and P2E run logs.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload P2E Linux failure diagnostics
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@v7
+        with:
+          name: weekly-p2e-linux-diagnostics-${{ github.run_id }}
+          path: |
+            ${{ env.CI_P2E_RUN_ROOT }}/submodules.log
+            ${{ env.CI_P2E_RUN_ROOT }}/p2e-rtl.log
+            ${{ env.CI_P2E_RUN_ROOT }}/linux-build.log
+            ${{ env.CI_P2E_RUN_ROOT }}/p2e-build.log
+            ${{ env.CI_P2E_RUN_ROOT }}/p2e-run.log
+            ${{ env.CI_P2E_RUN_ROOT }}/p2e-results
+          if-no-files-found: warn
+          retention-days: 14

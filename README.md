@@ -50,6 +50,15 @@ cd chipyard
 nix develop
 ```
 
+如果需要同时使用 Tapeout 工具链和 HPEC P2E runner 环境，可进入联合开发环境：
+
+```sh
+nix develop .#p2e
+```
+
+该环境在保留默认 SoC/RTL 生成工具的同时，额外提供 P2E runner 的 Rust、Spike、SSH
+和 `p2e` 命令。生成 RTL 和执行 P2E 操作都可以在同一个 shell 中完成。
+
 JTAG 软件调试使用独立环境，不增加默认开发 shell 的依赖：
 
 ```sh
