@@ -48,20 +48,12 @@ make -C soc-generator SIM=vcs CONFIG=TapeoutConfig verilog
 make -C soc-generator/sims/vcs CONFIG=TapeoutConfig verilog
 ```
 
-默认 CDK 目录为 `/data2/smic180/S018VM_V0P1PC_CDK`，可用
-`SMIC180_ROM_CDK_DIR=/path/to/S018VM_V0P1PC_CDK` 覆盖。启用后会由该目录下的
-`S018VM.jar` 直接生成两份 ROM IP；默认固定缓存于
-`/data2/smic180/rom-ip/{bootrom,debugrom}`，其中包括 Verilog、物理交付物、稳定
-codefile 和 fingerprint。仅当对应 BootROM/Debug ROM 的内容、宏规格、compiler JAR
-或生成脚本变更时，才重新调用 ROM compiler；否则直接复用缓存。可用
-`SMIC180_ROM_CACHE_DIR=/path/to/rom-ip` 覆盖缓存根目录。不使用压缩包，也不会修改 CDK。
-新建缓存根目录时默认使用 `1777`，新建输出目录及产物为所有用户可写；已有共享目录不会被强制
-执行 `chmod`，只要当前用户具备读、写和进入权限即可复用。可分别通过
-`SMIC180_ROM_CACHE_MODE` 和 `SMIC180_ROM_OUTPUT_MODE` 覆盖新建目录的权限。
+ROM 宏必须预先放置在 `/data2/smic180/rom-ip/{bootrom,debugrom}`，构建只读取其中的
+Verilog 模型和物理交付物，不生成或更新 ROM。可用 `SMIC180_ROM_CACHE_DIR=/path/to/rom-ip`
+覆盖缓存根目录；若对应 Verilog 宏不存在，构建会直接报错。ROM 镜像、CDK、JDK 和
+compiler 的变化都不会触发 ROM 生成。
 Debug ROM 使用同步 64-bit 宏，并在请求后的下一个周期返回对应的 64-bit word。
 非 `TapeoutConfig` 配置仍可通过 `USE_SMIC180_ROM=0` 保留普通 ROM；P2E 配置会忽略该选项，始终保留普通 ROM。
-S018VM compiler 需要 Java 8；默认 `nix develop` 会提供并设置
-`SMIC180_ROM_JAVA`。需要固定 Java 时可传 `SMIC180_ROM_JAVA=/path/to/java`。
 
 ## TapeoutConfig 检查
 

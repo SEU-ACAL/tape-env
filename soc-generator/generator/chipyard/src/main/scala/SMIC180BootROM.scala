@@ -1,6 +1,5 @@
 package chipyard
 
-import java.nio.ByteBuffer
 import java.nio.file.{Files, Paths}
 
 import chisel3._
@@ -16,7 +15,7 @@ import freechips.rocketchip.diplomacy.{AddressSet, RegionType, TransferSizes}
 import freechips.rocketchip.resources.{Resource, SimpleDevice}
 import freechips.rocketchip.subsystem.{BaseSubsystem, HasHierarchicalElements, HasTileInputConstants, TLBusWrapperLocation}
 import freechips.rocketchip.tilelink.{TLFragmenter, TLManagerNode, TLSlaveParameters, TLSlavePortParameters}
-import freechips.rocketchip.util.{ElaborationArtefacts, ResourceFileName, SystemFileName}
+import freechips.rocketchip.util.{ResourceFileName, SystemFileName}
 
 /** Select the SMIC 180 nm synchronous ROM macro for BootROM instances. */
 case object UseSMIC180BootROM extends Field[Boolean](false)
@@ -91,8 +90,6 @@ class SMIC180TLROM(
     require(contents.length <= size,
       s"BootROM image (${contents.length} bytes) exceeds SMIC macro capacity ($size bytes)")
 
-    ElaborationArtefacts.add("smic180_bootrom.code", SMIC180BootROM.codeFile(contents, size))
-
     val (in, edge) = node.in(0)
     val macroRom = Module(new SMIC180BootROMMacro)
     val pending = RegInit(false.B)
@@ -132,23 +129,10 @@ object SMIC180BootROM {
 
   def contents(params: BootROMParams, subsystem: BaseSubsystem): Seq[Byte] = {
     val image = params.contentFileName match {
-      case SystemFileName(fileName) => ByteBuffer.wrap(Files.readAllBytes(Paths.get(fileName))).array()
-      case ResourceFileName(fileName) => os.read.bytes(os.resource / os.RelPath(fileName.dropWhile(_ == '/')))
+      case SystemFileName(fileName) => Files.readAllBytes(Paths.get(fileName)).toIndexedSeq
+      case ResourceFileName(fileName) => os.read.bytes(os.resource / os.RelPath(fileName.dropWhile(_ == '/'))).toIndexedSeq
     }
     if (params.appendDTB) image ++ subsystem.dtb.contents else image.toIndexedSeq
-  }
-
-  def codeFile(contents: Seq[Byte], size: Int): String = {
-    val padded = contents ++ Seq.fill(size - contents.length)(0.toByte)
-    padded.grouped(beatBytes).map { bytes =>
-      val word = bytes.zipWithIndex.foldLeft(BigInt(0)) { case (value, (byte, index)) =>
-        value | (BigInt(byte & 0xff) << (index * 8))
-      }
-      val binary = word.toString(2)
-      require(binary.length <= dataBits,
-        s"BootROM word $word does not fit in $dataBits bits")
-      ("0" * (dataBits - binary.length)) + binary
-    }.mkString("\n") + "\n"
   }
 
   def attach(
