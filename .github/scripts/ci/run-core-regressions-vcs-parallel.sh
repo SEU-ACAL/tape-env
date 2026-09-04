@@ -54,7 +54,7 @@ run_testcase() {
     CI_CONFIG="${config}" \
     CI_TESTCASE="${script_testcase}" \
     CI_RESULT_DIR="${result_dir}" \
-    CI_VCS_SIM_OUTPUT_DIR="${REPO_ROOT}/soc-generator/sims/vcs/output/${testcase}" \
+    CI_VCS_SIM_OUTPUT_DIR="${result_dir}/sim-work" \
     "${SCRIPT_DIR}/run-core-regression-vcs.sh" > "${result_dir}/workflow.log" 2>&1
 }
 
