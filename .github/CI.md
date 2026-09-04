@@ -77,6 +77,10 @@ GitHub Actions 手动触发。它使用 SMIC180 IO、BootROM/Debug ROM 和 SRAM 
 可选配置包括 `TapeoutConfig`、`TapeoutRocketConfig`、`QuadChannelRocketConfig`、
 `MediumBoomV3CosimFastConfig` 和 `MediumBoomV4CosimFastConfig`。
 
+手动运行时还可通过 `corner` 选择综合、门级仿真和 PrimeTime 使用的 PVT 工艺角：
+`ss`（默认）、`tt` 或 `ff`。每个工艺角都会独立生成带角标的综合 run，后续功耗分析
+必须使用同一 run 的网表、SDF 和 FSDB；不能只在 PrimeTime 阶段切换工艺角。
+
 任务必须在标记为 `builder` 的自托管运行器执行，并具备 Design Compiler、VCS、PrimeTime、
 Verdi 许可及该流程所需的 PDK 挂载。Design Compiler 和 PrimeTime 通过
 `docker exec -i ci_env bash -lc` 在 `ci_env` 容器运行；GitHub Actions 没有 TTY，因此使用
@@ -89,7 +93,8 @@ SMIC180 默认时钟周期为 10.0 ns（100 MHz）。手动运行的
 4470574 ns 的稳态 FSDB 窗口。PrimeTime 输出平均功耗，单位为瓦。可通过
 `POWER_BENCHMARK`、`POWER_WORKLOAD`、`POWER_START_NS`、`POWER_END_NS`、
 `STD_CELL_MODEL`、`STD_CELL_DB`、`SRAM_ROOT` 和 `SRAM_CORNER` 覆盖工作负载、活动窗口
-与工艺路径。SMIC180 的标准单元和 SRAM 库采用相同的 SS、125C 工艺与电压角。
+与工艺路径。SMIC180 的标准单元、IO、SRAM 和 ROM 库会根据所选 `corner` 统一映射到
+`ss`、`tt` 或 `ff` 角。
 
 功耗步骤需要 PrimeTime W-2024，默认版本为 W-2024.09-SP1。结果是基于工作负载的布局前
 估算，不是签核结果。任务不会上传实现文件；摘要会报告总单元面积，以及 core、JTAG 和
