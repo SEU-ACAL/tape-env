@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render TapeoutConfig's generated memory and register maps for CI."""
+"""Render a selected Chipyard configuration's generated maps for CI."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--generated-src", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--config", default="TapeoutConfig")
     return parser.parse_args()
 
 
@@ -100,11 +101,16 @@ def load_regmaps(generated_src: Path) -> list[dict[str, object]]:
     return regmaps
 
 
-def write_summary(output: Path, mappings: list[dict[str, object]], dts_nodes: dict[int, dict[str, object]]) -> None:
+def write_summary(
+    output: Path,
+    mappings: list[dict[str, object]],
+    dts_nodes: dict[int, dict[str, object]],
+    config: str = "TapeoutConfig",
+) -> None:
     lines = [
-        "## TapeoutConfig Register Map",
+        f"## {config} Register Map",
         "",
-        "Generated from this run's `TapeoutConfig` DTS and regmap JSON artifacts.",
+        f"Generated from this run's `{config}` DTS and regmap JSON artifacts.",
         "",
         "| Device | Compatible | Base address | Size | PLIC IRQ |",
         "|---|---|---:|---:|---:|",
@@ -127,16 +133,21 @@ def write_summary(output: Path, mappings: list[dict[str, object]], dts_nodes: di
     lines.extend(
         [
             "",
-            "The `tapeoutconfig-regmap` artifact contains the complete register-field map, normalized JSON, DTS, memmap, and raw regmap JSON files.",
+            f"The `{config}-regmap` artifact contains the complete register-field map, normalized JSON, DTS, memmap, and raw regmap JSON files.",
             "",
         ]
     )
     output.write_text("\n".join(lines))
 
 
-def write_full_map(output: Path, mappings: list[dict[str, object]], regmaps: list[dict[str, object]]) -> None:
+def write_full_map(
+    output: Path,
+    mappings: list[dict[str, object]],
+    regmaps: list[dict[str, object]],
+    config: str = "TapeoutConfig",
+) -> None:
     regmaps_by_base = {regmap["base"]: regmap for regmap in regmaps}
-    lines = ["# TapeoutConfig Register Map", "", "## Address Map", "", "| Device | Base address | Size |", "|---|---:|---:|"]
+    lines = [f"# {config} Register Map", "", "## Address Map", "", "| Device | Base address | Size |", "|---|---:|---:|"]
     for mapping in mappings:
         lines.append(
             "| {name} | `{base}` | `{size}` |".format(
@@ -219,8 +230,8 @@ def main() -> None:
     for regmap_path in generated_src.glob("*.regmap.json"):
         shutil.copy2(regmap_path, raw_dir / regmap_path.name)
 
-    write_summary(output_dir / "tapeout-regmap-summary.md", normalized_mappings, dts_nodes)
-    write_full_map(output_dir / "tapeout-regmap.md", normalized_mappings, regmaps)
+    write_summary(output_dir / "tapeout-regmap-summary.md", normalized_mappings, dts_nodes, args.config)
+    write_full_map(output_dir / "tapeout-regmap.md", normalized_mappings, regmaps, args.config)
     (output_dir / "tapeout-regmap.json").write_text(
         json.dumps(
             {

@@ -8,6 +8,12 @@ source "${SCRIPT_DIR}/lib.sh"
 : "${CI_ARTIFACT_ROOT:?CI_ARTIFACT_ROOT must be set}"
 : "${CI_RESULT_ROOT:?CI_RESULT_ROOT must be set}"
 
+CI_CONFIG="${CI_CONFIG:-TapeoutConfig}"
+case "${CI_CONFIG}" in
+  [A-Za-z][A-Za-z0-9_]*) ;;
+  *) echo "Invalid Chipyard configuration name: ${CI_CONFIG}" >&2; exit 1 ;;
+esac
+
 CI_VCS_TEST_JOBS="${CI_VCS_TEST_JOBS:-8}"
 case "${CI_VCS_TEST_JOBS}" in
   ''|*[!0-9]*|0)
@@ -16,20 +22,22 @@ case "${CI_VCS_TEST_JOBS}" in
     ;;
 esac
 
-testcases=(
-  'rocket-asm:TapeoutConfig'
-  'rocket-bmark:TapeoutConfig'
-  'rocket-hello-loadmem:TapeoutConfig'
-  'rocket-hello:TapeoutConfig'
-  'rocket-zephyr-hello:TapeoutConfig'
-)
+testcases=()
+if [[ "${CI_CONFIG}" == *Boom* ]]; then
+  testcases+=("boom-asm-v3:${CI_CONFIG}" "boom-bmark-v3:${CI_CONFIG}")
+else
+  testcases+=("rocket-asm:${CI_CONFIG}" "rocket-bmark:${CI_CONFIG}" \
+    "rocket-hello-loadmem:${CI_CONFIG}" "rocket-hello:${CI_CONFIG}" \
+  )
+  if [[ "${CI_CONFIG}" == QuadChannelRocketConfig ]]; then
+    testcases+=("rocket-zephyr-hello:${CI_CONFIG}")
+  fi
+fi
 
-for config in TapeoutConfig; do
-  rules="${CI_ARTIFACT_ROOT}/${config}/test-rules.d"
-  generated="${REPO_ROOT}/soc-generator/sims/vcs/generated-src/chipyard.harness.TestHarness.${config}/chipyard.harness.TestHarness.${config}.d"
-  mkdir -p "$(dirname "${generated}")"
-  cp -f "${rules}" "${generated}"
-done
+rules="${CI_ARTIFACT_ROOT}/${CI_CONFIG}/test-rules.d"
+generated="${REPO_ROOT}/soc-generator/sims/vcs/generated-src/chipyard.harness.TestHarness.${CI_CONFIG}/chipyard.harness.TestHarness.${CI_CONFIG}.d"
+mkdir -p "$(dirname "${generated}")"
+cp -f "${rules}" "${generated}"
 
 run_testcase() {
   local testcase="$1"

@@ -93,6 +93,42 @@ class TapeoutConfig extends Config(
 
   new chipyard.config.AbstractConfig)
 
+/**
+  * Tapeout target with the same Rocket, IO, memory, and clocking settings as
+  * TapeoutConfig, but without the Pebble Buckyball RoCC.
+  */
+class TapeoutRocketConfig extends Config(
+
+  new WithSMIC180BootROMFromEnv ++
+  new testchipip.boot.WithTapeBootROM ++
+  new chipyard.config.WithBootROM(size = 0x2000) ++
+  new WithSMIC180ClockGates ++
+  new WithNoDebugClockGate ++
+  new WithSMIC180IOCells ++
+  new freechips.rocketchip.subsystem.WithoutTLMonitors ++
+  new WithTapeoutRocket ++
+  new testchipip.soc.WithNoScratchpads ++
+  new chipyard.clocking.WithNdmResetInSystemReset ++
+  new WithTapeoutSingleClock(100) ++
+  new chipyard.harness.WithSimTSIOverSerialTL(fast = true) ++
+  new chipyard.harness.WithSimI2CEepromOnPads ++
+  TapeoutSPIFlashModel.config ++
+  new chipyard.WithSerialConnect ++
+
+  new chipyard.iobinders.WithSimSPIIOCells ++
+  new chipyard.iobinders.WithSimI2CIOCells ++
+  new chipyard.config.WithUART(
+    baudrate = 115200,
+    address = 0x10020000,
+    txEntries = 8,
+    rxEntries = 8) ++
+  new chipyard.config.WithNoUART ++
+  new chipyard.config.WithSPI(address = 0x10031000) ++
+  new chipyard.config.WithI2C(address = 0x10040000) ++
+  new chipyard.config.WithGPIO(address = 0x10010000, width = 8) ++
+
+  new chipyard.config.AbstractConfig)
+
 
 // Rocket tile and cache sizing for the tapeout target.
 class WithTapeoutRocket extends Config(

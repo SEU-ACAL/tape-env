@@ -6,6 +6,17 @@ on:
     - cron: '0 18 * * 0'
   workflow_dispatch:
     inputs:
+      config:
+        description: Chipyard configuration class to synthesize and analyze
+        required: false
+        default: TapeoutConfig
+        type: choice
+        options:
+          - TapeoutConfig
+          - TapeoutRocketConfig
+          - QuadChannelRocketConfig
+          - MediumBoomV3CosimFastConfig
+          - MediumBoomV4CosimFastConfig
       technology:
         description: Full-replacement standard-cell, IO, ROM, and SRAM technology
         required: true
@@ -41,7 +52,7 @@ concurrency:
 
 jobs:
   synthesis:
-    name: Synthesize TapeoutConfig and report PT power
+    name: Synthesize ${{ inputs.config || 'TapeoutConfig' }} and report PT power
     # The runner must have valid Design Compiler, VCS, PrimeTime, and Verdi
     # licenses plus the PDK paths used by the selected synthesis technology.
     runs-on: [self-hosted, linux, builder]
@@ -52,6 +63,7 @@ jobs:
       HTTP_PROXY: http://127.0.0.1:12000
       HTTPS_PROXY: http://127.0.0.1:12000
       NO_PROXY: localhost,127.0.0.1
+      SYNTHESIS_CONFIG: ${{ inputs.config || 'TapeoutConfig' }}
       SYNTHESIS_TECH: ${{ inputs.technology || 'smic180' }}
       POWER_BENCHMARK: ${{ inputs.benchmark || 'dhrystone' }}
       POWER_USE_SDF: ${{ github.event_name != 'workflow_dispatch' && '1' || (inputs.use_sdf && '1' || '0') }}

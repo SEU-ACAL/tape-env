@@ -23,6 +23,11 @@ POWER_FLOW_DIR="${CI_SYNTHESIS_RUN_ROOT}/power-flow"
 POWER_GLS_DIR="${POWER_FLOW_DIR}/3-Pre_PR_NETSIM"
 POWER_PT_DIR="${POWER_FLOW_DIR}/4-Pre_PR_STA_POWER"
 
+case "${SYNTHESIS_CONFIG}" in
+  [A-Za-z][A-Za-z0-9_]*) ;;
+  *) echo "Invalid Chipyard configuration name: ${SYNTHESIS_CONFIG}" >&2; exit 1 ;;
+esac
+
 case "${SYNTHESIS_TECH}" in
   smic180)
     CLOCK_PERIOD="${CLOCK_PERIOD:-10.0}"

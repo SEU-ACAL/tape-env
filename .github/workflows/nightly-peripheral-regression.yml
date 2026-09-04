@@ -7,6 +7,17 @@ on:
     - cron: '0 16 * * *'
   workflow_dispatch:
     inputs:
+      config:
+        description: Chipyard configuration class to build and test
+        required: false
+        default: TapeoutConfig
+        type: choice
+        options:
+          - TapeoutConfig
+          - TapeoutRocketConfig
+          - QuadChannelRocketConfig
+          - MediumBoomV3CosimFastConfig
+          - MediumBoomV4CosimFastConfig
       spi_timeout:
         description: 'SPI flash regression timeout in seconds'
         required: false
@@ -37,7 +48,7 @@ concurrency:
 
 jobs:
   peripherals:
-    name: Run TapeoutConfig SPI, I2C, and JTAG regressions
+    name: Run ${{ inputs.config || 'TapeoutConfig' }} SPI, I2C, and JTAG regressions
     runs-on: [self-hosted, linux, builder]
     timeout-minutes: 360
     env:
@@ -45,6 +56,7 @@ jobs:
       HTTP_PROXY: http://127.0.0.1:12000
       HTTPS_PROXY: http://127.0.0.1:12000
       NO_PROXY: localhost,127.0.0.1
+      CI_CONFIG: ${{ inputs.config || 'TapeoutConfig' }}
       USE_SMIC180_IO: 1
       USE_SMIC180_STD: 1
       USE_SMIC180_SRAM: 1
@@ -60,14 +72,14 @@ jobs:
           mkdir -p "${run_dir}"
           echo "CI_RUN_DIR=${run_dir}" >> "$GITHUB_ENV"
 
-      - name: Build TapeoutConfig VCS simulator
+      - name: Build selected VCS simulator
         run: |
           env \
             CI_SHARED_ROOT="${CI_RUN_DIR}/vcs-ci" \
             CI_CACHE_ROOT=/data1/ci-runner/cache/nightly-peripherals/vcs \
             CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \
             CI_VCS_BUILD_JOBS=8 \
-            CI_VCS_BUILD_CONFIGS=TapeoutConfig \
+            CI_VCS_BUILD_CONFIGS="${CI_CONFIG}" \
             .github/scripts/ci/build-core-regressions-vcs.sh \
             > "${CI_RUN_DIR}/vcs-build.log" 2>&1
 
@@ -81,13 +93,14 @@ jobs:
           env \
             CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \
             CI_RESULT_ROOT="${CI_RUN_DIR}/peripheral-results" \
+            CI_CONFIG="${CI_CONFIG}" \
             .github/scripts/ci/run-peripheral-regressions-vcs.sh \
             > "${CI_RUN_DIR}/peripheral-regression.log" 2>&1
 
       - name: Write peripheral regression summary
         if: always()
         run: |
-          echo "## Nightly TapeoutConfig peripheral regressions" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Nightly ${CI_CONFIG} peripheral regressions" >> "$GITHUB_STEP_SUMMARY"
           for testcase in spi i2c jtag; do
             result="${CI_RUN_DIR}/peripheral-results/${testcase}/result.json"
             if [[ -f "${result}" ]]; then

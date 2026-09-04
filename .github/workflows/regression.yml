@@ -5,6 +5,18 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
+    inputs:
+      config:
+        description: Chipyard configuration class to build and test
+        required: false
+        default: TapeoutConfig
+        type: choice
+        options:
+          - TapeoutConfig
+          - TapeoutRocketConfig
+          - QuadChannelRocketConfig
+          - MediumBoomV3CosimFastConfig
+          - MediumBoomV4CosimFastConfig
 
 permissions:
   contents: read
@@ -63,6 +75,7 @@ jobs:
       HTTP_PROXY: http://127.0.0.1:12000
       HTTPS_PROXY: http://127.0.0.1:12000
       NO_PROXY: localhost,127.0.0.1
+      CI_VCS_CONFIG: ${{ inputs.config || 'TapeoutConfig' }}
     steps:
       - name: Checkout Verilator workspace
         uses: actions/checkout@v4
@@ -108,7 +121,7 @@ jobs:
               CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \
               CI_RESULT_ROOT="${CI_RUN_DIR}/vcs-results" \
               CI_VCS_BUILD_JOBS=8 \
-              CI_VCS_BUILD_CONFIGS=TapeoutConfig \
+              CI_VCS_BUILD_CONFIGS="${CI_VCS_CONFIG}" \
               USE_SMIC180_IO=1 \
               USE_SMIC180_STD=1 \
               USE_SMIC180_SRAM=1 \
@@ -146,6 +159,7 @@ jobs:
               CI_RESULT_ROOT="${CI_RUN_DIR}/vcs-results" \
               CI_VCS_TEST_JOBS=8 \
               CI_VCS_SIM_TEST_JOBS=4 \
+              CI_CONFIG="${CI_VCS_CONFIG}" \
               USE_SMIC180_IO=1 \
               USE_SMIC180_STD=1 \
               USE_SMIC180_SRAM=1 \
@@ -164,56 +178,45 @@ jobs:
           wait "${vcs_pid}" || status=1
           exit "${status}"
 
-      - name: Generate TapeoutConfig register map
+      - name: Generate selected configuration register map
         if: always()
         run: |
-          regmap_dir="${CI_RUN_DIR}/tapeoutconfig-regmap"
-          generated_src="${CI_VCS_WORKSPACE}/soc-generator/sims/vcs/generated-src/chipyard.harness.TestHarness.TapeoutConfig"
+          regmap_dir="${CI_RUN_DIR}/${CI_VCS_CONFIG}-regmap"
+          generated_src="${CI_VCS_WORKSPACE}/soc-generator/sims/vcs/generated-src/chipyard.harness.TestHarness.${CI_VCS_CONFIG}"
           mkdir -p "${regmap_dir}"
-          if [[ -f "${generated_src}/chipyard.harness.TestHarness.TapeoutConfig.dts" ]]; then
+          if [[ -f "${generated_src}/chipyard.harness.TestHarness.${CI_VCS_CONFIG}.dts" ]]; then
             python3 "${CI_VCS_WORKSPACE}/.github/scripts/ci/generate-tapeout-regmap.py" \
               --generated-src "${generated_src}" \
-              --output-dir "${regmap_dir}"
+              --output-dir "${regmap_dir}" \
+              --config "${CI_VCS_CONFIG}"
           else
-            printf 'TapeoutConfig elaboration did not produce a DTS; register map is unavailable.\n' \
+            printf '%s elaboration did not produce a DTS; register map is unavailable.\n' "${CI_VCS_CONFIG}" \
               > "${regmap_dir}/unavailable.txt"
           fi
 
       - name: Write regression summary
         if: always()
         run: |
-          echo "## Rocket and BOOM regressions" >> "$GITHUB_STEP_SUMMARY"
-          for testcase in rocket-asm rocket-bmark rocket-hello-loadmem rocket-hello rocket-zephyr-hello boom-asm-v3 boom-bmark-v3; do
-            result="${CI_RUN_DIR}/verilator-results/${testcase}/result.json"
-            if [[ -f "${result}" ]]; then
-              cat "${result}" >> "$GITHUB_STEP_SUMMARY"
-            else
-              echo "No result was produced for ${testcase}." >> "$GITHUB_STEP_SUMMARY"
-            fi
-          done
-          echo "## VCS Tapeout regressions" >> "$GITHUB_STEP_SUMMARY"
-          for testcase in rocket-asm rocket-bmark rocket-hello-loadmem rocket-hello rocket-zephyr-hello; do
-            result="${CI_RUN_DIR}/vcs-results/${testcase}/result.json"
-            if [[ -f "${result}" ]]; then
-              cat "${result}" >> "$GITHUB_STEP_SUMMARY"
-            else
-              echo "No result was produced for ${testcase}." >> "$GITHUB_STEP_SUMMARY"
-            fi
-          done
-          regmap_summary="${CI_RUN_DIR}/tapeoutconfig-regmap/tapeout-regmap-summary.md"
+          echo "## Verilator regressions" >> "$GITHUB_STEP_SUMMARY"
+          find "${CI_RUN_DIR}/verilator-results" -name result.json -print0 2>/dev/null |
+            sort -z | xargs -0 -r -n1 cat >> "$GITHUB_STEP_SUMMARY"
+          echo "## ${CI_VCS_CONFIG} VCS regressions" >> "$GITHUB_STEP_SUMMARY"
+          find "${CI_RUN_DIR}/vcs-results" -name result.json -print0 2>/dev/null |
+            sort -z | xargs -0 -r -n1 cat >> "$GITHUB_STEP_SUMMARY"
+          regmap_summary="${CI_RUN_DIR}/${CI_VCS_CONFIG}-regmap/tapeout-regmap-summary.md"
           if [[ -f "${regmap_summary}" ]]; then
             cat "${regmap_summary}" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "## TapeoutConfig Register Map" >> "$GITHUB_STEP_SUMMARY"
-            echo "Register map unavailable because TapeoutConfig elaboration did not complete." >> "$GITHUB_STEP_SUMMARY"
+            echo "## ${CI_VCS_CONFIG} Register Map" >> "$GITHUB_STEP_SUMMARY"
+            echo "Register map unavailable because ${CI_VCS_CONFIG} elaboration did not complete." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: Upload TapeoutConfig register map
+      - name: Upload selected configuration register map
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: tapeoutconfig-regmap
-          path: "${{ env.CI_RUN_DIR }}/tapeoutconfig-regmap"
+          name: ${{ env.CI_VCS_CONFIG }}-regmap
+          path: "${{ env.CI_RUN_DIR }}/${{ env.CI_VCS_CONFIG }}-regmap"
           if-no-files-found: warn
 
       - name: Print regression failure diagnostics
