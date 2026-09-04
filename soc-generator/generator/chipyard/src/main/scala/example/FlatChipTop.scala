@@ -136,6 +136,7 @@ class FlatChipTop(implicit p: Parameters) extends LazyModule with HasChipyardPor
       j.jtag.TMS := jtag_wire.TMS
       j.jtag.TDI := jtag_wire.TDI
       jtag_wire.TDO := j.jtag.TDO.data
+      jtag_wire.state := j.state
       IOCell.generateIOFromSignal(jtag_wire, "jtag", p(IOCellKey), abstractResetAsAsync = true)
     }.get
 

@@ -12,7 +12,7 @@ import org.chipsalliance.diplomacy.lazymodule._
 import org.chipsalliance.diplomacy.bundlebridge._
 import freechips.rocketchip.diplomacy.{Resource, ResourceBinding, ResourceAddress, RegionType}
 import freechips.rocketchip.devices.debug._
-import freechips.rocketchip.jtag.{JTAGIO}
+import freechips.rocketchip.jtag.{JTAGIO, JtagState}
 import freechips.rocketchip.subsystem._
 import freechips.rocketchip.system.{SimAXIMem}
 import freechips.rocketchip.amba.axi4.{AXI4Bundle, AXI4SlaveNode, AXI4MasterNode, AXI4EdgeParameters}
@@ -374,6 +374,7 @@ class JTAGChipIO(hasReset: Boolean) extends Bundle {
   val TMS = Input(Bool())
   val TDI = Input(Bool())
   val TDO = Output(Bool())
+  val state = Output(JtagState.State.chiselType())
   val reset = Option.when(hasReset)(Input(Bool()))
 }
 
@@ -425,6 +426,7 @@ class WithDebugIOCells(syncReset: Boolean = true, externalReset: Boolean = true)
           j.jtag.TMS := jtag_wire.TMS
           j.jtag.TDI := jtag_wire.TDI
           jtag_wire.TDO := j.jtag.TDO.data
+          jtag_wire.state := j.state
           val (port, cells) = IOCell.generateIOFromSignal(jtag_wire, "jtag", p(IOCellKey), abstractResetAsAsync = true)
           (JTAGPort(() => port), cells)
         }
