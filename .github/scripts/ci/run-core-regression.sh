@@ -82,6 +82,19 @@ run_in_nix '
   riscv_tests_root="${CI_WORKLOAD_ROOT}/riscv-tests"
   common_args=(-j1 -C "${sim_dir}" CONFIG="${CI_CONFIG}" RISCV="${riscv_tests_root}" sim="${simulator}" BREAK_SIM_PREREQ=1 output_dir="${CI_SIM_OUTPUT_DIR}" TIMEOUT_CYCLES="${timeout_cycles}")
 
+  # Make binary run targets use BINARY.run.fast as their completion stamp.
+  # Keep that stamp in this run output tree instead of next to the shared,
+  # read-only workload so stale stamps cannot skip a simulation or race CI runs.
+  stage_binary() {
+    local source="$1"
+    local name="$2"
+    local staged="${CI_SIM_OUTPUT_DIR}/.ci-inputs/${name}"
+    mkdir -p "$(dirname "${staged}")"
+    cp -f "${source}" "${staged}"
+    chmod a+rx "${staged}"
+    printf "%s\n" "${staged}"
+  }
+
   case "${CI_TESTCASE}" in
     rocket-asm|boom-asm)
       if [[ ! -d "${riscv_tests_root}/riscv64-unknown-elf/share/riscv-tests" ]]; then
@@ -103,6 +116,7 @@ run_in_nix '
         echo "Prebuilt hello test is missing or not executable: ${hello_binary}" >&2
         exit 1
       fi
+      hello_binary="$(stage_binary "${hello_binary}" hello.riscv)"
       make "${common_args[@]}" run-binary-fast \
         BINARY="${hello_binary}" LOADMEM=1
       ;;
@@ -112,6 +126,7 @@ run_in_nix '
         echo "Prebuilt hello test is missing or not executable: ${hello_binary}" >&2
         exit 1
       fi
+      hello_binary="$(stage_binary "${hello_binary}" hello.riscv)"
       make "${common_args[@]}" run-binary-fast \
         BINARY="${hello_binary}" LOADMEM=1
       ;;
@@ -121,6 +136,7 @@ run_in_nix '
         echo "Prebuilt Zephyr hello test is missing or not executable: ${zephyr_binary}" >&2
         exit 1
       fi
+      zephyr_binary="$(stage_binary "${zephyr_binary}" zephyr.elf)"
       make "${common_args[@]}" run-binary-fast \
         BINARY="${zephyr_binary}" LOADMEM=1
       zephyr_log="${CI_SIM_OUTPUT_DIR}/zephyr.log"

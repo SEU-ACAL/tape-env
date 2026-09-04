@@ -10,6 +10,7 @@ source "${SCRIPT_DIR}/lib.sh"
 
 SYNTHESIS_CONFIG="${SYNTHESIS_CONFIG:-TapeoutConfig}"
 SYNTHESIS_TECH="${SYNTHESIS_TECH:-smic180}"
+SYNTHESIS_CORNER="${SYNTHESIS_CORNER:-ss}"
 TOP_MODULE="${TOP_MODULE:-ChipTop}"
 DC_CONTAINER="${DC_CONTAINER:-ci_env}"
 PT_SHELL_BIN="${PT_SHELL_BIN:-/data0/tools/Synopsys/ptpx/prime/W-2024.09-SP1/bin/pt_shell}"
@@ -37,6 +38,14 @@ case "${SYNTHESIS_TECH}" in
     ;;
   *)
     echo "Unsupported SYNTHESIS_TECH: ${SYNTHESIS_TECH}" >&2
+    exit 1
+    ;;
+esac
+
+case "${SYNTHESIS_CORNER}" in
+  ss|tt|ff) ;;
+  *)
+    echo "Unsupported SYNTHESIS_CORNER: ${SYNTHESIS_CORNER}. Supported values: ss, tt, ff" >&2
     exit 1
     ;;
 esac
@@ -132,6 +141,7 @@ write_power_summary() {
     echo "| Metric | Value |"
     echo "| --- | ---: |"
     echo "| Benchmark | \`${POWER_BENCHMARK}\` |"
+    echo "| PVT corner | ${SYNTHESIS_CORNER} |"
     echo "| Workload | \`${POWER_WORKLOAD##*/}\` |"
     echo "| Timing mode | ${power_mode} |"
     echo "| Activity source | ${power_activity_source} from ${POWER_START_NS} ns to ${POWER_END_NS} ns |"
@@ -242,7 +252,7 @@ fi
 export POWER_GLS_DIR POWER_PT_DIR POWER_WORKLOAD POWER_RANDOM_SEED POWER_START_NS POWER_END_NS POWER_USE_SDF
 export POWER_SDF="${sdf}"
 export PT_SHELL_BIN
-export REPO_ROOT SYNTHESIS_CONFIG SYNTHESIS_TECH power_sim_config netlist constraint_sdc run_label
+export REPO_ROOT SYNTHESIS_CONFIG SYNTHESIS_TECH SYNTHESIS_CORNER power_sim_config netlist constraint_sdc run_label
 
 set +e
 run_in_nix '
@@ -256,6 +266,7 @@ run_in_nix '
       TAPE_ENV="${REPO_ROOT}" \
       CONFIG="${power_sim_config}" \
       TECH="${SYNTHESIS_TECH}" \
+      CORNER="${SYNTHESIS_CORNER}" \
       CLOCK_PERIOD="${CLOCK_PERIOD}" \
       NETLIST_RUN="${run_label}" \
       NETLIST="${netlist}" \
@@ -268,6 +279,7 @@ run_in_nix '
       TAPE_ENV="${REPO_ROOT}" \
       CONFIG="${power_sim_config}" \
       TECH="${SYNTHESIS_TECH}" \
+      CORNER="${SYNTHESIS_CORNER}" \
       CLOCK_PERIOD="${CLOCK_PERIOD}" \
       NETLIST_RUN="${run_label}" \
       NETLIST="${netlist}" \
@@ -281,6 +293,7 @@ run_in_nix '
       TAPE_ENV="${REPO_ROOT}" \
       CONFIG="${power_sim_config}" \
       TECH="${SYNTHESIS_TECH}" \
+      CORNER="${SYNTHESIS_CORNER}" \
       CLOCK_PERIOD="${CLOCK_PERIOD}" \
       NETLIST_RUN="${run_label}" \
       NETLIST="${netlist}" \
@@ -292,6 +305,7 @@ run_in_nix '
       TAPE_ENV="${REPO_ROOT}" \
       CONFIG="${power_sim_config}" \
       TECH="${SYNTHESIS_TECH}" \
+      CORNER="${SYNTHESIS_CORNER}" \
       CLOCK_PERIOD="${CLOCK_PERIOD}" \
       NETLIST_RUN="${run_label}" \
       NETLIST="${netlist}" \
@@ -314,6 +328,7 @@ set +e
 docker exec -i \
   -e POWER_PT_DIR="${POWER_PT_DIR}" \
   -e SYNTHESIS_TECH="${SYNTHESIS_TECH}" \
+  -e SYNTHESIS_CORNER="${SYNTHESIS_CORNER}" \
   -e NETLIST_RUN="${run_label}" \
   -e NETLIST="${netlist}" \
   -e SDC="${constraint_sdc}" \
@@ -336,6 +351,7 @@ docker exec -i \
     printf "%s\n" "${pt_version}"
     make -C "${POWER_PT_DIR}" \
       TECH="${SYNTHESIS_TECH}" \
+      CORNER="${SYNTHESIS_CORNER}" \
       NETLIST_RUN="${NETLIST_RUN}" \
       NETLIST="${NETLIST}" \
       SDC="${SDC}" \

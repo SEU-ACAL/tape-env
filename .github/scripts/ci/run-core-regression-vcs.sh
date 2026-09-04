@@ -62,6 +62,18 @@ run_in_nix '
   riscv_tests_root="${CI_WORKLOAD_ROOT}/riscv-tests"
   common_args=(-j1 -C "${sim_dir}" SIM=vcs CONFIG="${CI_CONFIG}" RISCV="${riscv_tests_root}" sim="${simulator}" BREAK_SIM_PREREQ=1 output_dir="${CI_VCS_SIM_OUTPUT_DIR}" TIMEOUT_CYCLES="${timeout_cycles}")
 
+  # Keep Make's BINARY.run.fast completion stamp inside this run's output tree.
+  # Shared workload directories may be read-only and may contain stale stamps.
+  stage_binary() {
+    local source="$1"
+    local name="$2"
+    local staged="${CI_VCS_SIM_OUTPUT_DIR}/.ci-inputs/${name}"
+    mkdir -p "$(dirname "${staged}")"
+    cp -f "${source}" "${staged}"
+    chmod a+rx "${staged}"
+    printf "%s\n" "${staged}"
+  }
+
   case "${CI_TESTCASE}" in
     rocket-asm|boom-asm)
       make -j"${CI_VCS_SIM_TEST_JOBS:-1}" "${common_args[@]:1}" run-asm-tests-fast LOADMEM=1
@@ -70,13 +82,31 @@ run_in_nix '
       make -j"${CI_VCS_SIM_TEST_JOBS:-1}" "${common_args[@]:1}" run-bmark-tests-fast LOADMEM=1
       ;;
     rocket-hello-loadmem)
-      make "${common_args[@]}" run-binary-fast BINARY="${CI_WORKLOAD_ROOT}/hello.riscv" LOADMEM=1
+      hello_binary="${CI_WORKLOAD_ROOT}/hello.riscv"
+      if [[ ! -x "${hello_binary}" ]]; then
+        echo "Prebuilt hello test is missing or not executable: ${hello_binary}" >&2
+        exit 1
+      fi
+      hello_binary="$(stage_binary "${hello_binary}" hello.riscv)"
+      make "${common_args[@]}" run-binary-fast BINARY="${hello_binary}" LOADMEM=1
       ;;
     rocket-hello)
-      make "${common_args[@]}" run-binary-fast BINARY="${CI_WORKLOAD_ROOT}/hello.riscv" LOADMEM=1
+      hello_binary="${CI_WORKLOAD_ROOT}/hello.riscv"
+      if [[ ! -x "${hello_binary}" ]]; then
+        echo "Prebuilt hello test is missing or not executable: ${hello_binary}" >&2
+        exit 1
+      fi
+      hello_binary="$(stage_binary "${hello_binary}" hello.riscv)"
+      make "${common_args[@]}" run-binary-fast BINARY="${hello_binary}" LOADMEM=1
       ;;
     rocket-zephyr-hello)
-      make "${common_args[@]}" run-binary-fast BINARY="${CI_WORKLOAD_ROOT}/zephyr/zephyr.elf" LOADMEM=1
+      zephyr_binary="${CI_WORKLOAD_ROOT}/zephyr/zephyr.elf"
+      if [[ ! -x "${zephyr_binary}" ]]; then
+        echo "Prebuilt Zephyr hello test is missing or not executable: ${zephyr_binary}" >&2
+        exit 1
+      fi
+      zephyr_binary="$(stage_binary "${zephyr_binary}" zephyr.elf)"
+      make "${common_args[@]}" run-binary-fast BINARY="${zephyr_binary}" LOADMEM=1
       grep -Fq "Hello World! chipyard_riscv64" "${CI_VCS_SIM_OUTPUT_DIR}/zephyr.log"
       ;;
   esac

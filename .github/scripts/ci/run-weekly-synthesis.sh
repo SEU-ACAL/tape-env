@@ -10,6 +10,7 @@ source "${SCRIPT_DIR}/lib.sh"
 
 SYNTHESIS_CONFIG="${SYNTHESIS_CONFIG:-TapeoutConfig}"
 SYNTHESIS_TECH="${SYNTHESIS_TECH:-smic180}"
+SYNTHESIS_CORNER="${SYNTHESIS_CORNER:-ss}"
 TOP_MODULE="${TOP_MODULE:-ChipTop}"
 DC_CONTAINER="${DC_CONTAINER:-ci_env}"
 DC_SHELL_BIN="${DC_SHELL_BIN:-dc_shell}"
@@ -34,6 +35,14 @@ case "${SYNTHESIS_TECH}" in
     ;;
   *)
     echo "Full-replacement synthesis CI requires SYNTHESIS_TECH=smic180" >&2
+    exit 1
+    ;;
+esac
+
+case "${SYNTHESIS_CORNER}" in
+  ss|tt|ff) ;;
+  *)
+    echo "Unsupported SYNTHESIS_CORNER: ${SYNTHESIS_CORNER}. Supported values: ss, tt, ff" >&2
     exit 1
     ;;
 esac
@@ -96,6 +105,7 @@ write_qor_summary() {
 
     workbench_revision="$(git -C "${SYNTHESIS_WORKBENCH}" rev-parse --short HEAD 2>/dev/null || true)"
     echo "| Tapeout-Workbench revision | ${workbench_revision:-unavailable} |"
+    echo "| PVT corner | ${SYNTHESIS_CORNER} |"
 
     constraint_sdc="$(find "${FLOW_DIR}/outputs" -type f -name "${TOP_MODULE}.sdc" -print 2>/dev/null | sort | tail -n 1 || true)"
     if [[ -n "${constraint_sdc}" ]]; then
@@ -270,7 +280,7 @@ git -C "${REPO_ROOT}" submodule update --init \
 mkdir -p "${CI_CLASSPATH_CACHE}" "${CI_COURSIER_CACHE}" \
   "${SBT_CACHE_ROOT}/ivy" "${SBT_CACHE_ROOT}/global" "${SBT_CACHE_ROOT}/boot"
 
-export CI_CLASSPATH_CACHE CI_COURSIER_CACHE SBT_CACHE_ROOT CI_SBT_OPTS SYNTHESIS_CONFIG SYNTHESIS_TECH
+export CI_CLASSPATH_CACHE CI_COURSIER_CACHE SBT_CACHE_ROOT CI_SBT_OPTS SYNTHESIS_CONFIG SYNTHESIS_TECH SYNTHESIS_CORNER
 JAVA_TMP_DIR="${CI_SHARED_ROOT}/java/synthesis-${CI_RUN_ID}"
 export JAVA_TMP_DIR
 mkdir -p "${JAVA_TMP_DIR}"
@@ -343,8 +353,8 @@ tcl_escape() {
   printf '%s' "$1" | sed 's/[\\{}]/\\&/g'
 }
 
-run_label="$(date +%m%d)_$(date +%H%M)"
-tcl_command="set data {$(tcl_escape "${run_label}")}; set SOURCE_CODE_HOME {$(tcl_escape "${SOURCE_CODE_HOME}")}; set HDL_FILELIST {$(tcl_escape "${HDL_FILELIST}")}; set TOP_MODULE {$(tcl_escape "${TOP_MODULE}")}; set SRAM_WRAPPER_FILE {$(tcl_escape "${SRAM_WRAPPER_FILE}")}; set TECH_CONFIG {$(tcl_escape "${SYNTHESIS_TECH}")}; set CLOCK_PERIOD {$(tcl_escape "${CLOCK_PERIOD}")}"
+run_label="$(date +%m%d)_$(date +%H%M)_${SYNTHESIS_CORNER}"
+tcl_command="set data {$(tcl_escape "${run_label}")}; set SOURCE_CODE_HOME {$(tcl_escape "${SOURCE_CODE_HOME}")}; set HDL_FILELIST {$(tcl_escape "${HDL_FILELIST}")}; set TOP_MODULE {$(tcl_escape "${TOP_MODULE}")}; set SRAM_WRAPPER_FILE {$(tcl_escape "${SRAM_WRAPPER_FILE}")}; set TECH_CONFIG {$(tcl_escape "${SYNTHESIS_TECH}")}; set CORNER {$(tcl_escape "${SYNTHESIS_CORNER}")}; set CLOCK_PERIOD {$(tcl_escape "${CLOCK_PERIOD}")}"
 
 pushd "${FLOW_DIR}" >/dev/null
 mkdir -p alib elab log "outputs/${run_label}" "rpt/${run_label}"
@@ -359,6 +369,7 @@ docker exec -i \
   -e FLOW_DIR="${FLOW_DIR}" \
   -e DC_SHELL_BIN="${DC_SHELL_BIN}" \
   -e RUN_LABEL="${run_label}" \
+  -e SYNTHESIS_CORNER="${SYNTHESIS_CORNER}" \
   -e TCL_COMMAND="${tcl_command}" \
   "${DC_CONTAINER}" bash -lc '
     set -euo pipefail
