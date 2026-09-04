@@ -29,7 +29,7 @@ make -C soc-generator SIM=vcs USE_TSMC28_SRAM=1 verilog
 make -C soc-generator SIM=vcs CONFIG=TapeoutConfig verilog
 ```
 
-位于 `chipyard.mk` 默认路径的 SMIC 库提供 `TapeoutConfig` 所使用的六种宏尺寸，以及 Pebble Buckyball 的两种尺寸。宏采用
+位于 `chipyard.mk` 默认路径的 SMIC 库提供 `TapeoutConfig` 所使用的六种宏尺寸，以及 Pebble Buckyball 的 `32x128`、`64x8`、`1024x8`。宏采用
 `CLK/CEN/WEN/A/D/Q` 接口，其中 `CEN` 和 `WEN` 为低有效。`smic180_sram_sim.sources` 会展开为
 对应 Verilog 模型。默认 `SMIC180_SRAM_SIM_FLAGS=+notimingcheck` 保留功能仿真并关闭库的时序
 检查；时序签核应使用 SDF 或 STA。可通过 `SMIC180_SRAM_ROOT`、`SMIC180_SRAM_MDF`、
@@ -74,8 +74,9 @@ sed -n '1,200p' \
 chipyard.harness.TestHarness.TapeoutConfig.top.mems.conf
 ```
 
-当前配置需要 `32x21`、`512x8`、`512x32`、`512x64`、`64x21`、`64x22` 单端口宏；其中
-64-bit masked D-cache 会分解为八个 `512x8` 宏。严格模式下，所选库的 MDF、仿真 Verilog
+当前配置需要 Rocket 的 `32x21`、`512x8`、`512x32`、`512x64`、`64x21`、`64x22`，以及
+Pebble scratchpad 的 `64x8`（`64x128` mrw、`mask_gran=8`，每 bank 拆成 16 个宏）和
+SMatMul/Im2col 的 `32x128`。其中 64-bit masked D-cache 会分解为八个 `512x8` 宏。严格模式下，所选库的 MDF、仿真 Verilog
 filelist 和物理交付物必须覆盖这些规格。
 
 若使用独立的 TSMC28 宏库交付，在命令中同时覆盖三个变量：
