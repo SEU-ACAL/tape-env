@@ -36,18 +36,10 @@ SMIC180_SRAM_CONFIG_STAMP ?= $(build_dir)/.smic180-sram-config.stamp
 # prevents unrelated P2E configs from enabling it.
 SMIC180_ROM_ENABLED := $(if $(and $(filter TapeoutConfig,$(CONFIG)), $(filter 1 yes true,$(USE_SMIC180_ROM))),1,0)
 export SMIC180_ROM_ENABLED
-SMIC180_ROM_CDK_DIR ?= /data2/smic180/S018VM_V0P1PC_CDK
-SMIC180_ROM_COMPILER ?= $(base_dir)/generator/chipyard/vlsi/generate_smic180_bootrom.sh
-SMIC180_ROM_JAVA ?=
-SMIC180_ROM_CODEFILE ?= $(build_dir)/$(long_name).smic180_bootrom.code
-SMIC180_DEBUG_ROM_CODEFILE ?= $(build_dir)/$(long_name).smic180_debugrom.code
-# Keep compiler products outside generated-src so repeated elaboration can reuse
-# the same ROM IP. The compiler embeds its input codefile path in the Verilog
-# model, so the helper copies the codefile into these stable directories too.
+# ROM macros are pre-generated physical IP. This flow only consumes the fixed
+# Verilog models and never invokes a ROM compiler.
 SMIC180_ROM_CACHE_DIR ?= /data2/smic180/rom-ip
 SMIC180_ROM_OUTPUT_DIR ?= $(SMIC180_ROM_CACHE_DIR)/bootrom
-SMIC180_ROM_CACHE_MODE ?= 1777
-SMIC180_ROM_OUTPUT_MODE ?= 0777
 SMIC180_ROM_MACRO_NAME ?= S018VM_X64Y16D64_PM
 SMIC180_ROM_MACRO_V ?= $(SMIC180_ROM_OUTPUT_DIR)/$(SMIC180_ROM_MACRO_NAME).v
 SMIC180_DEBUG_ROM_OUTPUT_DIR ?= $(SMIC180_ROM_CACHE_DIR)/debugrom
@@ -58,7 +50,6 @@ SMIC180_ROM_CONFIG_STAMP ?= $(build_dir)/.smic180-rom-config.stamp
 
 TOP_MACRO_STAMP_DEPS += $(TSMC28_SRAM_CONFIG_STAMP) $(SMIC180_SRAM_CONFIG_STAMP)
 SIM_CONFIG_STAMPS += $(TSMC28_SRAM_CONFIG_STAMP) $(SMIC180_SRAM_CONFIG_STAMP)
-EXTRA_GENERATOR_REQS += $(SMIC180_ROM_CONFIG_STAMP)
 SIM_CONFIG_STAMPS += $(SMIC180_ROM_CONFIG_STAMP)
 
 SMIC180_IO_ROOT ?= /data2/smic180/SP018RP_V1p0b
@@ -176,14 +167,9 @@ $(SMIC180_ROM_CONFIG_STAMP): smic180-rom-config-force
 	@{ \
 		printf '%s\n' 'USE_SMIC180_ROM=$(USE_SMIC180_ROM)'; \
 		printf '%s\n' 'SMIC180_ROM_ENABLED=$(SMIC180_ROM_ENABLED)'; \
-		printf '%s\n' 'SMIC180_ROM_CDK_DIR=$(SMIC180_ROM_CDK_DIR)'; \
-		printf '%s\n' 'SMIC180_ROM_JAVA=$(SMIC180_ROM_JAVA)'; \
-		printf '%s\n' 'SMIC180_ROM_COMPILER=$(SMIC180_ROM_COMPILER)'; \
 		printf '%s\n' 'SMIC180_ROM_CACHE_DIR=$(SMIC180_ROM_CACHE_DIR)'; \
 		printf '%s\n' 'SMIC180_ROM_OUTPUT_DIR=$(SMIC180_ROM_OUTPUT_DIR)'; \
 		printf '%s\n' 'SMIC180_DEBUG_ROM_OUTPUT_DIR=$(SMIC180_DEBUG_ROM_OUTPUT_DIR)'; \
-		printf '%s\n' 'SMIC180_ROM_CACHE_MODE=$(SMIC180_ROM_CACHE_MODE)'; \
-		printf '%s\n' 'SMIC180_ROM_OUTPUT_MODE=$(SMIC180_ROM_OUTPUT_MODE)'; \
 		printf '%s\n' 'SMIC180_ROM_MACRO_NAME=$(SMIC180_ROM_MACRO_NAME)'; \
 		printf '%s\n' 'SMIC180_DEBUG_ROM_MACRO_NAME=$(SMIC180_DEBUG_ROM_MACRO_NAME)'; \
 	} > $@.tmp; \
@@ -193,16 +179,10 @@ ifeq ($(SMIC180_ROM_ENABLED),1)
 EXT_FILELISTS += $(SMIC180_ROM_SIM_FILELIST)
 EXTRA_SIM_FLAGS += +notimingcheck
 
-# The generator writes elaboration artifacts beside FIRRTL, including this
-# codefile.  Declare that side effect so a clean Make build orders correctly.
-$(SMIC180_ROM_CODEFILE): $(FIRRTL_FILE)
-$(SMIC180_DEBUG_ROM_CODEFILE): $(FIRRTL_FILE)
-
-$(SMIC180_ROM_MACRO_V): $(SMIC180_ROM_CODEFILE) $(SMIC180_ROM_COMPILER) $(SMIC180_ROM_CDK_DIR)/S018VM.jar $(SMIC180_ROM_CONFIG_STAMP)
-	SMIC180_ROM_JAVA="$(SMIC180_ROM_JAVA)" SMIC180_ROM_CACHE_MODE="$(SMIC180_ROM_CACHE_MODE)" SMIC180_ROM_OUTPUT_MODE="$(SMIC180_ROM_OUTPUT_MODE)" SMIC180_ROM_MACRO_NAME="$(SMIC180_ROM_MACRO_NAME)" SMIC180_ROM_WORDS=1024 SMIC180_ROM_BITS=64 $(SMIC180_ROM_COMPILER) $(SMIC180_ROM_CDK_DIR) $(SMIC180_ROM_CODEFILE) $(SMIC180_ROM_OUTPUT_DIR)
-
-$(SMIC180_DEBUG_ROM_MACRO_V): $(SMIC180_DEBUG_ROM_CODEFILE) $(SMIC180_ROM_COMPILER) $(SMIC180_ROM_CDK_DIR)/S018VM.jar $(SMIC180_ROM_CONFIG_STAMP)
-	SMIC180_ROM_JAVA="$(SMIC180_ROM_JAVA)" SMIC180_ROM_CACHE_MODE="$(SMIC180_ROM_CACHE_MODE)" SMIC180_ROM_OUTPUT_MODE="$(SMIC180_ROM_OUTPUT_MODE)" SMIC180_ROM_MACRO_NAME="$(SMIC180_DEBUG_ROM_MACRO_NAME)" SMIC180_ROM_WORDS=128 SMIC180_ROM_BITS=64 $(SMIC180_ROM_COMPILER) $(SMIC180_ROM_CDK_DIR) $(SMIC180_DEBUG_ROM_CODEFILE) $(SMIC180_DEBUG_ROM_OUTPUT_DIR)
+# Do not synthesize missing macros. The physical ROM IP must be provisioned in
+# the configured cache before this target is built.
+$(SMIC180_ROM_MACRO_V) $(SMIC180_DEBUG_ROM_MACRO_V): $(SMIC180_ROM_CONFIG_STAMP)
+	@test -f "$@" || { echo "Missing fixed SMIC180 ROM macro: $@" >&2; exit 1; }
 
 $(SMIC180_ROM_SIM_FILELIST): $(SMIC180_ROM_MACRO_V) $(SMIC180_DEBUG_ROM_MACRO_V)
 	mkdir -p $(dir $@)

@@ -26,7 +26,7 @@ SRAM/ROM 需要区分两件事：
 当前仓库已经明确禁止 P2E 配置启用 SMIC180 ROM 宏：`chipyard.mk` 只有在
 `CONFIG= TapeoutConfig` 且显式打开 `USE_SMIC180_ROM` 时才设置
 `SMIC180_ROM_ENABLED`；`HpecP2ETapeoutConfig` 会被排除。因此当前 P2E 生成的是普通
-`TLROM`，而不是 `S018VM_X64Y16D64_PM`。
+`TLROM`，而不是使用固定 SMIC180 宏的 BootROM 实例。
 
 ## 2. P2E 的完整流程
 
@@ -218,7 +218,7 @@ macro 的 `CLK/CEN/WEN/WMASK` 端口直接丢给 FPGA 工具而不提供可综�
 当前 `chipyard.mk` 对 P2E 明确屏蔽 `USE_SMIC180_ROM`，因此：
 
 ```text
-TapeoutConfig + USE_SMIC180_ROM=1 → S018VM ROM
+TapeoutConfig + USE_SMIC180_ROM=1 → 使用预置的 S018VM ROM
 HpecP2ETapeoutConfig              → 默认 TLROM
 ```
 
