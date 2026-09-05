@@ -62,16 +62,16 @@ run_in_nix '
   riscv_tests_root="${CI_WORKLOAD_ROOT}/riscv-tests"
   common_args=(-j1 -C "${sim_dir}" SIM=vcs CONFIG="${CI_CONFIG}" RISCV="${riscv_tests_root}" sim="${simulator}" BREAK_SIM_PREREQ=1 output_dir="${CI_VCS_SIM_OUTPUT_DIR}" TIMEOUT_CYCLES="${timeout_cycles}")
 
-  # Keep Make's BINARY.run.fast completion stamp inside this run's output tree.
-  # Shared workload directories may be read-only and may contain stale stamps.
+  # Keep Make BINARY.run.fast completion stamps in the testcase result tree.
+  # It must stay outside output_dir because common.mk rewrites output_dir children
+  # as RISC-V ISA test paths.
   stage_binary() {
     local source="$1"
     local name="$2"
-    local staged="${CI_VCS_SIM_OUTPUT_DIR}/.ci-inputs/${name}"
+    local staged="${CI_RESULT_DIR}/.ci-inputs/${name}"
     mkdir -p "$(dirname "${staged}")"
     cp -f "${source}" "${staged}"
     chmod a+rx "${staged}"
-    printf "%s\n" "${staged}"
   }
 
   case "${CI_TESTCASE}" in
@@ -87,7 +87,12 @@ run_in_nix '
         echo "Prebuilt hello test is missing or not executable: ${hello_binary}" >&2
         exit 1
       fi
-      hello_binary="$(stage_binary "${hello_binary}" hello.riscv)"
+      stage_binary "${hello_binary}" hello.riscv
+      hello_binary="${CI_RESULT_DIR}/.ci-inputs/hello.riscv"
+      if [[ ! -f "${hello_binary}" ]]; then
+        echo "Staged hello test is missing: ${hello_binary}" >&2
+        exit 1
+      fi
       make "${common_args[@]}" run-binary-fast BINARY="${hello_binary}" LOADMEM=1
       ;;
     rocket-hello)
@@ -96,7 +101,12 @@ run_in_nix '
         echo "Prebuilt hello test is missing or not executable: ${hello_binary}" >&2
         exit 1
       fi
-      hello_binary="$(stage_binary "${hello_binary}" hello.riscv)"
+      stage_binary "${hello_binary}" hello.riscv
+      hello_binary="${CI_RESULT_DIR}/.ci-inputs/hello.riscv"
+      if [[ ! -f "${hello_binary}" ]]; then
+        echo "Staged hello test is missing: ${hello_binary}" >&2
+        exit 1
+      fi
       make "${common_args[@]}" run-binary-fast BINARY="${hello_binary}" LOADMEM=1
       ;;
     rocket-zephyr-hello)
@@ -105,7 +115,12 @@ run_in_nix '
         echo "Prebuilt Zephyr hello test is missing or not executable: ${zephyr_binary}" >&2
         exit 1
       fi
-      zephyr_binary="$(stage_binary "${zephyr_binary}" zephyr.elf)"
+      stage_binary "${zephyr_binary}" zephyr.elf
+      zephyr_binary="${CI_RESULT_DIR}/.ci-inputs/zephyr.elf"
+      if [[ ! -f "${zephyr_binary}" ]]; then
+        echo "Staged Zephyr hello test is missing: ${zephyr_binary}" >&2
+        exit 1
+      fi
       make "${common_args[@]}" run-binary-fast BINARY="${zephyr_binary}" LOADMEM=1
       grep -Fq "Hello World! chipyard_riscv64" "${CI_VCS_SIM_OUTPUT_DIR}/zephyr.log"
       ;;
