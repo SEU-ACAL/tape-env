@@ -2,14 +2,14 @@
 # sequential memories with the corresponding hard SRAM macros.
 USE_TSMC28_SRAM ?= 0
 USE_SMIC180_SRAM ?= 0
-# TapeoutConfig always uses the physical SMIC180 BootROM and Debug ROM macros.
+# Tapeout configurations always use the physical SMIC180 BootROM and Debug ROM macros.
 # The default for unrelated configurations remains the ordinary TLROM.
 USE_SMIC180_ROM ?= 0
 USE_SMIC180_IO ?= 0
 USE_SMIC180_STD ?= 0
 
-# TapeoutConfig is the supported physical SMIC180 configuration.
-SMIC180_TAPEOUT_CONFIGS ?= TapeoutConfig
+# Tapeout configurations are the supported physical SMIC180 configurations.
+SMIC180_TAPEOUT_CONFIGS ?= TapeoutConfig TapeoutRocketConfig
 ifneq ($(filter $(CONFIG),$(SMIC180_TAPEOUT_CONFIGS)),)
 override USE_SMIC180_IO := 1
 override USE_SMIC180_STD := 1
@@ -34,7 +34,7 @@ SMIC180_SRAM_CONFIG_STAMP ?= $(build_dir)/.smic180-sram-config.stamp
 # Tapeout configurations use SMIC S018VM BootROM and Debug ROM macros. The
 # effective value is exported for the Chisel config; checking CONFIG here
 # prevents unrelated P2E configs from enabling it.
-SMIC180_ROM_ENABLED := $(if $(and $(filter TapeoutConfig,$(CONFIG)), $(filter 1 yes true,$(USE_SMIC180_ROM))),1,0)
+SMIC180_ROM_ENABLED := $(if $(and $(filter $(CONFIG),$(SMIC180_TAPEOUT_CONFIGS)), $(filter 1 yes true,$(USE_SMIC180_ROM))),1,0)
 export SMIC180_ROM_ENABLED
 # ROM macros are pre-generated physical IP. This flow only consumes the fixed
 # Verilog models and never invokes a ROM compiler.
