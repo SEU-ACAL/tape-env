@@ -83,16 +83,16 @@ run_in_nix '
   common_args=(-j1 -C "${sim_dir}" CONFIG="${CI_CONFIG}" RISCV="${riscv_tests_root}" sim="${simulator}" BREAK_SIM_PREREQ=1 output_dir="${CI_SIM_OUTPUT_DIR}" TIMEOUT_CYCLES="${timeout_cycles}")
 
   # Make binary run targets use BINARY.run.fast as their completion stamp.
-  # Keep that stamp in this run output tree instead of next to the shared,
-  # read-only workload so stale stamps cannot skip a simulation or race CI runs.
+  # Keep it under the testcase result tree instead of next to the shared,
+  # read-only workload. Do not put it under output_dir: common.mk treats every
+  # output_dir child as an ISA test and would rewrite the input path.
   stage_binary() {
     local source="$1"
     local name="$2"
-    local staged="${CI_SIM_OUTPUT_DIR}/.ci-inputs/${name}"
+    local staged="${CI_RESULT_DIR}/.ci-inputs/${name}"
     mkdir -p "$(dirname "${staged}")"
     cp -f "${source}" "${staged}"
     chmod a+rx "${staged}"
-    printf "%s\n" "${staged}"
   }
 
   case "${CI_TESTCASE}" in
@@ -116,7 +116,12 @@ run_in_nix '
         echo "Prebuilt hello test is missing or not executable: ${hello_binary}" >&2
         exit 1
       fi
-      hello_binary="$(stage_binary "${hello_binary}" hello.riscv)"
+      stage_binary "${hello_binary}" hello.riscv
+      hello_binary="${CI_RESULT_DIR}/.ci-inputs/hello.riscv"
+      if [[ ! -f "${hello_binary}" ]]; then
+        echo "Staged hello test is missing: ${hello_binary}" >&2
+        exit 1
+      fi
       make "${common_args[@]}" run-binary-fast \
         BINARY="${hello_binary}" LOADMEM=1
       ;;
@@ -126,7 +131,12 @@ run_in_nix '
         echo "Prebuilt hello test is missing or not executable: ${hello_binary}" >&2
         exit 1
       fi
-      hello_binary="$(stage_binary "${hello_binary}" hello.riscv)"
+      stage_binary "${hello_binary}" hello.riscv
+      hello_binary="${CI_RESULT_DIR}/.ci-inputs/hello.riscv"
+      if [[ ! -f "${hello_binary}" ]]; then
+        echo "Staged hello test is missing: ${hello_binary}" >&2
+        exit 1
+      fi
       make "${common_args[@]}" run-binary-fast \
         BINARY="${hello_binary}" LOADMEM=1
       ;;
@@ -136,7 +146,12 @@ run_in_nix '
         echo "Prebuilt Zephyr hello test is missing or not executable: ${zephyr_binary}" >&2
         exit 1
       fi
-      zephyr_binary="$(stage_binary "${zephyr_binary}" zephyr.elf)"
+      stage_binary "${zephyr_binary}" zephyr.elf
+      zephyr_binary="${CI_RESULT_DIR}/.ci-inputs/zephyr.elf"
+      if [[ ! -f "${zephyr_binary}" ]]; then
+        echo "Staged Zephyr hello test is missing: ${zephyr_binary}" >&2
+        exit 1
+      fi
       make "${common_args[@]}" run-binary-fast \
         BINARY="${zephyr_binary}" LOADMEM=1
       zephyr_log="${CI_SIM_OUTPUT_DIR}/zephyr.log"

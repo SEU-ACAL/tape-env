@@ -348,10 +348,6 @@ EOF
 
         mkDevShell = extraPackages: pkgs.mkShellNoCC {
           RISCV = "${chipyardRiscvTools}";
-          # FireMarshal's Buildroot configuration requires a Linux-targeted
-          # compiler under $RISCV, while Chipyard's existing $RISCV is the
-          # bare-metal toolchain used by simulators and bare-metal workloads.
-          FIREMARSHAL_RISCV = "${firemarshalRiscvToolchain}";
           FIRTOOL_BIN = "${circt}/bin/firtool";
           JAVA_HOME = "${pkgs.jdk17_headless}";
           VCS_HOME = "/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1";
@@ -361,9 +357,8 @@ EOF
 
           shellHook = ''
             export CY_DIR="$PWD"
-            export PATH="$CY_DIR/bin:$VERDI_HOME/bin:$VCS_HOME/bin:$RISCV/bin:$FIREMARSHAL_RISCV/bin:$PATH"
-            # A trailing colon means "search the current directory" to the
-            # dynamic loader.  Buildroot rejects that unsafe environment.
+            export PATH="$CY_DIR/bin:$VERDI_HOME/bin:$VCS_HOME/bin:$RISCV/bin:$PATH"
+            # Keep a deterministic zlib path for external simulator binaries.
             if [[ -n "''${LD_LIBRARY_PATH:-}" ]]; then
               export LD_LIBRARY_PATH="${pkgs.zlib}/lib:''${LD_LIBRARY_PATH}"
             else
@@ -376,11 +371,6 @@ EOF
             # binaries while avoiding that Ubuntu-specific CPATH injection.
             export VCS_ARCH_OVERRIDE=linux
             export ZEPHYR_RISCV="${rawRiscvUnknownElfTools}"
-            export FIREMARSHAL_NIX_PATCHELF="${pkgs.patchelf}/bin/patchelf"
-            export FIREMARSHAL_NIX_READELF="${pkgs.binutils}/bin/readelf"
-            # Buildroot's host-mkpasswd links with -lcrypt directly. Keep that
-            # lookup in the Nix closure instead of falling through to /usr/lib.
-            export LIBRARY_PATH="${pkgs.libxcrypt}/lib''${LIBRARY_PATH:+:$LIBRARY_PATH}"
             export COURSIER_CACHE="$PWD/.coursier-cache"
             export SBT_OPTS="-Dsbt.global.base=$PWD/.sbt -Dsbt.boot.directory=$PWD/.sbt/boot -Dsbt.ivy.home=$PWD/.ivy2 ''${SBT_OPTS:-}"
             unset NIX_LDFLAGS
@@ -393,10 +383,8 @@ EOF
             pkgs.automake
             pkgs.bash
             pkgs.bison
-            pkgs.bc
             pkgs.ccache
             pkgs.cmake
-            pkgs.cpio
             pkgs.coreutils
             pkgs.dtc
             pkgs.flex
@@ -405,18 +393,13 @@ EOF
             pkgs.gnumake
             pkgs.jq
             pkgs.jdk17_headless
-            pkgs.libxcrypt
-            pkgs.libxslt
             pkgs.ninja
             # numactl 2.0.18 rejects membind on the Linux 5.4 hosts used for simulation.
             # Keep it on the existing nixpkgs-gcc11 input, whose 2.0.16 package supports it.
             gcc11Pkgs.numactl
             pkgs.perl
             pkgs.protobuf
-            firemarshalPython
-            pkgs.python3Packages.pyelftools
             pkgs.python3Packages.west
-            pkgs.ctags
             sbt
             gcc11Pkgs.clang
             clangVerilator
@@ -476,7 +459,6 @@ EOF
             pkgs.pkg-config
             pkgs.stdenv.cc
             firemarshalPython
-            pkgs.python3Packages.pyelftools
             pkgs.wget
             pkgs.which
             pkgs.xz

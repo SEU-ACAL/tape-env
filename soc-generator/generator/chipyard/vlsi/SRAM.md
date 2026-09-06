@@ -23,13 +23,13 @@ make -C soc-generator SIM=vcs USE_TSMC28_SRAM=1 verilog
 
 ## SMIC180
 
-`TapeoutConfig` 默认强制设置 `USE_SMIC180_SRAM=1`，将顶层时序存储器替换为 SMIC S018SP 宏：
+`TapeoutConfig` 和 `TapeoutRocketConfig` 默认强制设置 `USE_SMIC180_SRAM=1`，将顶层时序存储器替换为 SMIC S018SP 宏：
 
 ```sh
 make -C soc-generator SIM=vcs CONFIG=TapeoutConfig verilog
 ```
 
-位于 `chipyard.mk` 默认路径的 SMIC 库提供 `TapeoutConfig` 所使用的六种宏尺寸，以及 Pebble Buckyball 的 `32x128`、`64x128`（带 `BWEN`）。宏采用
+位于 `chipyard.mk` 默认路径的 SMIC 库提供 Tapeout 配置所使用的六种宏尺寸，以及 Pebble Buckyball 的 `32x128`、`64x128`（带 `BWEN`）。宏采用
 `CLK/CEN/WEN/A/D/Q` 接口，其中 `CEN` 和 `WEN` 为低有效。`chipyard_sram_64x128` 另有低有效 `BWEN` 位写使能。`smic180_sram_sim.sources` 会展开为
 对应 Verilog 模型。默认 `SMIC180_SRAM_SIM_FLAGS=+notimingcheck` 保留功能仿真并关闭库的时序
 检查；时序签核应使用 SDF 或 STA。可通过 `SMIC180_SRAM_ROOT`、`SMIC180_SRAM_MDF`、
@@ -53,9 +53,9 @@ Verilog 模型和物理交付物，不生成或更新 ROM。可用 `SMIC180_ROM_
 覆盖缓存根目录；若对应 Verilog 宏不存在，构建会直接报错。ROM 镜像、CDK、JDK 和
 compiler 的变化都不会触发 ROM 生成。
 Debug ROM 使用同步 64-bit 宏，并在请求后的下一个周期返回对应的 64-bit word。
-非 `TapeoutConfig` 配置仍可通过 `USE_SMIC180_ROM=0` 保留普通 ROM；P2E 配置会忽略该选项，始终保留普通 ROM。
+非 Tapeout 配置仍可通过 `USE_SMIC180_ROM=0` 保留普通 ROM；P2E 配置会忽略该选项，始终保留普通 ROM。
 
-## TapeoutConfig 检查
+## Tapeout 配置检查
 
 选择工艺库前，先检查 `TapeoutConfig` 的实际 SRAM 规格；`mrw` 需按 `mask_gran` 分解为
 独立的单端口宏：
