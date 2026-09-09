@@ -9,7 +9,7 @@ import freechips.rocketchip.rocket.{RocketCoreParams, MulDivParams, DCacheParams
 import freechips.rocketchip.diplomacy._
 
 import testchipip.cosim.{TracePortKey, TracePortParams}
-import freechips.rocketchip.trace.{TraceEncoderParams, TraceCoreParams}
+import freechips.rocketchip.trace.{TraceCoreParams, PulpRvTracerParams}
 
 // Static plugin discovery for optional generators via Java ServiceLoader.
 // Optional generators can implement TilePluginProvider.
@@ -69,19 +69,30 @@ class WithNoTraceIO extends Config((site, here, up) => {
   case TracePortKey => None
 })
 
-class WithNPerfCounters(n: Int = 29) extends Config((site, here, up) => {
+/** Optional second trace backend using the PULP rv_tracer RTL. */
+class WithPulpRvTracer(baseAddress: BigInt) extends Config((site, here, up) => {
   case TilesLocated(InSubsystem) => up(TilesLocated(InSubsystem), site) map {
-    case tp: RocketTileAttachParams => tp.copy(tileParams = tp.tileParams.copy(
-      core = tp.tileParams.core.copy(nPerfCounters = n)))
+    case tp: RocketTileAttachParams =>
+      val core = tp.tileParams.core
+      val traceCoreParams = TraceCoreParams(
+        nGroups = 1,
+        iretireWidth = 32,
+        xlen = core.xLen,
+        iaddrWidth = core.xLen,
+        iaddrLsb = if (core.useCompressed) 1 else 2)
+      tp.copy(tileParams = tp.tileParams.copy(
+        core = core.copy(enableTraceCoreIngress = true),
+        pulpTraceParams = Some(PulpRvTracerParams(
+          tracerBaseAddr = baseAddress + tp.tileParams.tileId * 0x100,
+          coreParams = traceCoreParams))))
     case other => other
   }
 })
 
-// Add a monitor to RTL print the sinked packets into a file for debugging
-class WithTraceArbiterMonitor extends Config((site, here, up) => {
+class WithNPerfCounters(n: Int = 29) extends Config((site, here, up) => {
   case TilesLocated(InSubsystem) => up(TilesLocated(InSubsystem), site) map {
     case tp: RocketTileAttachParams => tp.copy(tileParams = tp.tileParams.copy(
-      traceParams = Some(tp.tileParams.traceParams.get.copy(useArbiterMonitor = true))))
+      core = tp.tileParams.core.copy(nPerfCounters = n)))
     case other => other
   }
 })

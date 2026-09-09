@@ -35,6 +35,12 @@ class DigitalTop(implicit p: Parameters) extends ChipyardSystem
   with chipyard.clocking.CanHaveClockTap // Enables optionally adding a clock tap output port
   with testchipip.ctc.CanHavePeripheryCTC // Support optional CTC link
 {
+  tlSpiNodes.headOption.foreach { spi =>
+    totalTiles.values.collectFirst {
+      case tile: freechips.rocketchip.tile.RocketTile if tile.pulp_trace_controller.nonEmpty =>
+        tile.pulp_trace_controller.get
+    }.foreach { controller => spi.traceSpiNode := controller.traceSpiNode }
+  }
   override lazy val module = new DigitalTopModule(this)
 }
 

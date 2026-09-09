@@ -12,6 +12,12 @@ class RocketConfig extends Config(
   new freechips.rocketchip.rocket.WithNHugeCores(1) ++         // single rocket-core
   new chipyard.config.AbstractConfig)
 
+/** Single Rocket using the optional PULP rv_tracer backend. */
+class RocketPulpTraceConfig extends Config(
+  new chipyard.config.WithPulpRvTracer(0x10060000) ++
+  new WithNoDebugClockGate ++
+  new RocketConfig)
+
 class RoCCRocketConfig extends Config(
   new chipyard.config.WithCharacterCountRoCC ++
   new chipyard.config.WithAccumulatorRoCC ++

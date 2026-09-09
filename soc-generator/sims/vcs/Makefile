@@ -27,6 +27,41 @@ sim_debug = $(sim_dir)/$(sim_prefix)-$(MODEL_PACKAGE)-$(CONFIG)-debug
 
 include $(sim_dir)/vcs.mk
 
+.DEFAULT_GOAL := default
+
+# VCS requires package declarations before the blackbox modules that import
+# them.  FIRRTL emits these files as blackbox resources, but its generic
+# simulator filelist is sorted alphabetically.  Keep this workaround local to
+# the PULP configuration and leave the original trace configuration unchanged.
+ifneq (,$(filter RocketPulpTraceConfig TapeoutConfig TapeoutRocketConfig,$(CONFIG)))
+PULP_RV_TRACER_ROOT := $(abspath $(base_dir)/../rv_tracer)
+PULP_RV_TRACER_FILELIST := $(build_dir)/pulp_rv_tracer.f
+EXT_FILELISTS += $(PULP_RV_TRACER_FILELIST)
+SIM_COMMON_FILES_EXCLUDE := /gen-collateral/(te_pkg|rv_tracer_math_compat|rv_tracer_compat|lzc|te_reg|te_resync_counter|te_branch_map|te_filter|te_priority|te_packet_emitter|rv_tracer|rv_tracer_wrapper)\.sv$$
+
+$(PULP_RV_TRACER_FILELIST):
+	@mkdir -p $(dir $@)
+	@printf '%s\n' \
+		$(PULP_RV_TRACER_ROOT)/include/te_pkg.sv \
+		$(PULP_RV_TRACER_ROOT)/rtl/rv_tracer_math_compat.sv \
+		$(PULP_RV_TRACER_ROOT)/rtl/rv_tracer_compat.sv \
+		$(PULP_RV_TRACER_ROOT)/rtl/lzc.sv \
+		$(PULP_RV_TRACER_ROOT)/rtl/te_reg.sv \
+		$(PULP_RV_TRACER_ROOT)/rtl/te_resync_counter.sv \
+		$(PULP_RV_TRACER_ROOT)/rtl/te_branch_map.sv \
+		$(PULP_RV_TRACER_ROOT)/rtl/te_filter.sv \
+		$(PULP_RV_TRACER_ROOT)/rtl/te_priority.sv \
+		$(PULP_RV_TRACER_ROOT)/rtl/te_packet_emitter.sv \
+		$(PULP_RV_TRACER_ROOT)/rtl/rv_tracer.sv \
+		$(PULP_RV_TRACER_ROOT)/rtl/rv_tracer_wrapper.sv > $@
+
+# FIRRTL also emits a copied black-box resource with the same stable module
+# name.  Keep that generated copy byte-identical to the source wrapper; the
+# generated filelist is consumed by VCS alongside the external PULP filelist.
+$(GEN_COLLATERAL_DIR)/rv_tracer_wrapper.sv: $(PULP_RV_TRACER_ROOT)/rtl/rv_tracer_wrapper.sv $(FIRTOOL_STAMP)
+	cp -f $< $@
+endif
+
 .PHONY: default debug
 default: $(sim)
 debug: $(sim_debug)
@@ -65,6 +100,15 @@ $(SIM_COPIED_FILE_REQS): $(FIRTOOL_STAMP)
 VCS = vcs -full64
 
 VCS_OPTS = $(VCS_CC_OPTS) $(VCS_NONCC_OPTS) $(SIM_PREPROC_DEFINES) $(VCS_PREPROC_DEFINES)
+ifneq (,$(filter RocketPulpTraceConfig TapeoutConfig TapeoutRocketConfig,$(CONFIG)))
+# Upstream rv_tracer has intentional parameterized width casts which VCS
+# reports as PCWM-L; preserve the lint diagnostics but do not make them fatal.
+VCS_OPTS += -error=noPCWM-L
+# The generic SRAM timing models in this simulation configuration report
+# asynchronous loadmem activity as timing violations.  This trace bring-up is
+# functional RTL validation, so disable timing checks at VCS run time only.
+SIM_FLAGS += +notimingcheck
+endif
 
 #########################################################################################
 # vcs build paths
