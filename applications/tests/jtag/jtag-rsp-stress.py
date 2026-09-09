@@ -7,6 +7,7 @@ import socket
 import struct
 import sys
 import time
+import threading
 
 STEP_STREAM_INSTRUCTIONS = 256
 
@@ -115,6 +116,56 @@ def read_memory(rsp, address, length):
         raise RspError("short memory response at 0x%x: got %d bytes, expected %d" %
                        (address, len(data), length))
     return data
+
+
+def write_u32(rsp, address, value):
+    write_memory(rsp, address, struct.pack("<I", value & 0xffffffff))
+
+
+def read_u32(rsp, address):
+    return struct.unpack("<I", read_memory(rsp, address, 4))[0]
+
+
+def drain_trace_fifo(rsp, base, output, max_bytes, poll_limit=32):
+    """Read the MMIO trace FIFO through OpenOCD SBA/RSP.
+
+    status[12] is valid, status[11] is FIFO enqueue-ready, and status[10:0]
+    is the queued byte count.  The data register is a read-and-pop register,
+    so it must be accessed one byte at a time.
+    """
+    status_address = base + 0x2c
+    data_address = base + 0x30
+    captured = bytearray()
+    # The hart is halted before this function is called, so the FIFO count is
+    # stable. Read exactly the advertised number of bytes; polling an empty
+    # FIFO repeatedly is prohibitively slow over remote-bitbang JTAG.
+    for _ in range(poll_limit):
+        status = read_u32(rsp, status_address)
+        count = status & 0x7ff
+        valid = bool(status & (1 << 12))
+        if valid and count:
+            # Each single-byte SBA pop costs ~1s over remote-bitbang JTAG, so
+            # flush as we go: a timeout mid-drain then still leaves the bytes
+            # read so far on disk instead of discarding the whole capture.
+            for _ in range(min(count, max_bytes)):
+                chunk = read_memory(rsp, data_address, 1)
+                captured.extend(chunk)
+                output.write(chunk)
+                output.flush()
+            break
+    return bytes(captured)
+
+
+def capture_trace(rsp, args):
+    if not args.trace_out:
+        return
+    with open(args.trace_out, "wb") as trace_file:
+        trace = drain_trace_fifo(rsp, args.trace_base, trace_file,
+                                 args.trace_max_bytes)
+    if not trace:
+        raise RspError("trace FIFO was empty; encoder did not produce bytes")
+    print("JTAG_TRACE_DRAIN_PASS address=0x%x bytes=%d file=%s" %
+          (args.trace_base, len(trace), args.trace_out), flush=True)
 
 
 def read_register(rsp, register):
@@ -284,7 +335,20 @@ def main():
     parser.add_argument("--skip-breakpoints", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--skip-hardware-breakpoint", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--timeout", type=float, default=500.0)
+    parser.add_argument("--trace-out", help="write JTAG-readable trace FIFO bytes to this file")
+    parser.add_argument("--trace-spi-enable", action="store_true",
+                        help="configure the PULP tracer for spi_0 output; do not read trace data over JTAG")
+    parser.add_argument("--trace-base", type=lambda value: int(value, 0), default=0x10050000)
+    parser.add_argument("--trace-max-bytes", type=int, default=4096)
+    parser.add_argument("--trace-clear", action="store_true",
+                        help="clear the trace FIFO before the normal stress sequence")
+    parser.add_argument("--trace-only", action="store_true",
+                        help="configure trace, continue target, and skip unrelated JTAG tests")
+    parser.add_argument("--trace-run-seconds", type=float, default=0.1,
+                        help=argparse.SUPPRESS)
     args = parser.parse_args()
+    pulp_priv_enable_mode = 0x03  # PRIV_ENABLE_MODE: filter=1, EQUAL=1
+    pulp_priv_m = 0x03            # rv_tracer PRIV encoding: M=3
     if args.steps < 1 or args.memory < 1:
         parser.error("--steps and --memory must be positive")
     if args.steps > STEP_STREAM_INSTRUCTIONS:
@@ -314,6 +378,22 @@ def main():
         phase("reset")
         if args.stop_after == "reset":
             return 0
+        if args.trace_clear or args.trace_out:
+            write_u32(rsp, args.trace_base + 0x34, 1)
+            print("JTAG_TRACE_CLEAR_PASS address=0x%x" % (args.trace_base + 0x34), flush=True)
+        trace_enable_pending = args.trace_out or args.trace_spi_enable
+        if trace_enable_pending:
+            if args.trace_base == 0x10060000:
+                # PULP rv_tracer APB: enable privilege EQUAL filtering, then
+                # match M (encoding 3). This excludes U/S trace packets.
+                write_u32(rsp, args.trace_base + 0x4c, pulp_priv_enable_mode)
+                write_u32(rsp, args.trace_base + 0x94, pulp_priv_m)
+            if not args.trace_only:
+                write_u32(rsp, args.trace_base + 0x00, 0x3)
+                if args.trace_spi_enable:
+                    print("JTAG_TRACE_SPI_ENABLE_PASS address=0x%x priv=M(3) mode=EQUAL" % args.trace_base, flush=True)
+                else:
+                    print("JTAG_TRACE_ENABLE_PASS address=0x%x" % args.trace_base, flush=True)
         if args.elf_load_mode == "write":
             for address, data in elf_load_segments(args.elf):
                 write_memory(rsp, address, data)
@@ -322,6 +402,30 @@ def main():
             # The simulator has already loaded this image through +loadmem;
             # repeating it over Remote Bitbang is prohibitively slow.
             print("JTAG_RSP_ELF_PRELOADED_PASS", flush=True)
+        if args.trace_only:
+            start = elf_symbol(args.elf, "gdb_step_stress")
+            write_register(rsp, 0x20, start)
+            print("JTAG_TRACE_ONLY_PC=0x%x" % start, flush=True)
+            if trace_enable_pending:
+                write_u32(rsp, args.trace_base + 0x00, 0x3)
+                print("JTAG_TRACE_SPI_ENABLE_PASS address=0x%x priv=M(3) mode=EQUAL" % args.trace_base, flush=True)
+            result = {}
+            def run_target():
+                try:
+                    result["stop"] = rsp.request(b"c")
+                except Exception as exc:
+                    result["error"] = exc
+            worker = threading.Thread(target=run_target, daemon=True)
+            worker.start()
+            time.sleep(max(0.0, args.trace_run_seconds))
+            rsp.sock.sendall(b"\x03")
+            worker.join(args.timeout)
+            if worker.is_alive():
+                raise RspError("trace-only continue did not stop after interrupt")
+            if "error" in result:
+                raise result["error"]
+            print("JTAG_TRACE_ONLY_CONTINUE_PASS", flush=True)
+            return 0
         start = elf_symbol(args.elf, "gdb_step_stress")
 
         # Exercise abstract register write/read while the hart is halted.
@@ -383,6 +487,7 @@ def main():
         print("JTAG_RSP_SINGLE_STEP_PASS steps=%d" % args.steps)
         phase("step")
         if args.stop_after == "step":
+            capture_trace(rsp, args)
             return 0
 
         if args.rom_verify_mode == "full":
@@ -410,6 +515,7 @@ def main():
                                (iteration, actual.hex(), expected.hex()))
         print("JTAG_RSP_STRESS_PASS steps=%d memory=%d" %
               (args.steps, args.memory))
+        capture_trace(rsp, args)
         phase("memory")
         return 0
     except (OSError, RspError) as exc:

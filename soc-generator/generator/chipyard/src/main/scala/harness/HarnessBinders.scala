@@ -91,6 +91,22 @@ class WithSimSPIFlashOnPads(
   }
 })
 
+/** Observe PULP trace packets on the existing tapeout spi_0 pads. */
+class WithSimTraceSPIOnPads extends HarnessBinder({
+  case (th: HasHarnessInstantiators, port: SimSPIPadPort, _) if port.spiId == 0 => {
+    require(port.cs.size == 1, "SimTraceSPIOnPads supports exactly one chip-select")
+    require(port.dq.size == 4, "SimTraceSPIOnPads requires four SPI data pads")
+    val monitor = Module(new SimTraceSPIMonitor).suggestName("trace_spi_monitor")
+    monitor.io.sck <> port.sck
+    monitor.io.cs <> port.cs.head
+    monitor.io.dq_0 <> port.dq(0)
+    monitor.io.dq_1 <> port.dq(1)
+    monitor.io.dq_2 <> port.dq(2)
+    monitor.io.dq_3 <> port.dq(3)
+    monitor.io.reset := th.harnessBinderReset.asBool
+  }
+})
+
 /** Attach a pull-up equipped I2C EEPROM to tapeout-style I2C pads. */
 class WithSimI2CEepromOnPads(i2cAddress: Int = 0x50) extends HarnessBinder({
   case (th: HasHarnessInstantiators, port: SimI2CPadPort, _) => {
