@@ -91,6 +91,12 @@ add_executable(symmetric symmetric.c)
 add_executable(ctc-test ctc-test.c)
 add_executable(multi-ctc-test multi-ctc-test.c)
 add_executable(triple-chiplet triple-chiplet.c)
+add_executable(trace_test trace/trace_test.c)
+add_executable(test_lossy_fixed trace/test_lossy_fixed.c)
+add_executable(test_address_fixed trace/test_address_fixed.c)
+add_executable(test_privilege_fixed trace/test_privilege_fixed.c)
+add_executable(test_exception_fixed trace/test_exception_fixed.c)
+target_include_directories(trace_test PRIVATE ${CMAKE_SOURCE_DIR})
 
 #################################
 # Buckyball (Pebble) RoCC tests
