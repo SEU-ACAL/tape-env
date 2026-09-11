@@ -384,6 +384,7 @@ EOF
             pkgs.bash
             pkgs.bison
             pkgs.ccache
+            pkgs.cargo
             pkgs.cmake
             pkgs.coreutils
             pkgs.dtc
@@ -405,6 +406,7 @@ EOF
             clangVerilator
             pkgs.which
             pkgs.zlib
+            pkgs.rustc
             circt
             riscvCc
           ] ++ extraPackages;
