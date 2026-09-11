@@ -34,31 +34,33 @@ include $(sim_dir)/vcs.mk
 # simulator filelist is sorted alphabetically.  Keep this workaround local to
 # the PULP configuration and leave the original trace configuration unchanged.
 ifneq (,$(filter RocketPulpTraceConfig TapeoutConfig TapeoutRocketConfig,$(CONFIG)))
-PULP_RV_TRACER_ROOT := $(abspath $(base_dir)/../rv_tracer)
+# The tracer RTL is packaged as Rocket-Chip black-box resources.  Keep the
+# simulator independent of the removed standalone ../rv_tracer checkout.
+PULP_RV_TRACER_ROOT := $(abspath $(base_dir)/generator/rocket-chip/src/main/resources/vsrc/rv_tracer)
 PULP_RV_TRACER_FILELIST := $(build_dir)/pulp_rv_tracer.f
 EXT_FILELISTS += $(PULP_RV_TRACER_FILELIST)
 SIM_COMMON_FILES_EXCLUDE := /gen-collateral/(te_pkg|rv_tracer_math_compat|rv_tracer_compat|lzc|te_reg|te_resync_counter|te_branch_map|te_filter|te_priority|te_packet_emitter|rv_tracer|rv_tracer_wrapper)\.sv$$
 
-$(PULP_RV_TRACER_FILELIST):
+$(PULP_RV_TRACER_FILELIST): $(sim_dir)/Makefile
 	@mkdir -p $(dir $@)
 	@printf '%s\n' \
-		$(PULP_RV_TRACER_ROOT)/include/te_pkg.sv \
-		$(PULP_RV_TRACER_ROOT)/rtl/rv_tracer_math_compat.sv \
-		$(PULP_RV_TRACER_ROOT)/rtl/rv_tracer_compat.sv \
-		$(PULP_RV_TRACER_ROOT)/rtl/lzc.sv \
-		$(PULP_RV_TRACER_ROOT)/rtl/te_reg.sv \
-		$(PULP_RV_TRACER_ROOT)/rtl/te_resync_counter.sv \
-		$(PULP_RV_TRACER_ROOT)/rtl/te_branch_map.sv \
-		$(PULP_RV_TRACER_ROOT)/rtl/te_filter.sv \
-		$(PULP_RV_TRACER_ROOT)/rtl/te_priority.sv \
-		$(PULP_RV_TRACER_ROOT)/rtl/te_packet_emitter.sv \
-		$(PULP_RV_TRACER_ROOT)/rtl/rv_tracer.sv \
-		$(PULP_RV_TRACER_ROOT)/rtl/rv_tracer_wrapper.sv > $@
+		$(PULP_RV_TRACER_ROOT)/te_pkg.sv \
+		$(PULP_RV_TRACER_ROOT)/rv_tracer_math_compat.sv \
+		$(PULP_RV_TRACER_ROOT)/rv_tracer_compat.sv \
+		$(PULP_RV_TRACER_ROOT)/lzc.sv \
+		$(PULP_RV_TRACER_ROOT)/te_reg.sv \
+		$(PULP_RV_TRACER_ROOT)/te_resync_counter.sv \
+		$(PULP_RV_TRACER_ROOT)/te_branch_map.sv \
+		$(PULP_RV_TRACER_ROOT)/te_filter.sv \
+		$(PULP_RV_TRACER_ROOT)/te_priority.sv \
+		$(PULP_RV_TRACER_ROOT)/te_packet_emitter.sv \
+		$(PULP_RV_TRACER_ROOT)/rv_tracer.sv \
+		$(PULP_RV_TRACER_ROOT)/rv_tracer_wrapper.sv > $@
 
 # FIRRTL also emits a copied black-box resource with the same stable module
 # name.  Keep that generated copy byte-identical to the source wrapper; the
 # generated filelist is consumed by VCS alongside the external PULP filelist.
-$(GEN_COLLATERAL_DIR)/rv_tracer_wrapper.sv: $(PULP_RV_TRACER_ROOT)/rtl/rv_tracer_wrapper.sv $(FIRTOOL_STAMP)
+$(GEN_COLLATERAL_DIR)/rv_tracer_wrapper.sv: $(PULP_RV_TRACER_ROOT)/rv_tracer_wrapper.sv $(FIRTOOL_STAMP)
 	cp -f $< $@
 endif
 
