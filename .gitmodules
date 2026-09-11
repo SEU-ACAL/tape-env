@@ -38,3 +38,6 @@
 [submodule "soc-generator/generator/buckyball/src"]
 	path = soc-generator/generator/buckyball/src
 	url = https://github.com/DangoSys/buckyball.git
+[submodule "applications/freertos-workloads/freertos-kernel"]
+	path = applications/freertos-workloads/freertos-kernel
+	url = https://github.com/FreeRTOS/FreeRTOS-Kernel.git
