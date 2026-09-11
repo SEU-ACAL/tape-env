@@ -40,23 +40,6 @@ stress_timeout="${STRESS_TIMEOUT:-1000}"
 ci_timeout="${CI_TIMEOUT:-1000}"
 startup_timeout="${STARTUP_TIMEOUT:-30}"
 command_timeout="${JTAG_COMMAND_TIMEOUT_SEC:-$((stress_timeout * 2))}"
-trace_out="${JTAG_TRACE_OUT:-}"
-trace_base="${JTAG_TRACE_BASE:-0x10050000}"
-trace_max_bytes="${JTAG_TRACE_MAX_BYTES:-4096}"
-trace_spi="${JTAG_TRACE_SPI:-0}"
-trace_only="${JTAG_TRACE_ONLY:-0}"
-trace_args=()
-sim_trace_args=()
-if [[ -n "$trace_out" ]]; then
-  trace_args+=(--trace-out "$trace_out" --trace-base "$trace_base" \
-    --trace-max-bytes "$trace_max_bytes")
-fi
-if [[ "$trace_spi" == 1 ]]; then
-  trace_args+=(--trace-spi-enable --trace-base "$trace_base")
-  if [[ "$trace_only" == 1 ]]; then
-    trace_args+=(--trace-only --trace-run-seconds "${JTAG_TRACE_RUN_SECONDS:-0.1}")
-  fi
-fi
 bootrom_base="${BOOTROM_BASE:-0x10000}"
 bootrom_size="${BOOTROM_SIZE:-0x2000}"
 debugrom_base="${DEBUGROM_BASE:-0x800}"
@@ -98,11 +81,6 @@ flash_image="$log_dir/spiflash.img"
 sim_stdout="$log_dir/sim.stdout"
 sim_stderr="$log_dir/sim.stderr"
 openocd_log="$log_dir/openocd.log"
-trace_spi_nibbles="${TRACE_SPI_NIBBLES_OUT:-$log_dir/trace-spi.nibbles}"
-trace_spi_packets="${TRACE_SPI_PACKETS_OUT:-$log_dir/trace-spi.packets}"
-if [[ "$trace_spi" == 1 ]]; then
-  sim_trace_args+=("+trace_spi_nibbles=$trace_spi_nibbles")
-fi
 sim_pid=''
 openocd_pid=''
 
@@ -148,7 +126,6 @@ printf 'CI JTAG: ELF=%s steps=%s memory=%s elf_load=%s rom_verify=%s stop_after=
   +spiflash0="$flash_image" \
   +loadmem="$elf" \
   +jtag_rbb_enable=1 \
-  "${sim_trace_args[@]}" \
   ${fsdb_file:+"+fsdbfile=$fsdb_file"} \
   +permissive-off \
   "$elf" >"$sim_stdout" 2>"$sim_stderr" &
@@ -215,30 +192,8 @@ timeout "$ci_timeout" "$python_bin" "$script_dir/jtag-rsp-stress.py" \
   --elf-load-mode "$elf_load_mode" \
   --rom-verify-mode "$rom_verify_mode" \
   --stop-after "$stop_after" \
-  "${trace_args[@]}" \
   "${breakpoint_args[@]}" \
   --timeout "$stress_timeout"
-
-if [[ "$trace_spi" == 1 ]]; then
-  for ((attempt = 0; attempt < startup_timeout; ++attempt)); do
-    if rg -q 'TRACE_SPI_RECONSTRUCT_PASS' "$sim_stdout"; then
-      break
-    fi
-    if ! kill -0 "$sim_pid" 2>/dev/null; then
-      printf 'CI JTAG error: VCS exited before reconstructing an SPI trace packet\n' >&2
-      exit 1
-    fi
-    sleep 1
-  done
-  if ! rg -q 'TRACE_SPI_RECONSTRUCT_PASS' "$sim_stdout"; then
-    printf 'CI JTAG error: no complete SPI trace packet was reconstructed\n' >&2
-    exit 1
-  fi
-  "$python_bin" "$script_dir/decode-trace-spi.py" \
-    --in "$trace_spi_nibbles" --out "$trace_spi_packets"
-  printf 'CI JTAG SPI TRACE PASS nibbles=%s packets=%s\n' \
-    "$trace_spi_nibbles" "$trace_spi_packets"
-fi
 
 printf 'CI JTAG PASS profile=%s steps=%s memory=%s\n' \
   "$([[ "$full_stress" == 1 ]] && printf full || printf smoke)" \
