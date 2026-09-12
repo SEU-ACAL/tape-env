@@ -137,7 +137,8 @@ Context-revert refresh (2026-09-12): after the forced full VCS rebuild
 `tapeout_vcs_forced_fresh_build_context_revert_20260912.log` (rc 0), the same 18
 non-time/non-context workloads were rerun. The return-code index is
 `final_tracestatefix_regression_summary.txt`; the run log is
-`context_revert_non_time_regression_20260912.log`. All simulations and deframing
+`context_revert_non_time_regression_20260912.log`. The reusable runner is
+`applications/tests/trace/run_trace_regression.sh`. All simulations and deframing
 returned 0; decoder 2 appears only for expected fully excluded traces.
 
 After the TRACE_STATE repair, 18 existing TVAL/CAUSE/TVEC/IADDR/privilege/`mret`
