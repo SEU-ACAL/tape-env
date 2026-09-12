@@ -34,34 +34,30 @@ include $(sim_dir)/vcs.mk
 # simulator filelist is sorted alphabetically.  Keep this workaround local to
 # the PULP configuration and leave the original trace configuration unchanged.
 ifneq (,$(filter RocketPulpTraceConfig TapeoutConfig TapeoutRocketConfig,$(CONFIG)))
-# The tracer RTL is packaged as Rocket-Chip black-box resources.  Keep the
-# simulator independent of the removed standalone ../rv_tracer checkout.
+# The tracer RTL is packaged as Rocket-Chip black-box resources.  Compile the
+# generated copies exactly once, before the alphabetically sorted generic list,
+# so te_pkg is defined before modules that import it.
 PULP_RV_TRACER_ROOT := $(abspath $(base_dir)/generator/rocket-chip/src/main/resources/vsrc/rv_tracer)
+PULP_RV_TRACER_SOURCES := $(wildcard $(PULP_RV_TRACER_ROOT)/*.sv)
 PULP_RV_TRACER_FILELIST := $(build_dir)/pulp_rv_tracer.f
 EXT_FILELISTS += $(PULP_RV_TRACER_FILELIST)
+# VCS consumes EXT_FILELISTS at command execution time, so make must also
+# model this file as a prerequisite of the simulator binary.
+EXTRA_SIM_REQS += $(PULP_RV_TRACER_FILELIST)
 SIM_COMMON_FILES_EXCLUDE := /gen-collateral/(te_pkg|rv_tracer_math_compat|rv_tracer_compat|lzc|te_reg|te_resync_counter|te_branch_map|te_filter|te_priority|te_packet_emitter|rv_tracer|rv_tracer_wrapper)\.sv$$
 
-$(PULP_RV_TRACER_FILELIST): $(sim_dir)/Makefile
+# Keep the generated wrapper aligned with its resource source after firtool
+# recreates the collateral directory.
+$(GEN_COLLATERAL_DIR)/rv_tracer_wrapper.sv: $(PULP_RV_TRACER_SOURCES) $(FIRTOOL_STAMP)
+	# VCS resolves the package used by lzc during textual inclusion.  This
+	# applies the required ordering only to the disposable simulation copy.
+	cp -f $(PULP_RV_TRACER_SOURCES) $(GEN_COLLATERAL_DIR)
+	sed '/`include "lzc.sv"/{N;s/`include "lzc.sv"\n`include "rv_tracer_math_compat.sv"/`include "rv_tracer_math_compat.sv"\n`include "lzc.sv"/;}' $(PULP_RV_TRACER_ROOT)/rv_tracer_wrapper.sv > $@
+
+$(PULP_RV_TRACER_FILELIST): $(sim_dir)/Makefile $(FIRTOOL_STAMP) $(GEN_COLLATERAL_DIR)/rv_tracer_wrapper.sv
 	@mkdir -p $(dir $@)
 	@printf '%s\n' \
-		$(PULP_RV_TRACER_ROOT)/te_pkg.sv \
-		$(PULP_RV_TRACER_ROOT)/rv_tracer_math_compat.sv \
-		$(PULP_RV_TRACER_ROOT)/rv_tracer_compat.sv \
-		$(PULP_RV_TRACER_ROOT)/lzc.sv \
-		$(PULP_RV_TRACER_ROOT)/te_reg.sv \
-		$(PULP_RV_TRACER_ROOT)/te_resync_counter.sv \
-		$(PULP_RV_TRACER_ROOT)/te_branch_map.sv \
-		$(PULP_RV_TRACER_ROOT)/te_filter.sv \
-		$(PULP_RV_TRACER_ROOT)/te_priority.sv \
-		$(PULP_RV_TRACER_ROOT)/te_packet_emitter.sv \
-		$(PULP_RV_TRACER_ROOT)/rv_tracer.sv \
-		$(PULP_RV_TRACER_ROOT)/rv_tracer_wrapper.sv > $@
-
-# FIRRTL also emits a copied black-box resource with the same stable module
-# name.  Keep that generated copy byte-identical to the source wrapper; the
-# generated filelist is consumed by VCS alongside the external PULP filelist.
-$(GEN_COLLATERAL_DIR)/rv_tracer_wrapper.sv: $(PULP_RV_TRACER_ROOT)/rv_tracer_wrapper.sv $(FIRTOOL_STAMP)
-	cp -f $< $@
+		$(GEN_COLLATERAL_DIR)/rv_tracer_wrapper.sv > $@
 endif
 
 .PHONY: default debug
@@ -102,6 +98,12 @@ $(SIM_COPIED_FILE_REQS): $(FIRTOOL_STAMP)
 VCS = vcs -full64
 
 VCS_OPTS = $(VCS_CC_OPTS) $(VCS_NONCC_OPTS) $(SIM_PREPROC_DEFINES) $(VCS_PREPROC_DEFINES)
+# VCS uses incremental compilation by default, which can retain a stale simv
+# even after FIRRTL regenerates collateral.  Verification runs can request a
+# provenance-safe binary without making ordinary developer builds expensive.
+ifneq ($(VCS_FORCE_FULL),)
+VCS_OPTS += -noIncrComp
+endif
 ifneq (,$(filter RocketPulpTraceConfig TapeoutConfig TapeoutRocketConfig,$(CONFIG)))
 # Upstream rv_tracer has intentional parameterized width casts which VCS
 # reports as PCWM-L; preserve the lint diagnostics but do not make them fatal.
@@ -127,6 +129,7 @@ $(sim): $(sim_common_files) $(dramsim_lib) $(EXTRA_SIM_REQS)
 	$(call require_cmd,vcs)
 	$(require_riscv)
 	rm -rf $(model_dir)
+	$(if $(VCS_FORCE_FULL),rm -f $@)
 	$(VCS) $(VCS_OPTS) $(EXTRA_SIM_SOURCES) -o $@ -Mdir=$(model_dir)
 
 $(sim_debug): $(sim_common_files) $(dramsim_lib) $(EXTRA_SIM_REQS)

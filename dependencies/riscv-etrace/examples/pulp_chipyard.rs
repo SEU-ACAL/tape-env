@@ -65,8 +65,26 @@ fn load_disassembly(path: &PathBuf) -> HashMap<u64, (u64, String)> {
 
 fn main() {
     let mut args = env::args_os().skip(1);
-    let trace = PathBuf::from(args.next().expect("usage: pulp_chipyard TRACE ELF"));
-    let elf_path = PathBuf::from(args.next().expect("usage: pulp_chipyard TRACE ELF"));
+    let first = args
+        .next()
+        .expect("usage: pulp_chipyard [--time] TRACE ELF");
+    let mut has_time = false;
+    let mut trace_arg = first;
+    loop {
+        if trace_arg == "--time" {
+            has_time = true;
+        } else {
+            break;
+        }
+        trace_arg = args
+            .next()
+            .expect("usage: pulp_chipyard [--time] TRACE ELF");
+    }
+    let trace = PathBuf::from(trace_arg);
+    let elf_path = PathBuf::from(
+        args.next()
+            .expect("usage: pulp_chipyard [--time] TRACE ELF"),
+    );
     let disassembly = load_disassembly(&elf_path);
     let trace = fs::read(trace).expect("could not read trace");
     let elf_data = fs::read(elf_path).expect("could not read ELF");
@@ -75,13 +93,17 @@ fn main() {
     let binary = binary::elf::Elf::<_, _, instruction::base::Set>::new(elf)
         .expect("could not construct ELF");
     let params = config::Parameters {
-        ecause_width_p: NonZeroU8::new(6).unwrap(),
+        // rv_tracer is built with TE_ARCH64 and serializes its native XLEN
+        // fields in F3/SF1 packets.  Keep the host profile aligned with that
+        // packet contract instead of silently decoding it as RV32.
+        ecause_width_p: NonZeroU8::new(64).unwrap(),
         // Rocket has compressed instructions; PULP emits addresses with the
         // architectural halfword alignment bit removed.
         iaddress_lsb_p: 0,
-        iaddress_width_p: NonZeroU8::new(32).unwrap(),
+        iaddress_width_p: NonZeroU8::new(64).unwrap(),
         nocontext_p: true,
-        notime_p: true,
+        notime_p: !has_time,
+        time_width_p: NonZeroU8::new(64).unwrap(),
         privilege_width_p: NonZeroU8::new(2).unwrap(),
         ..Default::default()
     };
@@ -125,18 +147,10 @@ fn main() {
         eprintln!("PULP_ETRACE_RAW packet={packets} {payload:?}");
         let payload = if let Payload::InstructionTrace(
             riscv_etrace::packet::payload::InstructionTrace::Synchronization(
-                riscv_etrace::packet::sync::Synchronization::Start(mut start),
+                riscv_etrace::packet::sync::Synchronization::Start(start),
             ),
         ) = payload
         {
-            // PULP synchronization packets carry the configured 32-bit
-            // instruction address.  The Chipyard workload lives at the
-            // upper-half physical address 0x8000_0000, so every low-address
-            // synchronization packet needs the same base, not just the
-            // first one in the stream.
-            if start.address < 0x8000_0000 {
-                start.address += 0x8000_0000;
-            }
             Payload::InstructionTrace(
                 riscv_etrace::packet::payload::InstructionTrace::Synchronization(
                     riscv_etrace::packet::sync::Synchronization::Start(start),
@@ -171,11 +185,18 @@ fn main() {
                         instructions += 1;
                         packet_instructions += 1;
                     }
-                    Err(_) => payload_errors += 1,
+                    Err(err) => {
+                        payload_errors += 1;
+                        if payload_errors <= 8 {
+                            eprintln!("  skipped instruction packet={packets}: {err:?}");
+                        }
+                    }
                 });
             }
             if packet_instructions != 0 {
-                eprintln!("PULP_ETRACE_PACKET_INSTRUCTIONS packet={packets} count={packet_instructions}");
+                eprintln!(
+                    "PULP_ETRACE_PACKET_INSTRUCTIONS packet={packets} count={packet_instructions}"
+                );
             }
         }
         packets += 1;

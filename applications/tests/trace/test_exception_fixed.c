@@ -19,11 +19,14 @@ static inline uint32_t read_reg(uint64_t addr) {
 
 extern volatile uint64_t tohost;
 
+static void drain_trace_transport(void) {
+    /* Keep the controller/SPI path enabled until its final frame is sent. */
+    for (volatile unsigned long i = 0; i < 10000UL; ++i)
+        asm volatile ("nop");
+}
+
 int main(void) {
     printf("\n=== EXCEPTION FILTER TEST ===\n");
-
-    // Enable TraceEncoderController
-    write_reg(REG_CONTROL, 0x3);
 
     // Configure CAUSE filter registers
     printf("\n--- Configuring CAUSE filter ---\n");
@@ -36,6 +39,9 @@ int main(void) {
 
     // CAUSE_MATCH = 2 (illegal instruction exception)
     write_reg(PULP_REG(0x07), 0x2);
+
+    // Keep tracing disabled while PULP APB configuration is in flight.
+    write_reg(REG_CONTROL, 0x3);
 
     printf("CAUSE_LOWER: 0x%x\n", read_reg(PULP_REG(0x06)));
     printf("CAUSE_UPPER: 0x%x\n", read_reg(PULP_REG(0x05)));
@@ -96,6 +102,7 @@ int main(void) {
     printf("Note: No exceptions triggered in this test\n");
     printf("Filter registers are configured and readable\n");
 
+    drain_trace_transport();
     tohost = 1;
     while (1);
     return 0;
