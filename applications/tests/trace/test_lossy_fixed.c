@@ -19,11 +19,14 @@ static inline uint32_t read_reg(uint64_t addr) {
 
 extern volatile uint64_t tohost;
 
+static void drain_trace_transport(void) {
+    /* Keep the controller/SPI path enabled until its final frame is sent. */
+    for (volatile unsigned long i = 0; i < 10000UL; ++i)
+        asm volatile ("nop");
+}
+
 int main(void) {
     printf("\n=== LOSSY MODE TEST ===\n");
-
-    // Enable TraceEncoderController
-    write_reg(REG_CONTROL, 0x3);
 
     // Configure LOSSY mode (lossless=0)
     printf("Setting LOSSY mode...\n");
@@ -33,6 +36,8 @@ int main(void) {
 
     // Enable tracer
     write_reg(PULP_REG(0x1C), 0x1);
+    // Enable the controller only after the PULP configuration commits.
+    write_reg(REG_CONTROL, 0x3);
 
     // Generate HIGH instruction rate to test lossy behavior
     printf("Generating 5000 instructions...\n");
@@ -52,6 +57,7 @@ int main(void) {
     printf("=== LOSSY MODE TEST DONE ===\n");
     printf("Check TRACE_SPI_RECONSTRUCT_SUMMARY\n");
 
+    drain_trace_transport();
     tohost = 1;
     while (1);
     return 0;

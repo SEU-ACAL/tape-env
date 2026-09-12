@@ -14,6 +14,14 @@
 // symbol, so range mode can cover B even when the linker places main first.
 #define FUNCTION_B_WINDOW_BYTES 0x40UL
 
+#ifndef TRACE_DELTA_ADDRESS
+#define TRACE_DELTA_ADDRESS 1u
+#endif
+
+#ifndef TRACE_FULL_ADDRESS
+#define TRACE_FULL_ADDRESS 0u
+#endif
+
 static inline void write_reg(uint64_t addr, uint32_t val) {
     *(volatile uint32_t*)addr = val;
 }
@@ -29,7 +37,7 @@ static void drain_delay(void) {
     // The trace SPI transport runs independently of the core.  This loop is
     // executed only while the address filter matches no instruction, so it
     // provides drain time without adding more trace packets.
-    for (volatile int i = 0; i < 40000; i++) {
+    for (volatile int i = 0; i < 2000; i++) {
         asm volatile("nop");
     }
 }
@@ -52,10 +60,8 @@ static void config_backpressure(void) {
     write_reg(PULP_REG(0x1F), 0x1);
     // NO_CONTEXT = 1: disable context info (reduce packet size)
     write_reg(PULP_REG(0x20), 0x1);
-    // DELTA_ADDRESS = 1: compressed delta addresses
-    write_reg(PULP_REG(0x21), 0x1);
-    // FULL_ADDRESS = 0: do not use full addresses
-    write_reg(PULP_REG(0x22), 0x0);
+    write_reg(PULP_REG(0x21), TRACE_DELTA_ADDRESS);
+    write_reg(PULP_REG(0x22), TRACE_FULL_ADDRESS);
 }
 
 // Function A - should be traced
@@ -90,6 +96,10 @@ int main(void) {
     // the controller, so setup/printf instructions cannot enter the trace.
     config_backpressure();
     set_range(0, 0);
+    // Arm PULP rv_tracer before enabling its controller transport.  The
+    // controller's enable alone only opens the SPI path; TRACE_STATE controls
+    // architectural trace qualification.
+    write_reg(PULP_REG(0x1C), 0x1);
 
     // Enable TraceEncoderController only after the tracer is configured.
     write_reg(REG_CONTROL, 0x3);

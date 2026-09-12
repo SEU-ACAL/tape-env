@@ -19,6 +19,38 @@ use crate::types::{self, branch};
 use decoder::Decode;
 use payload::{AddressInfo, InstructionTrace};
 
+#[test]
+fn pulp_trap_compressed_address_keeps_rv64_tval_aligned() {
+    // Native rv_tracer F3/SF1 payload: 41-bit compressed address followed by
+    // a 64-bit TVAL.  This is the same field shape emitted for the RV64
+    // high-half TVAL integration test.
+    let bytes = [
+        0x97, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x06, 0x00, 0x00, 0x01, 0x00,
+        0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00,
+    ];
+    let params = config::Parameters {
+        ecause_width_p: NonZeroU8::new(64).unwrap(),
+        iaddress_lsb_p: 0,
+        iaddress_width_p: NonZeroU8::new(64).unwrap(),
+        nocontext_p: true,
+        notime_p: true,
+        privilege_width_p: NonZeroU8::new(2).unwrap(),
+        ..Default::default()
+    };
+    let mut decoder = Builder::new()
+        .with_params(&params)
+        .for_unit(unit::PULP)
+        .decoder(&bytes);
+    let payload: InstructionTrace<unit::PULPIOptions, unit::NoOptions> =
+        Decode::decode(&mut decoder).unwrap();
+    let InstructionTrace::Synchronization(sync::Synchronization::Trap(trap)) = payload else {
+        panic!("expected PULP F3/SF1 trap");
+    };
+    assert_eq!(trap.address, 0x8000_0304);
+    assert_eq!(trap.info.ecause, 1);
+    assert_eq!(trap.info.tval, Some(0x0000_0001_0000_0000));
+}
+
 // `payload` related tests
 bitstream_test!(
     extension_jti_1,

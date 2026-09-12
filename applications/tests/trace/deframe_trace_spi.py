@@ -30,10 +30,11 @@ def main() -> None:
         length = stream[offset + 1]
         end = offset + 2 + length
         if end > len(stream):
-            raise SystemExit(
-                f"truncated packet {packets} at byte {offset}: length={length}, "
-                f"only {len(stream) - offset - 2} payload bytes remain"
+            print(
+                f"SPI_DEFRAME_TRUNCATED packet={packets} byte={offset} length={length} "
+                f"payload_bytes={len(stream) - offset - 2}"
             )
+            break
         output.extend(stream[offset + 1:end])
         offset = end
         packets += 1

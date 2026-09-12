@@ -29,6 +29,25 @@ pub trait Unit<U = Self> {
     /// Width of the encoder mode field
     fn encoder_mode_width(&self) -> u8;
 
+    /// Width of the address field in a format 3/subformat 1 Trap payload.
+    ///
+    /// Most encoders serialize a fixed-width instruction address.  PULP's
+    /// `rv_tracer` instead serializes its byte-rounded compressed address and
+    /// places `tval` immediately after it, so the width has to be recovered
+    /// from the encapsulated payload length.
+    fn trap_address_width(&self, _payload_bytes: usize, _has_tval: bool, configured: u8) -> u8 {
+        configured
+    }
+
+    /// Width of the address field in a format 3/subformat 0 Start payload.
+    ///
+    /// Most encoders serialize a fixed-width instruction address. PULP's
+    /// `rv_tracer` byte-rounds a compressed address, so its width depends on
+    /// the payload size and whether the optional time field is present.
+    fn start_address_width(&self, _payload_bytes: usize, _has_time: bool, configured: u8) -> u8 {
+        configured
+    }
+
     /// Decode instruction trace options
     fn decode_ioptions(decoder: &mut Decoder<U>) -> Result<Self::IOptions, Error>;
 
@@ -330,6 +349,38 @@ impl<U> Unit<U> for PULP {
 
     fn encoder_mode_width(&self) -> u8 {
         1
+    }
+
+    fn trap_address_width(&self, payload_bytes: usize, has_tval: bool, configured: u8) -> u8 {
+        if !has_tval {
+            return configured;
+        }
+
+        // F3/SF1 with no time/context has 137 fixed bits (format, subformat,
+        // branch, privilege, ecause, interrupt, thaddr, and RV64 TVAL).  PULP
+        // encodes the remaining address as 8 * address_off + 1 bits.  Its
+        // byte-rounded payload therefore has length 18 + address_off.
+        payload_bytes
+            .checked_sub(18)
+            .and_then(|address_off| address_off.checked_mul(8))
+            .and_then(|bits| bits.checked_add(1))
+            .and_then(|bits| u8::try_from(bits).ok())
+            .filter(|bits| *bits <= configured)
+            .unwrap_or(configured)
+    }
+
+    fn start_address_width(&self, payload_bytes: usize, has_time: bool, configured: u8) -> u8 {
+        // F3/SF0 consists of format/subformat, branch, privilege, optional
+        // 64-bit time, and a PULP byte-rounded address (8*n + 1 bits).
+        // Rounded payload sizes are n + 1 without time and n + 9 with time.
+        let fixed_bytes = if has_time { 9 } else { 1 };
+        payload_bytes
+            .checked_sub(fixed_bytes)
+            .and_then(|address_off| address_off.checked_mul(8))
+            .and_then(|bits| bits.checked_add(1))
+            .and_then(|bits| u8::try_from(bits).ok())
+            .filter(|bits| *bits <= configured)
+            .unwrap_or(configured)
     }
 
     fn decode_ioptions(decoder: &mut Decoder<U>) -> Result<Self::IOptions, Error> {

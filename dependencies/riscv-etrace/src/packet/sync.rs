@@ -155,11 +155,17 @@ pub struct Start {
     pub address: u64,
 }
 
-impl<U> Decode<'_, U> for Start {
+impl<U: Unit> Decode<'_, U> for Start {
     fn decode(decoder: &mut Decoder<U>) -> Result<Self, Error> {
+        let payload_bytes = decoder.bytes_left();
         let branch = decoder.read_bit()?;
         let ctx = Context::decode(decoder)?;
-        let address = util::read_address(decoder)?;
+        let address_width = decoder.unit().start_address_width(
+            payload_bytes,
+            decoder.widths().time.is_some(),
+            decoder.widths().iaddress.get(),
+        );
+        let address = decoder.read_bits::<u64>(address_width)? << decoder.widths().iaddress_lsb;
         Ok(Start {
             branch,
             ctx,
@@ -206,18 +212,28 @@ pub struct Trap {
     pub info: trap::Info,
 }
 
-impl<U> Decode<'_, U> for Trap {
+impl<U: Unit> Decode<'_, U> for Trap {
     fn decode(decoder: &mut Decoder<U>) -> Result<Self, Error> {
+        let payload_bytes = decoder.bytes_left();
         let branch = decoder.read_bit()?;
         let ctx = Context::decode(decoder)?;
-        let ecause = decoder.read_bits(decoder.widths().ecause.get())?;
+        // rv_tracer reserves an XLEN-wide cause field.  The public E-Trace
+        // trap type currently represents architectural cause values as u16,
+        // so consume the full wire field before retaining that value.
+        let ecause = decoder.read_bits::<u64>(decoder.widths().ecause.get())? as u16;
         let interrupt = decoder.read_bit()?;
         let thaddr = decoder.read_bit()?;
-        let address = util::read_address(decoder)?;
+        let address_width = decoder.unit().trap_address_width(
+            payload_bytes,
+            !interrupt,
+            decoder.widths().iaddress.get(),
+        );
+        let address: u64 =
+            decoder.read_bits::<u64>(address_width)? << decoder.widths().iaddress_lsb;
         let tval = if interrupt {
             None
         } else {
-            Some(decoder.read_bits(decoder.widths().iaddress.get())?)
+            Some(decoder.read_bits::<u64>(decoder.widths().iaddress.get())?)
         };
         Ok(Trap {
             branch,

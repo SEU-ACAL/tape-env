@@ -19,6 +19,12 @@ static inline uint32_t read_reg(uint64_t addr) {
 
 extern volatile uint64_t tohost;
 
+static void drain_trace_transport(void) {
+    /* Keep the controller/SPI path enabled until its final frame is sent. */
+    for (volatile unsigned long i = 0; i < 10000UL; ++i)
+        asm volatile ("nop");
+}
+
 // Read current privilege level from mstatus
 static inline uint32_t read_mstatus(void) {
     uint64_t mstatus;
@@ -34,14 +40,12 @@ int main(void) {
     printf("mstatus: 0x%x\n", mstatus);
     printf("Current mode: Machine (priv=3)\n");
 
-    // Enable TraceEncoderController
-    write_reg(REG_CONTROL, 0x3);
-
     // TEST 1: No privilege filtering
     printf("\n--- Test 1: No Filter ---\n");
     write_reg(PULP_REG(0x03), 0x0);  // Disable PRIV filter
     write_reg(PULP_REG(0x1D), 0x1);  // Lossless
     write_reg(PULP_REG(0x1C), 0x1);  // Enable
+    write_reg(REG_CONTROL, 0x3);     // Enable after PULP setup
 
     volatile int sum1 = 0;
     for (int i = 0; i < 100; i++) {
@@ -104,6 +108,7 @@ int main(void) {
     printf("Test 2: ~100+ packets (same as Test 1)\n");
     printf("Test 3: 0 packets (filtered out)\n");
 
+    drain_trace_transport();
     tohost = 1;
     while (1);
     return 0;
