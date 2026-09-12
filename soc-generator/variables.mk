@@ -191,6 +191,9 @@ ALL_MODS_FILELIST ?= $(build_dir)/$(long_name).all.f
 # external filelists. Users, or project-supplied make fragments can append filelists
 # with absolute paths here
 EXT_FILELISTS ?=
+# Optional extended regular expression applied to the generated simulator
+# filelist.  VCS uses this for ordered external SystemVerilog packages.
+SIM_COMMON_FILES_EXCLUDE ?=
 # external verilog incdirs. Users, or project-supplied make fragments can append to this
 EXT_INCDIRS ?=
 

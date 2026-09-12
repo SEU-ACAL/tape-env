@@ -52,6 +52,8 @@ private object TapeoutSPIFlashModel {
 
 class TapeoutConfig extends Config(
 
+  // Minimal single-Rocket E-Trace encoder with a JTAG/SBA-readable FIFO.
+  new chipyard.config.WithPulpRvTracer(0x10060000) ++
   new WithSMIC180BootROMFromEnv ++
   new testchipip.boot.WithTapeBootROM ++
   // The tapeout boot image is linked into an 8 KiB ROM window.
@@ -99,6 +101,8 @@ class TapeoutConfig extends Config(
   */
 class TapeoutRocketConfig extends Config(
 
+  // PULP trace is configured over JTAG/SBA and emitted over spi_0.
+  new chipyard.config.WithPulpRvTracer(0x10060000) ++
   new WithSMIC180BootROMFromEnv ++
   new testchipip.boot.WithTapeBootROM ++
   new chipyard.config.WithBootROM(size = 0x2000) ++
@@ -111,6 +115,7 @@ class TapeoutRocketConfig extends Config(
   new chipyard.clocking.WithNdmResetInSystemReset ++
   new WithTapeoutSingleClock(100) ++
   new chipyard.harness.WithSimTSIOverSerialTL(fast = true) ++
+  new chipyard.harness.WithSimTraceSPIOnPads ++
   new chipyard.harness.WithSimI2CEepromOnPads ++
   TapeoutSPIFlashModel.config ++
   new chipyard.WithSerialConnect ++
