@@ -45,12 +45,16 @@ EXT_FILELISTS += $(PULP_RV_TRACER_FILELIST)
 # model this file as a prerequisite of the simulator binary.
 EXTRA_SIM_REQS += $(PULP_RV_TRACER_FILELIST)
 SIM_COMMON_FILES_EXCLUDE := /gen-collateral/(te_pkg|rv_tracer_math_compat|rv_tracer_compat|lzc|te_reg|te_resync_counter|te_branch_map|te_filter|te_priority|te_packet_emitter|rv_tracer|rv_tracer_wrapper)\.sv$$
+# This is also defined by common.mk below, but the tracer rules are declared
+# before that include and therefore need the value during immediate expansion.
+FIRTOOL_STAMP ?= $(build_dir)/.firtool.stamp
 
 # Keep the generated wrapper aligned with its resource source after firtool
 # recreates the collateral directory.
-$(GEN_COLLATERAL_DIR)/rv_tracer_wrapper.sv: $(PULP_RV_TRACER_SOURCES) $(FIRTOOL_STAMP)
+$(GEN_COLLATERAL_DIR)/rv_tracer_wrapper.sv: $(PULP_RV_TRACER_SOURCES) $(FIRTOOL_STAMP) | $(GEN_COLLATERAL_DIR)
 	# VCS resolves the package used by lzc during textual inclusion.  This
 	# applies the required ordering only to the disposable simulation copy.
+	mkdir -p $(GEN_COLLATERAL_DIR)
 	cp -f $(PULP_RV_TRACER_SOURCES) $(GEN_COLLATERAL_DIR)
 	sed '/`include "lzc.sv"/{N;s/`include "lzc.sv"\n`include "rv_tracer_math_compat.sv"/`include "rv_tracer_math_compat.sv"\n`include "lzc.sv"/;}' $(PULP_RV_TRACER_ROOT)/rv_tracer_wrapper.sv > $@
 
