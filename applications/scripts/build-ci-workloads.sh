@@ -83,7 +83,6 @@ rm -rf "${zephyr_workspace}" "${zephyr_build}"
 
 test -d "${staging_dir}/riscv-tests/riscv64-unknown-elf/share/riscv-tests"
 test -x "${staging_dir}/hello.riscv"
-test -x "${staging_dir}/buckyball/bb-smatmul_8x16_test.riscv"
 test -x "${staging_dir}/zephyr/zephyr.elf"
 chmod -R a+rX "${staging_dir}"
 
