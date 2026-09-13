@@ -15,6 +15,8 @@ import sifive.blocks.util.{NonBlockingEnqueue, NonBlockingDequeue}
 
 
 import sifive.blocks.util._
+import freechips.rocketchip.trace.TraceSPIStream
+import org.chipsalliance.diplomacy.bundlebridge._
 
 trait SPIParamsBase {
   val rAddress: BigInt
@@ -148,6 +150,28 @@ class SPITopModule(c: SPIParamsBase, outer: TLSPIBase)
 
 }
 
+/** Drives the existing SPI media path with quad-SPI trace bytes. */
+class SPITraceClient(c: SPIParamsBase) extends Module {
+  val io = IO(new Bundle {
+    val enable = Input(Bool())
+    val in = Flipped(Decoupled(Bits(c.frameBits.W)))
+    val link = new SPIInnerIO(c)
+  })
+
+  io.link.tx.valid := io.enable && io.in.valid
+  io.link.tx.bits := io.in.bits
+  io.in.ready := io.enable && io.link.tx.ready
+  io.link.cnt := (c.frameBits / 4).U(c.countBits.W)
+  io.link.fmt.proto := SPIProtocol.Quad
+  io.link.fmt.endian := SPIEndian.MSB
+  io.link.fmt.iodir := SPIDirection.Tx
+  io.link.cs.set := true.B
+  io.link.cs.clear := io.link.tx.fire
+  io.link.cs.hold := false.B
+  io.link.lock := io.link.tx.valid || io.link.active
+  io.link.disableOE.foreach(_ := false.B)
+}
+
 class MMCDevice(spi: Device, maxMHz: Double = 20) extends SimpleDevice("mmc", Seq("mmc-spi-slot")) {
   override def parent = Some(spi)
   override def describe(resources: ResourceBindings): Description = {
@@ -192,8 +216,19 @@ abstract class TLSPIBase(w: Int, c: SPIParamsBase)(implicit p: Parameters) exten
 
 class TLSPI(w: Int, c: SPIParams)(implicit p: Parameters)
     extends TLSPIBase(w,c)(p) with HasTLControlRegMap {
+  val traceSpiNode = org.chipsalliance.diplomacy.bundlebridge.BundleBridgeSink[TraceSPIStream]()
   lazy val module = new SPITopModule(c, this) {
-    mac.io.link <> fifo.io.link.viewAsSupertype(new SPILinkIO(c))
+    val traceSpi = TLSPI.this.traceSpiNode.bundle
+    val trace = Module(new SPITraceClient(c))
+    val arb = Module(new SPIArbiter(c, 2))
+    trace.io.enable := traceSpi.enable
+    trace.io.in.valid := traceSpi.tx.valid
+    trace.io.in.bits := traceSpi.tx.bits
+    traceSpi.tx.ready := trace.io.in.ready
+    arb.io.inner(0) <> trace.io.link
+    arb.io.inner(1) <> fifo.io.link
+    arb.io.sel := Mux(traceSpi.enable, 0.U, 1.U)
+    mac.io.link <> arb.io.outer
     val mapping = (regmapBase)
     regmap(mapping:_*)
   }

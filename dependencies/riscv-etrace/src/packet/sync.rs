@@ -1,0 +1,525 @@
+// Copyright (C) 2025, 2026 FZI Forschungszentrum Informatik
+// SPDX-License-Identifier: Apache-2.0
+//! Synchronization payloads
+//!
+//! This module contains definitions of the various synchronization packets as
+//! defined in section 7.1 Format 3 packets of the specification. This includes
+//! the [`Synchronization`] type which may hold any of the subformats.
+
+use core::fmt;
+
+use crate::types::{self, Privilege, trap};
+
+use super::decoder::{Decode, Decoder};
+use super::encoder::{Encode, Encoder};
+use super::unit::{self, Unit};
+use super::{Error, util};
+
+/// Synchronization payload
+///
+/// Represents a format 3 packet.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum Synchronization<I = unit::ReferenceIOptions, D = unit::ReferenceDOptions> {
+    Start(Start),
+    Trap(Trap),
+    Context(Context),
+    Support(Support<I, D>),
+}
+
+impl<I, D> Synchronization<I, D> {
+    /// Check whether we got here without a branch being taken
+    ///
+    /// Returns [`false`] if the address was a branch target and [`true`] if the
+    /// branch was not taken or the previous instruction was not a branch
+    /// instruction. Returns [`None`] if the packet doesn't carry any address
+    /// information.
+    pub fn branch_not_taken(&self) -> Option<bool> {
+        match self {
+            Self::Start(start) => Some(start.branch),
+            Self::Trap(trap) => Some(trap.branch),
+            _ => None,
+        }
+    }
+
+    /// Retrieve the [`Context`] from this payload
+    ///
+    /// Returns [`None`] if the payload does not contain a context. This is the
+    /// case for [`Support`][Self::Support] payloads.
+    pub fn as_context(&self) -> Option<&Context> {
+        match self {
+            Self::Start(start) => Some(&start.ctx),
+            Self::Trap(trap) => Some(&trap.ctx),
+            Self::Context(ctx) => Some(ctx),
+            _ => None,
+        }
+    }
+
+    /// View this payload as a [`Support`]
+    ///
+    /// Returns the inner [`Support`] if this is a [`Support`][Self::Support],
+    /// [`None`] otherwise.
+    pub fn as_support(&self) -> Option<&Support<I, D>> {
+        match self {
+            Self::Support(supp) => Some(supp),
+            _ => None,
+        }
+    }
+}
+
+impl<I, D> From<Start> for Synchronization<I, D> {
+    fn from(start: Start) -> Self {
+        Self::Start(start)
+    }
+}
+
+impl<I, D> From<Trap> for Synchronization<I, D> {
+    fn from(trap: Trap) -> Self {
+        Self::Trap(trap)
+    }
+}
+
+impl<I, D> From<Context> for Synchronization<I, D> {
+    fn from(ctx: Context) -> Self {
+        Self::Context(ctx)
+    }
+}
+
+impl<I, D> From<Support<I, D>> for Synchronization<I, D> {
+    fn from(support: Support<I, D>) -> Self {
+        Self::Support(support)
+    }
+}
+
+impl<U: Unit> Decode<'_, U> for Synchronization<U::IOptions, U::DOptions> {
+    fn decode(decoder: &mut Decoder<U>) -> Result<Self, Error> {
+        match decoder.read_bits::<u8>(2)? {
+            0b00 => Start::decode(decoder).map(Into::into),
+            0b01 => Trap::decode(decoder).map(Into::into),
+            0b10 => Context::decode(decoder).map(Into::into),
+            0b11 => Support::decode(decoder).map(Into::into),
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl<'d, U> Encode<'d, U> for Synchronization<U::IOptions, U::DOptions>
+where
+    U: Unit,
+    U::IOptions: Encode<'d, U>,
+    U::DOptions: Encode<'d, U>,
+{
+    fn encode(&self, encoder: &mut Encoder<'d, U>) -> Result<(), Error> {
+        match self {
+            Self::Start(start) => {
+                encoder.write_bits(0b00u8, 2)?;
+                encoder.encode(start)
+            }
+            Self::Trap(trap) => {
+                encoder.write_bits(0b01u8, 2)?;
+                encoder.encode(trap)
+            }
+            Self::Context(ctx) => {
+                encoder.write_bits(0b10u8, 2)?;
+                encoder.encode(ctx)
+            }
+            Self::Support(support) => {
+                encoder.write_bits(0b11u8, 2)?;
+                encoder.encode(support)
+            }
+        }
+    }
+}
+
+impl<I: unit::IOptions, D> fmt::Display for Synchronization<I, D> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Start(s) => write!(f, "START {s}"),
+            Self::Trap(t) => write!(f, "TRAP {t}"),
+            Self::Context(c) => write!(f, "CTX {c}"),
+            Self::Support(s) => write!(f, "SUPP {s}"),
+        }
+    }
+}
+
+/// Start of trace
+///
+/// Represents a format 3, subformat 0 packet. It is sent by the encoder for the
+/// first traced instruction or when resynchronization is necessary.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct Start {
+    /// False, if the address is a taken branch instruction. True, if the branch
+    /// was not taken or the instruction is not a branch.
+    pub branch: bool,
+    pub ctx: Context,
+    /// Full address of the instruction.
+    pub address: u64,
+}
+
+impl<U: Unit> Decode<'_, U> for Start {
+    fn decode(decoder: &mut Decoder<U>) -> Result<Self, Error> {
+        let payload_bytes = decoder.bytes_left();
+        let branch = decoder.read_bit()?;
+        let ctx = Context::decode(decoder)?;
+        let address_width = decoder.unit().start_address_width(
+            payload_bytes,
+            decoder.widths().time.is_some(),
+            decoder.widths().iaddress.get(),
+        );
+        let address = decoder.read_bits::<u64>(address_width)? << decoder.widths().iaddress_lsb;
+        Ok(Start {
+            branch,
+            ctx,
+            address,
+        })
+    }
+}
+
+impl<U> Encode<'_, U> for Start {
+    fn encode(&self, encoder: &mut Encoder<U>) -> Result<(), Error> {
+        encoder.write_bit(self.branch)?;
+        encoder.encode(&self.ctx)?;
+        util::write_address(encoder, self.address)
+    }
+}
+
+impl fmt::Display for Start {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let address = self.address;
+        write!(f, "{address:#x}")?;
+        if !self.branch {
+            write!(f, ", branch taken")?;
+        }
+        write!(f, ", {}", self.ctx)
+    }
+}
+
+/// Trap packet
+///
+/// Represents a format 3, subformat 1 packet. It is sent by the encoder
+/// following an exception or interrupt.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct Trap {
+    /// `false`, if the address is a taken branch instruction. `true`, if the
+    /// branch was not taken or the instruction is not a branch.
+    pub branch: bool,
+    pub ctx: Context,
+    /// `true`, if the address points to the trap handler. `false`, if address
+    /// points to the EPC for an exception at the target of an updiscon, and is
+    /// undefined for other exceptions and interrupts.
+    pub thaddr: bool,
+    /// Full address of the instruction
+    pub address: u64,
+    pub info: trap::Info,
+}
+
+impl<U: Unit> Decode<'_, U> for Trap {
+    fn decode(decoder: &mut Decoder<U>) -> Result<Self, Error> {
+        let payload_bytes = decoder.bytes_left();
+        let branch = decoder.read_bit()?;
+        let ctx = Context::decode(decoder)?;
+        // rv_tracer reserves an XLEN-wide cause field.  The public E-Trace
+        // trap type currently represents architectural cause values as u16,
+        // so consume the full wire field before retaining that value.
+        let ecause = decoder.read_bits::<u64>(decoder.widths().ecause.get())? as u16;
+        let interrupt = decoder.read_bit()?;
+        let thaddr = decoder.read_bit()?;
+        let address_width = decoder.unit().trap_address_width(
+            payload_bytes,
+            !interrupt,
+            decoder.widths().iaddress.get(),
+        );
+        let address: u64 =
+            decoder.read_bits::<u64>(address_width)? << decoder.widths().iaddress_lsb;
+        let tval = if interrupt {
+            None
+        } else {
+            Some(decoder.read_bits::<u64>(decoder.widths().iaddress.get())?)
+        };
+        Ok(Trap {
+            branch,
+            ctx,
+            thaddr,
+            address,
+            info: trap::Info { ecause, tval },
+        })
+    }
+}
+
+impl<U> Encode<'_, U> for Trap {
+    fn encode(&self, encoder: &mut Encoder<U>) -> Result<(), Error> {
+        encoder.write_bit(self.branch)?;
+        encoder.encode(&self.ctx)?;
+        encoder.write_bits(self.info.ecause, encoder.widths().ecause.get())?;
+        encoder.write_bit(self.info.tval.is_none())?;
+        encoder.write_bit(self.thaddr)?;
+        util::write_address(encoder, self.address)?;
+        if let Some(tval) = self.info.tval {
+            encoder.write_bits(tval, encoder.widths().iaddress.get())?;
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Display for Trap {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let info = self.info;
+        let address = self.address;
+        let addr_type = match self.thaddr {
+            true => "handler",
+            false => "EPC",
+        };
+        write!(f, "{info}, {addr_type}: {address:#x}")?;
+        if !self.branch {
+            write!(f, ", branch taken")?;
+        }
+        write!(f, ", {}", self.ctx)
+    }
+}
+
+/// Context packet
+///
+/// Represents a format 3, subformat 2 packet. It informs about a changed
+/// context. It is also used as part of other payloads.
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+pub struct Context {
+    /// The privilege level of the reported instruction.
+    pub privilege: Privilege,
+    pub time: Option<u64>,
+    pub context: u64,
+}
+
+impl From<&Context> for types::Context {
+    fn from(ctx: &Context) -> Self {
+        Self {
+            privilege: ctx.privilege,
+            context: ctx.context,
+        }
+    }
+}
+
+impl From<Context> for types::Context {
+    fn from(ctx: Context) -> Self {
+        (&ctx).into()
+    }
+}
+
+impl<U> Decode<'_, U> for Context {
+    fn decode(decoder: &mut Decoder<U>) -> Result<Self, Error> {
+        let privilege = decoder
+            .read_bits::<u8>(decoder.widths().privilege.get())?
+            .try_into()
+            .map_err(Error::UnknownPrivilege)?;
+        let time = decoder
+            .widths()
+            .time
+            .map(|w| decoder.read_bits(w.get()))
+            .transpose()?;
+        let context_width = decoder.widths().context.map(Into::into).unwrap_or_default();
+        let context = decoder.read_bits(context_width)?;
+        Ok(Context {
+            privilege,
+            time,
+            context,
+        })
+    }
+}
+
+impl<U> Encode<'_, U> for Context {
+    fn encode(&self, encoder: &mut Encoder<U>) -> Result<(), Error> {
+        encoder.write_bits(u8::from(self.privilege), encoder.widths().privilege.get())?;
+        if let Some(width) = encoder.widths().time {
+            encoder.write_bits(self.time.unwrap_or_default(), width.get())?;
+        }
+        if let Some(width) = encoder.widths().context {
+            encoder.write_bits(self.context, width.get())?;
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Display for Context {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} mode", self.privilege)?;
+        if let Some(time) = self.time {
+            write!(f, ", time: {time}")?;
+        }
+        write!(f, ", context: {}", self.context)
+    }
+}
+
+/// Supporting information for the decoder.
+///
+/// Represents a format 3, subformat 3 packet.
+#[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
+pub struct Support<I = unit::ReferenceIOptions, D = unit::ReferenceDOptions> {
+    pub ienable: bool,
+    pub encoder_mode: EncoderMode,
+    pub qual_status: QualStatus,
+    pub ioptions: I,
+    pub denable: bool,
+    pub dloss: bool,
+    pub doptions: D,
+}
+
+impl<U: Unit> Decode<'_, U> for Support<U::IOptions, U::DOptions> {
+    fn decode(decoder: &mut Decoder<U>) -> Result<Self, Error> {
+        let ienable = decoder.read_bit()?;
+        let encoder_mode = decoder
+            .read_bits::<u8>(decoder.unit().encoder_mode_width())?
+            .try_into()
+            .map_err(Error::UnknownEncoderMode)?;
+        let qual_status = QualStatus::decode(decoder)?;
+        let ioptions = U::decode_ioptions(decoder)?;
+        let denable = decoder.read_bit()?;
+        let dloss = decoder.read_bit()?;
+        let doptions = U::decode_doptions(decoder)?;
+        Ok(Support {
+            ienable,
+            encoder_mode,
+            qual_status,
+            ioptions,
+            denable,
+            dloss,
+            doptions,
+        })
+    }
+}
+
+impl<'d, U> Encode<'d, U> for Support<U::IOptions, U::DOptions>
+where
+    U: Unit,
+    U::IOptions: Encode<'d, U>,
+    U::DOptions: Encode<'d, U>,
+{
+    fn encode(&self, encoder: &mut Encoder<'d, U>) -> Result<(), Error> {
+        encoder.write_bit(self.ienable)?;
+        encoder.write_bits(
+            u8::from(self.encoder_mode),
+            encoder.unit().encoder_mode_width(),
+        )?;
+        encoder.encode(&self.qual_status)?;
+        encoder.encode(&self.ioptions)?;
+        encoder.write_bit(self.denable)?;
+        if self.denable {
+            encoder.write_bit(self.dloss)?;
+            encoder.encode(&self.doptions)?;
+        }
+        Ok(())
+    }
+}
+
+impl<I: unit::IOptions, D> fmt::Display for Support<I, D> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let ienable = util::Enabled(self.ienable);
+        let mode = self.encoder_mode;
+        let qual = self.qual_status;
+        write!(f, "itrace {ienable} ({mode}) {qual}")?;
+        if let Some(mode) = self.ioptions.address_mode() {
+            write!(f, ", {mode} address mode")?;
+        }
+        if self.ioptions.implicit_return() == Some(true) {
+            write!(f, ", implicit return")?;
+        }
+        if self.ioptions.implicit_exception() == Some(true) {
+            write!(f, ", implicit exception")?;
+        }
+        if self.ioptions.branch_prediction() == Some(true) {
+            write!(f, ", branch prediction")?;
+        }
+        if self.ioptions.jump_target_cache() == Some(true) {
+            write!(f, ", jump target cache")?;
+        }
+
+        write!(f, "; dtrace {}", util::Enabled(self.denable))?;
+        if self.dloss {
+            write!(f, " dloss")?;
+        }
+
+        Ok(())
+    }
+}
+
+/// Representation of a change to the filter qualification
+#[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
+pub enum QualStatus {
+    /// No change to filter qualification.
+    #[default]
+    NoChange,
+    /// Qualification ended, preceding packet sent explicitly to indicate last
+    /// qualification instruction.
+    EndedRep,
+    /// One or more instruction trace packets lost.
+    TraceLost,
+    /// Qualification ended, preceding packet would have been sent anyway due to
+    /// an updiscon, even if it wasn’t the last qualified instruction
+    EndedNtr,
+}
+
+impl<U> Decode<'_, U> for QualStatus {
+    fn decode(decoder: &mut Decoder<U>) -> Result<Self, Error> {
+        Ok(match decoder.read_bits::<u8>(2)? {
+            0b00 => QualStatus::NoChange,
+            0b01 => QualStatus::EndedRep,
+            0b10 => QualStatus::TraceLost,
+            0b11 => QualStatus::EndedNtr,
+            _ => unreachable!(),
+        })
+    }
+}
+
+impl<U> Encode<'_, U> for QualStatus {
+    fn encode(&self, encoder: &mut Encoder<U>) -> Result<(), Error> {
+        let value: u8 = match self {
+            Self::NoChange => 0b00,
+            Self::EndedRep => 0b01,
+            Self::TraceLost => 0b10,
+            Self::EndedNtr => 0b11,
+        };
+        encoder.write_bits(value, 2)
+    }
+}
+
+impl fmt::Display for QualStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NoChange => write!(f, "no change"),
+            Self::EndedRep => write!(f, "ended rep"),
+            Self::TraceLost => write!(f, "trace lost"),
+            Self::EndedNtr => write!(f, "ended ntr"),
+        }
+    }
+}
+
+/// Mode the encoder is operating in
+#[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
+pub enum EncoderMode {
+    #[default]
+    BranchTrace,
+}
+
+impl TryFrom<u8> for EncoderMode {
+    type Error = u8;
+
+    fn try_from(num: u8) -> Result<Self, Self::Error> {
+        match num {
+            0 => Ok(Self::BranchTrace),
+            e => Err(e),
+        }
+    }
+}
+
+impl From<EncoderMode> for u8 {
+    fn from(mode: EncoderMode) -> Self {
+        match mode {
+            EncoderMode::BranchTrace => 0,
+        }
+    }
+}
+
+impl fmt::Display for EncoderMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::BranchTrace => write!(f, "branch trace"),
+        }
+    }
+}

@@ -160,6 +160,16 @@ class CreditedSerialPhy(channels: Int, phyParams: SerialPhyParams) extends RawMo
     io.outer_ser.out.bits := out_bits_q
   }
 
+  // Register the source-synchronous PAD stream before the channel demux.  The
+  // demux writes one of many per-channel ingress RAMs; without this staging
+  // register, PAD bits drive the RAM write-data/control cones directly and
+  // create a multi-channel high-fanout setup path.
+  val ingress_stage = withClockAndReset(io.incoming_clock, io.incoming_reset) {
+    Module(new Queue(new Phit(phyParams.phitWidth), 2))
+  }
+  ingress_stage.io.enq.valid := io.outer_ser.in.valid && !io.incoming_reset.asBool
+  ingress_stage.io.enq.bits := io.outer_ser.in.bits
+
   val in_demux = withClockAndReset(io.incoming_clock, io.incoming_reset) {
     val flitBeats = (phyParams.flitWidth - 1) / phyParams.phitWidth + 1
     val ingressDepth = (phyParams.flitBufferSz * (flitBeats + 1)).max(32)
@@ -168,11 +178,10 @@ class CreditedSerialPhy(channels: Int, phyParams: SerialPhyParams) extends RawMo
   // The per-channel ingress FIFOs are the first storage point after PAD
   // sampling. The external interface has no ready, so a full selected FIFO
   // is a protocol violation rather than a recoverable backpressure event.
-  in_demux.io.in.valid := io.outer_ser.in.valid && !io.incoming_reset.asBool
-  in_demux.io.in.bits := io.outer_ser.in.bits
+  in_demux.io.in <> ingress_stage.io.deq
   withClockAndReset(io.incoming_clock, io.incoming_reset) {
     when (io.outer_ser.in.valid && !io.incoming_reset.asBool) {
-      assert(in_demux.io.in.ready, "CreditedSerialPhy per-channel ingress FIFO overflow")
+      assert(ingress_stage.io.enq.ready, "CreditedSerialPhy ingress staging FIFO overflow")
     }
   }
 

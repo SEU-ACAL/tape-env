@@ -49,3 +49,18 @@ class SimI2CEepromModel(i2cAddress: Int = 0x50)
 
   addResource("/vsrc/SimI2CEepromModel.sv")
 }
+
+/** Simulation-only observer for quad-SPI PULP trace packets on tapeout pads. */
+class SimTraceSPIMonitor extends BlackBox with HasBlackBoxResource {
+  val io = IO(new Bundle {
+    val sck = Analog(1.W)
+    val cs = Analog(1.W)
+    val dq_0 = Analog(1.W)
+    val dq_1 = Analog(1.W)
+    val dq_2 = Analog(1.W)
+    val dq_3 = Analog(1.W)
+    val reset = Input(Bool())
+  })
+
+  addResource("/vsrc/SimTraceSPIMonitor.sv")
+}

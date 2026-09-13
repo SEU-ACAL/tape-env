@@ -1,0 +1,127 @@
+// Copyright (C) 2024 - 2026 FZI Forschungszentrum Informatik
+// SPDX-License-Identifier: Apache-2.0
+//! # Decoder and tracer for RISC-V E-Traces
+//!
+//! This library provides a [packet] decoder and encoder a [tracer] as well as
+//! a payload [generator] for the instruction tracing defined in the [Efficient
+//! Trace for RISC-V][etrace] specification. Given trace packets previously
+//! retrieved from an encoder and the traced program, the [tracer] allows
+//! reconstructing the execution path. The [generator], on the other hand,
+//! serves as a software implementation for a trace encoder.
+//!
+//! This library also features a limited [instruction] database with decoding
+//! functionality. Currently, only decoding of RV32IC and RV64IC instructions
+//! are supported. However, tracing is not impacted by other instructions that
+//! do not influence the control flow ("control transfer instructions").
+//!
+//! # Tracing flow
+//!
+//! Raw trace data needs to be decoded via [`packet::decoder::Decoder`]s, which
+//! are constructed via a [`packet::Builder`]. A builder is usually configured
+//! for a trace [`Unit`][packet::unit::Unit] implementation with specific
+//! [`config::Parameters`].
+//!
+//! A decoded packet or [`Payload`][packet::payload::Payload] payload needs to
+//! be dispatched to the [`Tracer`][tracer::Tracer] for that RISC-V hart. It is
+//! the responsibility of the library user to do so.
+//!
+//! A [`Tracer`][tracer::Tracer] processes packets and generates a series of
+//! tracing [`Item`][tracer::item::Item]s. It is constructed via a
+//! [`tracer::Builder`], which is configured for the specific program
+//! being traced (in the form of a [`Binary`][binary::Binary]) and the same
+//! [`config::Parameters`] that the decoder was configured with.
+//!
+//! [`Binary`][binary::Binary] is a trait abstracting access to
+//! [`Instruction`][instruction::Instruction]s. This library provides a number
+//! of implementations and utilities for constructing one, including limited
+//! instruction decoding capabilities.
+//!
+//! # E-Trace options
+//!
+//! The following [E-Trace][etrace] options are supported:
+//! * delta/full address mode
+//! * sequentially inferred jumps
+//! * implicit return ([tracer] only, known to be broken by specification)
+//!
+//! # Crate features
+//!
+//! Some functionality if controlled via crate features:
+//! * `alloc`: enables some features that require allocation
+//! * `either`: enables impls of various traits for [`either::Either`]
+//! * `elf`: enables the [`binary::elf`] module providing a
+//!   [`Binary`][binary::Binary] for static ELF files using the [`elf`] crate
+//! * `riscv-isa`: enables support for decoding and tracing
+//!   [`riscv_isa::Instruction`]s instead of [`instruction::Kind`].
+//! * `serde`: enables (de)serialization of configuration via [`serde`]
+//!
+//! # no_std
+//!
+//! This crate does not dependent on `std` and is thus suitable for `no_std`
+//! environments.
+//!
+//! # Example
+//!
+//! The following example demonstrates basic instruction tracing, with default
+//! [`config::Parameters`], a simple [`Binary`][binary::Binary] and tracing
+//! packets conforming to the [Unformatted Trace & Diagnostic Data Packet
+//! Encapsulation for RISC-V][encap] specification placed in a single buffer.
+//!
+//! ```
+//! use riscv_etrace::binary::{self, Adaptable};
+//! use riscv_etrace::packet;
+//! use riscv_etrace::instruction::{base, Instruction};
+//! use riscv_etrace::tracer::{self, Tracer};
+//!
+//! # let binary_data = b"\x14\x41\x11\x05\x94\xc1\x91\x05\xe3\xec\xc5\xfe\x82\x80";
+//! # let binary_offset = 0x80000028;
+//! # let trace_data = b"\x45\x73\x0a\x00\x00\x20\x41\x01";
+//! # let hart_to_trace = 0;
+//! let binary = binary::from_segment(binary_data, base::Set::Rv32I)
+//!     .with_offset(binary_offset);
+//!
+//! let parameters = Default::default();
+//! let mut decoder = packet::builder()
+//!     .with_params(&parameters)
+//!     .decoder(trace_data);
+//! let mut tracer: Tracer<_> = tracer::builder()
+//!     .with_binary(binary)
+//!     .with_params(&parameters)
+//!     .build()
+//!     .unwrap();
+//!
+//! while decoder.bytes_left() > 0 {
+//!     let packet = decoder.decode_encap_packet().unwrap().into_normal();
+//!     if let Some(packet) = packet.filter(|p| p.src_id() == hart_to_trace) {
+//!         let payload = packet.decode_payload().unwrap();
+//!         eprintln!("{payload:?}");
+//!         tracer.process_payload(&payload).unwrap();
+//!         tracer.by_ref().for_each(|i| {
+//!             let item = i.unwrap();
+//!             if let Some(info) = item.trap() {
+//!                 println!("Trap! EPC={:0x}, interrupt={}", item.pc(), info.is_interrupt());
+//!             } else {
+//!                 println!("PC: {:0x}", item.pc());
+//!             }
+//!         });
+//!     }
+//! }
+//! ```
+//!
+//! [etrace]: <https://github.com/riscv-non-isa/riscv-trace-spec/>
+//! [encap]: <https://github.com/riscv-non-isa/e-trace-encap/>
+#![no_std]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
+#[cfg(test)]
+mod tests;
+
+pub mod binary;
+pub mod config;
+pub mod generator;
+pub mod instruction;
+pub mod packet;
+pub mod tracer;
+pub mod types;
