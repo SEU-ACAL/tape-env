@@ -24,7 +24,7 @@ testcases=(
   'rocket-zephyr-hello:QuadChannelRocketConfig'
   'boom-asm-v3:MediumBoomV3CosimFastConfig'
   'boom-bmark-v3:MediumBoomV3CosimFastConfig'
-  'pebble-ctest:QuadChannelRocketConfig'
+  'pebble-ctest:PebbleRocketConfig'
 )
 
 prepare_test_rules() {
@@ -41,7 +41,7 @@ prepare_test_rules() {
   cp -f "${source_rules}" "${generated_rules}"
 }
 
-for config in QuadChannelRocketConfig MediumBoomV3CosimFastConfig; do
+for config in QuadChannelRocketConfig MediumBoomV3CosimFastConfig PebbleRocketConfig; do
   prepare_test_rules "${config}"
 done
 
