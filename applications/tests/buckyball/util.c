@@ -10,12 +10,22 @@ void init_u8_random_matrix(elem_t *matrix, int rows, int cols, int seed) {
     matrix[i] = rand() % 128;
 }
 
+void init_u32_random_matrix(result_t *matrix, int rows, int cols, int seed) {
+  srand(seed);
+  for (int i = 0; i < rows * cols; i++)
+    matrix[i] = rand() % 256;
+}
+
 void clear_u8_matrix(elem_t *matrix, int rows, int cols) {
   memset(matrix, 0, (size_t)rows * (size_t)cols * sizeof(elem_t));
 }
 
 void clear_u32_matrix(result_t *matrix, int rows, int cols) {
   memset(matrix, 0, (size_t)rows * (size_t)cols * sizeof(result_t));
+}
+
+void clear_i8_matrix(elem_t *matrix, int rows, int cols) {
+  memset(matrix, 0, (size_t)rows * (size_t)cols * sizeof(elem_t));
 }
 
 int compare_u8_matrices(elem_t *a, elem_t *b, int rows, int cols) {
@@ -36,6 +46,10 @@ int compare_u32_matrices(result_t *a, result_t *b, int rows, int cols) {
     }
   }
   return 1;
+}
+
+int compare_i8_matrices(elem_t *a, elem_t *b, int rows, int cols) {
+  return compare_u8_matrices(a, b, rows, cols);
 }
 
 void transpose_u8_matrix(elem_t *src, elem_t *dst, int rows, int cols) {
