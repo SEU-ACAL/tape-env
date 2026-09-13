@@ -38,7 +38,8 @@ nix develop .#default --command bash -c \
 ## Tapeout 全量回归
 
 `run_trace_regression.sh` 从任意当前目录定位仓库根目录，依次运行 18 个
-非 `time`、非 `context` 用例的 VCS 仿真、SPI 解帧和 `pulp_chipyard` 重建。
+固定 `NO_TIME=1`、`NO_CONTEXT=1` profile 的 VCS 仿真、SPI 解帧和
+`pulp_chipyard` 重建。两个 legacy APB 地址读回均为 `1`，写入会被忽略。
 运行前必须使用 `VCS_FORCE_FULL=1` 重建 `TapeoutRocketConfig`，避免复用旧
 `simv`：
 
@@ -56,4 +57,5 @@ nix develop .#default --command bash -lc \
 
 每个用例必须同时检查 `sim.rc`、`deframe.rc`、`decode.rc` 和 decoder 语义。
 过滤后零指令的排除用例返回 decoder code `2`，属于预期结果；不能仅凭
-仿真返回码 `0` 宣称功能正确。`context`、`time` 和中断不在该脚本范围内。
+仿真返回码 `0` 宣称功能正确。time/context packet 不属于此硬件 profile；
+中断仍不在该脚本范围内。

@@ -56,9 +56,9 @@ static void config_backpressure(void) {
     write_reg(PULP_REG(0x1D), 0x1);
     // SHALLOW_TRACE = 1: flush branch map at each packet emitted
     write_reg(PULP_REG(0x1E), 0x1);
-    // NO_TIME = 1: disable timestamps (reduce packet size)
+    // NO_TIME is fixed to 1 in the Chipyard trace profile (legacy write).
     write_reg(PULP_REG(0x1F), 0x1);
-    // NO_CONTEXT = 1: disable context info (reduce packet size)
+    // NO_CONTEXT is fixed to 1 in the Chipyard trace profile (legacy write).
     write_reg(PULP_REG(0x20), 0x1);
     write_reg(PULP_REG(0x21), TRACE_DELTA_ADDRESS);
     write_reg(PULP_REG(0x22), TRACE_FULL_ADDRESS);

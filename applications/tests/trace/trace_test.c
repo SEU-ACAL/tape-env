@@ -77,6 +77,7 @@ void trace_configure(int lossless) {
     // Configure trace mode
     reg_write32(LOSSLESS_TRACE, lossless ? 1 : 0);
     reg_write32(SHALLOW_TRACE, TRACE_SHALLOW);
+    // Legacy compatibility write: the hardware profile is permanently NO_TIME=1.
     reg_write32(NO_TIME, TRACE_NO_TIME);
     // Enable trace
     reg_write32(TRACE_STATE, 1);
