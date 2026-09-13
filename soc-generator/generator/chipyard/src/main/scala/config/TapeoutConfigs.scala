@@ -71,6 +71,7 @@ class TapeoutConfig extends Config(
   new chipyard.clocking.WithNdmResetInSystemReset ++
   new WithTapeoutSingleClock(100) ++
   new chipyard.harness.WithSimTSIOverSerialTL(fast = true) ++
+  new chipyard.harness.WithSimTraceSPIOnPads ++
   // Keep tapeout-style pads while attaching the behavioral SPI Flash and I2C
   // models in the VCS harness used by TapeoutConfig regressions.
   new chipyard.harness.WithSimI2CEepromOnPads ++
