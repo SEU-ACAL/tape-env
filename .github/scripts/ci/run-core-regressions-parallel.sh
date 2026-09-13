@@ -24,6 +24,7 @@ testcases=(
   'rocket-zephyr-hello:QuadChannelRocketConfig'
   'boom-asm-v3:MediumBoomV3CosimFastConfig'
   'boom-bmark-v3:MediumBoomV3CosimFastConfig'
+  'pebble-ctest:QuadChannelRocketConfig'
 )
 
 prepare_test_rules() {

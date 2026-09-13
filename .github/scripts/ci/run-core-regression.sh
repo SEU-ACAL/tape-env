@@ -20,7 +20,7 @@ case "${CI_CONFIG}" in
 esac
 
 case "${CI_TESTCASE}" in
-  rocket-asm|rocket-bmark|rocket-hello-loadmem|rocket-hello|rocket-zephyr-hello|boom-asm|boom-bmark) ;;
+  rocket-asm|rocket-bmark|rocket-hello-loadmem|rocket-hello|rocket-zephyr-hello|boom-asm|boom-bmark|pebble-ctest) ;;
   *)
     echo "Unsupported core regression testcase: ${CI_TESTCASE}" >&2
     exit 1
@@ -159,6 +159,13 @@ run_in_nix '
         echo "Zephyr hello output is missing from simulation log: ${zephyr_log}" >&2
         exit 1
       fi
+      ;;
+    pebble-ctest)
+      mapfile -t tests < <(find "${CI_WORKLOAD_ROOT}/buckyball" -type f -name "bb-*.riscv" | sort)
+      [[ ${#tests[@]} -gt 0 ]]
+      for test in "${tests[@]}"; do
+        make "${common_args[@]}" run-binary-fast BINARY="${test}"
+      done
       ;;
   esac
 '

@@ -12,7 +12,7 @@ source "${SCRIPT_DIR}/lib.sh"
 : "${CI_WORKLOAD_ROOT:?CI_WORKLOAD_ROOT must be set}"
 
 case "${CI_TESTCASE}" in
-  rocket-asm|rocket-bmark|rocket-hello-loadmem|rocket-hello|rocket-zephyr-hello|boom-asm|boom-bmark) ;;
+  rocket-asm|rocket-bmark|rocket-hello-loadmem|rocket-hello|rocket-zephyr-hello|boom-asm|boom-bmark|pebble-ctest) ;;
   *)
     echo "Unsupported VCS core regression testcase: ${CI_TESTCASE}" >&2
     exit 1
@@ -123,6 +123,16 @@ run_in_nix '
       fi
       make "${common_args[@]}" run-binary-fast BINARY="${zephyr_binary}" LOADMEM=1
       grep -Fq "Hello World! chipyard_riscv64" "${CI_VCS_SIM_OUTPUT_DIR}/zephyr.log"
+      ;;
+    pebble-ctest)
+      mapfile -t tests < <(find "${CI_WORKLOAD_ROOT}/buckyball" -type f -name "bb-*.riscv" | sort)
+      [[ ${#tests[@]} -gt 0 ]]
+      cd "${REPO_ROOT}"
+      for test in "${tests[@]}"; do
+        make -C "${sim_dir}" SIM=vcs CONFIG="${CI_CONFIG}" sim="${simulator}" \
+          BREAK_SIM_PREREQ=1 output_dir="${CI_RESULT_DIR}/$(basename "${test}")" \
+          run-binary-fast BINARY="${test}"
+      done
       ;;
   esac
 '
