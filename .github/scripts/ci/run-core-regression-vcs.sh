@@ -127,7 +127,6 @@ run_in_nix '
     pebble-ctest)
       mapfile -t tests < <(find "${CI_WORKLOAD_ROOT}/buckyball" -type f -name "bb-*.riscv" | sort)
       [[ ${#tests[@]} -gt 0 ]]
-      cd "${REPO_ROOT}"
       for test in "${tests[@]}"; do
         make -C "${sim_dir}" SIM=vcs CONFIG="${CI_CONFIG}" sim="${simulator}" \
           BREAK_SIM_PREREQ=1 output_dir="${CI_RESULT_DIR}/$(basename "${test}")" \
