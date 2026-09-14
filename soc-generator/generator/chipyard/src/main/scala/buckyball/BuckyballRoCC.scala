@@ -85,7 +85,7 @@ class BuckyballLazyRoCCModule(outer: BuckyballLazyRoCC) extends LazyRoCCModuleIm
 
   val acc = Module(new BuckyballAccelerator(cfg)(edge))
   acc.io.hartid := 0.U
-  acc.io.sfence := false.B
+  acc.io.sfence := io.sfence
   acc.io.tlbExp(0).flush_skip  := false.B
   acc.io.tlbExp(0).flush_retry := false.B
 
