@@ -29,8 +29,9 @@ trap 'rm -rf "${staging_dir}"' EXIT
 "${SCRIPT_DIR}/build-riscv-tests.sh" --output "${staging_dir}/riscv-tests"
 
 cmake -S "${REPO_ROOT}/applications/tests" -B "${staging_dir}/hello-build"
-cmake --build "${staging_dir}/hello-build" --target hello
+cmake --build "${staging_dir}/hello-build" --target hello buckyball-ctests
 install -m 0755 "${staging_dir}/hello-build/hello.riscv" "${staging_dir}/hello.riscv"
+cmake --install "${staging_dir}/hello-build" --prefix "${staging_dir}"
 rm -rf "${staging_dir}/hello-build"
 
 zephyr_source="${REPO_ROOT}/applications/zephyr"

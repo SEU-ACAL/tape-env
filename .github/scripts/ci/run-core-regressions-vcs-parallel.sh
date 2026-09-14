@@ -28,6 +28,7 @@ if [[ "${CI_CONFIG}" == *Boom* ]]; then
 else
   testcases+=("rocket-asm:${CI_CONFIG}" "rocket-bmark:${CI_CONFIG}" \
     "rocket-hello-loadmem:${CI_CONFIG}" "rocket-hello:${CI_CONFIG}" \
+    "pebble-ctest:${CI_CONFIG}" \
   )
   if [[ "${CI_CONFIG}" == QuadChannelRocketConfig ]]; then
     testcases+=("rocket-zephyr-hello:${CI_CONFIG}")

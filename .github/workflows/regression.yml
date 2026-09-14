@@ -108,7 +108,7 @@ jobs:
               CI_RESULT_ROOT="${CI_RUN_DIR}/verilator-results" \
               CI_BUILD_JOBS=8 \
               CI_VERILATOR_MAKE_JOBS=8 \
-              CI_BUILD_CONFIGS="QuadChannelRocketConfig MediumBoomV3CosimFastConfig" \
+              CI_BUILD_CONFIGS="QuadChannelRocketConfig MediumBoomV3CosimFastConfig PebbleRocketConfig" \
               CI_TEST_JOBS=8 \
               "${CI_VERILATOR_WORKSPACE}/.github/scripts/ci/build-core-regressions.sh"
           }
