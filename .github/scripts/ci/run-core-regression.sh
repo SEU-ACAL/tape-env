@@ -164,7 +164,11 @@ run_in_nix '
       mapfile -t tests < <(find "${CI_WORKLOAD_ROOT}/buckyball" -type f -name "bb-*.riscv" | sort)
       [[ ${#tests[@]} -gt 0 ]]
       for test in "${tests[@]}"; do
-        make "${common_args[@]}" run-binary-fast BINARY="${test}"
+        name="$(basename "${test}")"
+        stage_binary "${test}" "${name}"
+        staged="${CI_RESULT_DIR}/.ci-inputs/${name}"
+        make "${common_args[@]}" output_dir="${CI_RESULT_DIR}/${name}" \
+          run-binary-fast BINARY="${staged}" LOADMEM=1
       done
       ;;
   esac
