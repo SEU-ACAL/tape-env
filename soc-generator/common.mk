@@ -408,7 +408,8 @@ get_sim_out_name = $(output_dir)/$(call get_out_name,$(1))$(if $(EXTRA_SIM_OUT_N
 # XSPerf is a simulator plusarg. Keep it outside the permissive HTIF argument
 # section so TestDriver/Verilator can see it via $test$plusargs.
 get_xsperf_flag = $(if $(filter +xsperf,$(EXTRA_SIM_FLAGS)),+xsperf,)
-get_common_sim_flags = $(SIM_FLAGS) $(filter-out +xsperf,$(EXTRA_SIM_FLAGS)) $(SEED_FLAG) $(call get_loadmem_flag,$(1)) $(call get_loadarch_flag,$(1))
+get_chisel_db_flag = $(filter +chisel_db=%,$(EXTRA_SIM_FLAGS))
+get_common_sim_flags = $(SIM_FLAGS) $(filter-out +xsperf +chisel_db=%,$(EXTRA_SIM_FLAGS)) $(SEED_FLAG) $(call get_loadmem_flag,$(1)) $(call get_loadarch_flag,$(1))
 
 .PHONY: %.run %.run.debug %.run.fast
 
@@ -423,6 +424,7 @@ run-binaries: check-binaries $(addsuffix .run,$(wildcard $(BINARIES)))
 		$(VERBOSE_FLAGS) \
 		$(PERMISSIVE_OFF) \
 		$(get_xsperf_flag) \
+		$(get_chisel_db_flag) \
 		$* \
 		$(BINARY_ARGS) \
 		</dev/null 2> >(spike-dasm > $(call get_sim_out_name,$*).out) | tee $(call get_sim_out_name,$*).log)
@@ -438,6 +440,7 @@ run-binaries-fast: check-binaries $(addsuffix .run.fast,$(wildcard $(BINARIES)))
 		$(call get_common_sim_flags,$*) \
 		$(PERMISSIVE_OFF) \
 		$(get_xsperf_flag) \
+		$(get_chisel_db_flag) \
 		$* \
 		$(BINARY_ARGS) \
 		</dev/null 2>&1 | tee $(call get_sim_out_name,$*).log; \
@@ -466,6 +469,7 @@ endif
 		$(call get_waveform_flag,$(call get_sim_out_name,$*)) \
 		$(PERMISSIVE_OFF) \
 		$(get_xsperf_flag) \
+		$(get_chisel_db_flag) \
 		$* \
 		$(BINARY_ARGS) \
 		</dev/null 2> >(tee -a $(call get_sim_out_name,$*).log | spike-dasm > $(call get_sim_out_name,$*).out) | tee $(call get_sim_out_name,$*).log)
@@ -479,6 +483,7 @@ endif
 		$(call get_waveform_flag,$(call get_sim_out_name,$*)) \
 		$(PERMISSIVE_OFF) \
 		$(get_xsperf_flag) \
+		$(get_chisel_db_flag) \
 		$* \
 		$(BINARY_ARGS) \
 		</dev/null 2> >(tee -a $(call get_sim_out_name,$*).log | spike-dasm > $(call get_sim_out_name,$*).out) >$(call get_sim_out_name,$*).log \
