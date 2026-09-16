@@ -38,6 +38,7 @@ HELP_COMPILATION_VARIABLES += \
 "   EXTRA_GENERATOR_REQS      = additional make requirements needed for the main generator" \
 "   EXTRA_SIM_CXXFLAGS        = additional CXXFLAGS for building simulators" \
 "   EXTRA_SIM_LDFLAGS         = additional LDFLAGS for building simulators" \
+"   ENABLE_BOOM_CHISELDB      = set to '1' to link BOOM ChiselDB SQLite support" \
 "   EXTRA_SIM_SOURCES         = additional simulation sources needed for simulator" \
 "   EXTRA_SIM_REQS            = additional make requirements to build the simulator" \
 "   EXTRA_SIM_OUT_NAME        = additional suffix appended to the simulation .out log filename" \
@@ -53,6 +54,16 @@ EXTRA_SIM_LDFLAGS    ?=
 EXTRA_SIM_SOURCES    ?=
 EXTRA_SIM_REQS       ?=
 EXTRA_SIM_OUT_NAME   ?=
+
+# Pair this with WithBoomChiselDB and the +chisel_db=<file> runtime plusarg.
+# SQLite linkage stays opt-in so ordinary simulator builds retain their
+# existing dependencies.
+ENABLE_BOOM_CHISELDB ?= 0
+ifeq ($(ENABLE_BOOM_CHISELDB),1)
+EXTRA_SIM_SOURCES += $(base_dir)/generator/boom/src/main/resources/boom-chiseldb/chisel_db.cc
+EXTRA_SIM_REQS += $(base_dir)/generator/boom/src/main/resources/boom-chiseldb/chisel_db.cc
+EXTRA_SIM_LDFLAGS += -lsqlite3
+endif
 
 ifneq ($(ASPECTS), )
 	comma = ,
@@ -394,7 +405,10 @@ endif
 # get the output path base name for simulation outputs, First arg is the binary
 get_sim_out_name = $(output_dir)/$(call get_out_name,$(1))$(if $(EXTRA_SIM_OUT_NAME),.$(EXTRA_SIM_OUT_NAME),)
 # sim flags that are common to run-binary/run-binary-fast/run-binary-debug
-get_common_sim_flags = $(SIM_FLAGS) $(EXTRA_SIM_FLAGS) $(SEED_FLAG) $(call get_loadmem_flag,$(1)) $(call get_loadarch_flag,$(1))
+# XSPerf is a simulator plusarg. Keep it outside the permissive HTIF argument
+# section so TestDriver/Verilator can see it via $test$plusargs.
+get_xsperf_flag = $(if $(filter +xsperf,$(EXTRA_SIM_FLAGS)),+xsperf,)
+get_common_sim_flags = $(SIM_FLAGS) $(filter-out +xsperf,$(EXTRA_SIM_FLAGS)) $(SEED_FLAG) $(call get_loadmem_flag,$(1)) $(call get_loadarch_flag,$(1))
 
 .PHONY: %.run %.run.debug %.run.fast
 
@@ -408,6 +422,7 @@ run-binaries: check-binaries $(addsuffix .run,$(wildcard $(BINARIES)))
 		$(call get_common_sim_flags,$*) \
 		$(VERBOSE_FLAGS) \
 		$(PERMISSIVE_OFF) \
+		$(get_xsperf_flag) \
 		$* \
 		$(BINARY_ARGS) \
 		</dev/null 2> >(spike-dasm > $(call get_sim_out_name,$*).out) | tee $(call get_sim_out_name,$*).log)
@@ -421,6 +436,7 @@ run-binaries-fast: check-binaries $(addsuffix .run.fast,$(wildcard $(BINARIES)))
 		$(PERMISSIVE_ON) \
 		$(call get_common_sim_flags,$*) \
 		$(PERMISSIVE_OFF) \
+		$(get_xsperf_flag) \
 		$* \
 		$(BINARY_ARGS) \
 		</dev/null | tee $(call get_sim_out_name,$*).log)
@@ -441,9 +457,10 @@ endif
 		$(VERBOSE_FLAGS) \
 		$(call get_waveform_flag,$(call get_sim_out_name,$*)) \
 		$(PERMISSIVE_OFF) \
+		$(get_xsperf_flag) \
 		$* \
 		$(BINARY_ARGS) \
-		</dev/null 2> >(spike-dasm > $(call get_sim_out_name,$*).out) | tee $(call get_sim_out_name,$*).log)
+		</dev/null 2> >(tee -a $(call get_sim_out_name,$*).log | spike-dasm > $(call get_sim_out_name,$*).out) | tee $(call get_sim_out_name,$*).log)
 
 %.run.debug.bg: %.check-exists $(SIM_DEBUG_PREREQ) | $(output_dir)
 	if [ "$*" != "none" ]; then riscv64-unknown-elf-objdump -D -S $* > $(call get_sim_out_name,$*).dump ; fi
@@ -453,9 +470,10 @@ endif
 		$(VERBOSE_FLAGS) \
 		$(call get_waveform_flag,$(call get_sim_out_name,$*)) \
 		$(PERMISSIVE_OFF) \
+		$(get_xsperf_flag) \
 		$* \
 		$(BINARY_ARGS) \
-		</dev/null 2> >(spike-dasm > $(call get_sim_out_name,$*).out) >$(call get_sim_out_name,$*).log \
+		</dev/null 2> >(tee -a $(call get_sim_out_name,$*).log | spike-dasm > $(call get_sim_out_name,$*).out) >$(call get_sim_out_name,$*).log \
 		& echo "PID=$$!")
 
 run-fast: run-asm-tests-fast run-bmark-tests-fast

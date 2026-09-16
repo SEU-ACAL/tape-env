@@ -35,6 +35,11 @@ class FDIPMegaBoomV3CosimPerfConfig extends Config(
   new chipyard.config.WithSystemBusWidth(128) ++
   new chipyard.config.AbstractConfig)
 
+/** FDIP frontend database traces; build with ENABLE_BOOM_CHISELDB=1. */
+class FDIPMegaBoomV3CosimPerfDBConfig extends Config(
+  new boom.perf.WithBoomChiselDB ++
+  new FDIPMegaBoomV3CosimPerfConfig)
+
 /** Same FDIP RTL as the cosim performance config, without host cosimulation. */
 class FDIPMegaBoomV3PerfConfig extends Config(
   new boom.perf.WithBoomXSPerf ++
