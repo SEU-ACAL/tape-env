@@ -360,9 +360,9 @@ EOF
             export PATH="$CY_DIR/bin:$VERDI_HOME/bin:$VCS_HOME/bin:$RISCV/bin:$PATH"
             # Keep a deterministic zlib path for external simulator binaries.
             if [[ -n "''${LD_LIBRARY_PATH:-}" ]]; then
-              export LD_LIBRARY_PATH="${pkgs.zlib}/lib:''${LD_LIBRARY_PATH}"
+              export LD_LIBRARY_PATH="${gcc11Pkgs.lib.getLib gcc11Pkgs.sqlite}/lib:${pkgs.zlib}/lib:''${LD_LIBRARY_PATH}"
             else
-              export LD_LIBRARY_PATH="${pkgs.zlib}/lib"
+              export LD_LIBRARY_PATH="${gcc11Pkgs.lib.getLib gcc11Pkgs.sqlite}/lib:${pkgs.zlib}/lib"
             fi
             # VCS's Ubuntu mode exports CPATH=/usr/include/x86_64-linux-gnu
             # to its generated C-source build.  That mixes host glibc bits
@@ -371,11 +371,15 @@ EOF
             # binaries while avoiding that Ubuntu-specific CPATH injection.
             export VCS_ARCH_OVERRIDE=linux
             export ZEPHYR_RISCV="${rawRiscvUnknownElfTools}"
+            # Keep ChiselDB's SQLite link path in the simulator environment.
+            export LIBRARY_PATH="${gcc11Pkgs.lib.getLib gcc11Pkgs.sqlite}/lib''${LIBRARY_PATH:+:$LIBRARY_PATH}"
             export COURSIER_CACHE="$PWD/.coursier-cache"
             export SBT_OPTS="-Dsbt.global.base=$PWD/.sbt -Dsbt.boot.directory=$PWD/.sbt/boot -Dsbt.ivy.home=$PWD/.ivy2 ''${SBT_OPTS:-}"
             unset NIX_LDFLAGS
-            export EXTRA_SIM_CXXFLAGS="-O1 ''${EXTRA_SIM_CXXFLAGS:-}"
-            export EXTRA_SIM_LDFLAGS="-no-pie ''${EXTRA_SIM_LDFLAGS:-}"
+            # Verilator's generated sub-make may not preserve the Nix compiler
+            # wrapper flags, so pass the ChiselDB header path explicitly.
+            export EXTRA_SIM_CXXFLAGS="-O1 -I${gcc11Pkgs.lib.getDev gcc11Pkgs.sqlite}/include ''${EXTRA_SIM_CXXFLAGS:-}"
+            export EXTRA_SIM_LDFLAGS="-no-pie -Wl,-rpath,${gcc11Pkgs.lib.getLib gcc11Pkgs.sqlite}/lib ''${EXTRA_SIM_LDFLAGS:-}"
           '';
 
           packages = [
@@ -402,9 +406,9 @@ EOF
             pkgs.protobuf
             pkgs.python3Packages.west
             sbt
-            pkgs.ctags
             gcc11Pkgs.clang
             clangVerilator
+            gcc11Pkgs.sqlite
             pkgs.which
             pkgs.zlib
             pkgs.rustc
