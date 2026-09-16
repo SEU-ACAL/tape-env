@@ -2,7 +2,9 @@
 #include <string>
 #include <vpi_user.h>
 #include <svdpi.h>
+#ifdef VERILATOR
 #include <verilated.h>
+#endif
 
 #include "cospike_impl.h"
 
@@ -72,8 +74,13 @@ extern "C" void cospike_cosim_wrapper(long long int cycle,
   );
   if (rval) {
     if (cospike_clean_exit_requested()) {
-      // exit() bypasses Verilator final(), which otherwise drains the FST writer.
+#ifdef VERILATOR
+      // Let Verilator run final() so tracing buffers are flushed.
       Verilated::gotFinish(true);
+#else
+      // VCS has no Verilator runtime; request a normal VPI shutdown instead.
+      vpi_control(vpiFinish, 0);
+#endif
       return;
     }
     exit(rval);
