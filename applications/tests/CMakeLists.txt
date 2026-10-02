@@ -140,6 +140,8 @@ add_executable(test_privilege_us_range_exclude_m trace/test_privilege_filter_rea
 target_compile_definitions(test_privilege_us_range_exclude_m PRIVATE PRIV_ENABLE_MODE=1u PRIV_RANGE=4u)
 add_executable(test_exception_fixed trace/test_exception_fixed.c)
 add_executable(test_privilege_exception trace/test_privilege_exception.c)
+add_executable(test_privilege_exception_trace trace/test_privilege_exception.c)
+target_compile_definitions(test_privilege_exception_trace PRIVATE CAUSE_ENABLE_MODE=0u)
 add_executable(test_tval_match trace/test_exception_filter_real.c)
 target_compile_definitions(test_tval_match PRIVATE TVAL_MATCH_LOW=0u)
 add_executable(test_tval_exclude trace/test_exception_filter_real.c)

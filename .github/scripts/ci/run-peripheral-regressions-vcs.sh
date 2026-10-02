@@ -10,8 +10,8 @@ source "${SCRIPT_DIR}/lib.sh"
 : "${CI_CONFIG:=TapeoutConfig}"
 
 case "${CI_CONFIG}" in
-  [A-Za-z][A-Za-z0-9_]*) ;;
-  *) echo "Invalid Chipyard configuration name: ${CI_CONFIG}" >&2; exit 1 ;;
+  TapeoutConfig|TapeoutRocketConfig) ;;
+  *) echo "Peripheral regressions require TapeoutConfig or TapeoutRocketConfig: ${CI_CONFIG}" >&2; exit 1 ;;
 esac
 
 run_test() {
@@ -64,11 +64,9 @@ run_i2c() {
 
 run_spi() {
   SIMV="$1" \
-    SPI_FLASH_STRESS_ROUNDS="${SPI_FLASH_STRESS_ROUNDS:-16}" \
-    SPI_FLASH_STRESS_TRANSFER_BYTES="${SPI_FLASH_STRESS_TRANSFER_BYTES:-64}" \
-    SPI_FLASH_TIMEOUT_POLLS="${SPI_FLASH_TIMEOUT_POLLS:-1000000}" \
-    SPI_FLASH_CI_TIMEOUT="${SPI_FLASH_CI_TIMEOUT:-3000}" \
-    run_in_nix './applications/tests/ci-spi-flash-test.sh'
+    SPI_TRACE_RESULT_DIR="$(dirname "$1")/../trace" \
+    SPI_TRACE_CI_TIMEOUT="${SPI_TRACE_CI_TIMEOUT:-1000}" \
+    run_in_nix './applications/tests/ci-spi-trace-test.sh'
 }
 
 run_jtag() {

@@ -15,11 +15,8 @@ on:
         options:
           - TapeoutConfig
           - TapeoutRocketConfig
-          - QuadChannelRocketConfig
-          - MediumBoomV3CosimFastConfig
-          - MediumBoomV4CosimFastConfig
       spi_timeout:
-        description: 'SPI flash regression timeout in seconds'
+        description: 'SPI tracer timeout per workload in seconds'
         required: false
         default: '1000'
         type: number
@@ -48,7 +45,7 @@ concurrency:
 
 jobs:
   peripherals:
-    name: Run ${{ inputs.config || 'TapeoutConfig' }} SPI, I2C, and JTAG regressions
+    name: Run ${{ inputs.config || 'TapeoutConfig' }} SPI tracer, I2C, and JTAG regressions
     runs-on: [self-hosted, linux, builder]
     timeout-minutes: 360
     env:
@@ -61,7 +58,7 @@ jobs:
       USE_SMIC180_STD: 1
       USE_SMIC180_SRAM: 1
       USE_SMIC180_ROM: 1
-      TAPEOUT_ENABLE_SPI_FLASH_MODEL: 1
+      TAPEOUT_ENABLE_SPI_FLASH_MODEL: 0
       SMIC180_SRAM_ROOT: /data2/smic180/SRAM/S018SP_v0p1pc_CDK/SMIC180_S018SP_v0p1c_20260722
     steps:
       - uses: actions/checkout@v4
@@ -83,9 +80,9 @@ jobs:
             .github/scripts/ci/build-core-regressions-vcs.sh \
             > "${CI_RUN_DIR}/vcs-build.log" 2>&1
 
-      - name: Run SPI, I2C, and JTAG peripheral regressions in parallel
+      - name: Run SPI tracer, I2C, and JTAG peripheral regressions in parallel
         env:
-          SPI_FLASH_CI_TIMEOUT: ${{ inputs.spi_timeout || '1000' }}
+          SPI_TRACE_CI_TIMEOUT: ${{ inputs.spi_timeout || '1000' }}
           JTAG_CI_TIMEOUT: ${{ inputs.jtag_timeout || '1000' }}
           JTAG_STRESS_TIMEOUT: ${{ inputs.jtag_stress_timeout || '1000' }}
           JTAG_FULL_STRESS: ${{ github.event_name == 'workflow_dispatch' && inputs.jtag_full_stress && '1' || '0' }}
