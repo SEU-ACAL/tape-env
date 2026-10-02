@@ -8,6 +8,10 @@
 #define PULP_REG_BASE   (TRACE_CTRL_BASE + 0x40)
 #define PULP_REG(apb)   (PULP_REG_BASE + ((apb) * 4))
 
+#ifndef CAUSE_ENABLE_MODE
+#define CAUSE_ENABLE_MODE 3u
+#endif
+
 extern volatile uint64_t tohost;
 
 static inline void write_reg(uint64_t addr, uint32_t value) {
@@ -71,11 +75,12 @@ int main(void) {
   // Program every PULP register before enabling the controller.  Each write
   // crosses a decoupled TL-to-APB bridge, so enabling first can trace the
   // setup instructions while the filters are still being applied.
-  // Match only U mode and match U-mode ecall cause 8.
+  // The CI variant retains the U-mode instructions before the ECALL so the
+  // decoder sees a synchronization start before the exception packet.
   write_reg(PULP_REG(0x15), 0);     // PRIV_MATCH = U
   write_reg(PULP_REG(0x03), 3);     // enable privilege equality mode
   write_reg(PULP_REG(0x07), 8);     // CAUSE_MATCH = ecall from U
-  write_reg(PULP_REG(0x00), 3);     // enable cause equality mode
+  write_reg(PULP_REG(0x00), CAUSE_ENABLE_MODE);
   write_reg(PULP_REG(0x1D), 1);     // lossless: retain the F3/SF1 trap packet
   write_reg(PULP_REG(0x1C), 1);     // TRACE_STATE
   write_reg(TRACE_CTRL_BASE, 3);    // enable after all PULP settings commit

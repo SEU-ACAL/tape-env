@@ -5,15 +5,19 @@
 
 `Nightly Peripheral Regression`（`.github/workflows/nightly-peripheral-regression.yml`）每天
 北京时间 00:00 运行，也可手动触发。它默认构建 `TapeoutConfig` VCS 仿真器，并并行执行 I2C
-EEPROM 压力测试（4 轮、每轮 16 字节）、SPI Flash 压力测试（16 轮、每轮 64 字节）和
+EEPROM 压力测试（4 轮、每轮 16 字节）、SPI tracer 端到端回归（7 个用例）和
 JTAG RSP smoke 测试（4 步、8 次内存操作）。三项测试全部使用同一个
-`TapeoutConfig`，其中 SPI Flash 和 I2C EEPROM 行为模型直接挂在该配置的 VCS harness 上。
-夜间构建通过 `TAPEOUT_ENABLE_SPI_FLASH_MODEL=1` 启用 SPI 模型；普通回归不启用该模型，
-因此不需要额外的 SPI Flash 镜像参数。
-测试失败时会上传各测试日志和保留的 VCS 运行目录。
+`TapeoutConfig`，其中 SPI trace monitor 和 I2C EEPROM 行为模型直接挂在 VCS harness 上。
+夜间构建设置 `TAPEOUT_ENABLE_SPI_FLASH_MODEL=0`，不再加载 SPI Flash 镜像。
+SPI tracer 测试独立构建 ELF 和 `pulp_chipyard` decoder，采集 SPI nibble 流、解帧并重建
+指令，覆盖 IADDR 等值/范围的匹配与排除、组合特权过滤，以及 U-mode ECALL（cause 8）。
+匹配用例检查 ELF 中的指令地址及特权/异常信息；排除用例要求 SPI 流为空且 decoder 返回
+预期的 code `2`。仿真超时、截断包、解码错误和语义不符均使 CI 失败。
+测试失败时会上传各测试日志、原始 SPI 流、解帧结果、重建结果和保留的 VCS 运行目录，
+SPI 诊断保存在 `peripheral-results/spi/trace/`。
 
 手动运行该工作流时，可以在 Actions 界面通过 `config` 选择配置（默认
-`TapeoutConfig`），并通过 `SPI flash regression timeout in seconds`
+`TapeoutConfig`，也支持 `TapeoutRocketConfig`），并通过 `SPI tracer timeout per workload in seconds`
 、`JTAG regression timeout in seconds` 和 `JTAG per-request RSP timeout in seconds`
 设置超时（单位为秒，默认均为 1000）；也可勾选 `Run exhaustive JTAG RSP stress`，以运行
 32 步、64 次内存操作、完整 ELF SBA 写入和完整 ROM 校验。定时运行不启用该选项，且继续使用

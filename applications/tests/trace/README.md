@@ -35,6 +35,30 @@ nix develop .#default --command bash -c \
 - 基于 ELF 重建的指令 trace
 - RTL `PULP_FILTER_ACCEPT` 实际接受的指令 trace
 
+## SPI tracer CI
+
+夜间外设 CI 使用 `applications/tests/ci-spi-trace-test.sh`，在独立目录构建并执行
+7 个 IADDR/特权/异常用例。脚本支持 `TapeoutConfig` 和 `TapeoutRocketConfig`
+仿真器，构建时须关闭 SPI Flash 模型（`TAPEOUT_ENABLE_SPI_FLASH_MODEL=0`）。
+异常用例使用 `test_privilege_exception_trace`：仅匹配 U-mode，保留 ECALL 前的
+同步起点，解码后检查 cause=8；原 `test_privilege_exception` 仍启用 cause 等值过滤。
+
+```bash
+nix develop .#default --command env \
+  SIMV="$PWD/soc-generator/sims/vcs/simv-chipyard.harness-TapeoutRocketConfig" \
+  SPI_TRACE_RESULT_DIR="$PWD/trace_verification/result/spi_ci_latest" \
+  SPI_TRACE_CI_TIMEOUT=1000 bash applications/tests/ci-spi-trace-test.sh
+```
+
+`SPI_TRACE_CI_TIMEOUT` 是每个 workload 的仿真超时（秒）。`SPI_TRACE_RESULT_DIR`
+省略时使用临时目录，成功后清理，失败时保留；指定时保留 SPI 流和各阶段日志。
+`check_spi_trace.py` 校验解码返回码、完整帧、ELF 指令地址及特权/异常信息，任一
+用例失败都会使 CI 返回非零。检查器自身的回归测试可用以下命令运行：
+
+```bash
+python3 -m unittest discover -s applications/tests/trace -p 'test_check_spi_trace.py'
+```
+
 ## Tapeout 全量回归
 
 `run_trace_regression.sh` 从任意当前目录定位仓库根目录，依次运行 18 个
