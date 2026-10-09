@@ -62,6 +62,21 @@ class MegaBoomV3PerfConfig extends Config(
   new chipyard.config.WithSystemBusWidth(128) ++
   new chipyard.config.AbstractConfig)
 
+/** BOOMv3 performance configuration with simulator-only ChiselDB traces. */
+class MegaBoomV3PerfDBConfig extends Config(
+  new boom.perf.WithBoomChiselDB ++
+  new MegaBoomV3PerfConfig)
+
+/** BOOMv3 PerfDB variant with short forward branch folding enabled. */
+class MegaBoomV3SFBPerfDBConfig extends Config(
+  new boom.v3.common.WithBoomSFBOpt(true) ++
+  new MegaBoomV3PerfDBConfig)
+
+/** BOOMv3 PerfDB variant with folding and its frontend wait disabled. */
+class MegaBoomV3NoSFBPerfDBConfig extends Config(
+  new boom.v3.common.WithBoomSFBOpt(false) ++
+  new MegaBoomV3PerfDBConfig)
+
 
 /** BOOMv3 configuration used by the upstream Verilator regression suite. */
 class MediumBoomV3CosimConfig extends Config(
