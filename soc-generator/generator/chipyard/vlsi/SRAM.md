@@ -9,7 +9,7 @@
 make -C soc-generator SIM=vcs USE_TSMC28_SRAM=1 verilog
 ```
 
-该 Makefile 片段使用 `--mode strict`，若任一顶层时序存储器无法映射至列出的单端口宏，
+该 Makefile 片段使用 `--mode strict`，若任一顶层时序存储器无法映射至列出的宏，
 生成会失败。宏库采用 TSMC 的 `CLK/CEB/WEB/A/D/Q` 接口，其中 `CEB` 与 `WEB` 为低有效；
 所需的 `RTSEL` 和 `WTSEL` 引脚被固定为每个宏的特征化默认值。
 
@@ -20,6 +20,56 @@ make -C soc-generator SIM=vcs USE_TSMC28_SRAM=1 verilog
 综合时，应为生成的 `*.top.mems.v` 报告的每个宏添加 `NLDM/*_ssg0p81v125c.lib`。布局布线时，
 添加匹配的 `LEF/*.lef` 和 `GDSII/*.gds`，并保持相同的宏模块名。不得将仿真 Verilog 模型用作
 综合源。
+
+### FDIP Mega 独立宏库
+
+`FDIPMegaBoomV3Config`、`FDIPMegaBoomV3PerfConfig` 和其 `Cosim` 系列配置
+自动选择 `TSMC28_SRAM_PROFILE=fdip`；硬宏替换仍需显式启用：
+
+```sh
+make -C soc-generator/sims/verilator CONFIG=FDIPMegaBoomV3Config \
+  USE_TSMC28_SRAM=1 verilog
+```
+
+FDIP profile 使用 `fdip_tsmc28_sram_library.mdf.json`、
+`fdip_tsmc28_sram_sim.sources` 和 `/data2/TSMC28/Memory/SRAM/fdip-20261014/`。
+库有 13 种实际宏，208 个 NLDM `.lib/.db`（每种 16 corner）；SS/TT/FF 的 SRAM
+名称分别为 `ssg0p81v125c`、`tt0p9v85c`、`ffg1p05vm40c`。
+其他配置默认保留 `TSMC28_SRAM_PROFILE=legacy`。自定义 FDIP 配置可显式选择 profile。
+
+UHDDPSRAM 原始硬宏有两个 RW 口和一个共同 CLK，MDF 固定 A 读/B 写：
+`CEBA=~R0_en`、`WEBA=1`、`CEBB=~W0_en`、`WEBB=0`；
+`QA` 返回读数据，`QB` 不连接。A 口的 `DA/BWEBA` 固定 0，读模式下不参与写入。
+物理 mask granularity 为 1，MacroCompiler 将逻辑 field mask 展开为逐 bit 的
+低有效 `BWEBB`。`RTSEL/WTSEL/PTSEL` 固定 0；单口宏按各自 datasheet 设置
+`RTSEL/WTSEL`，不能沿用双口常量。
+
+映射前 `check-fdip-tsmc28-clocks.py` 沿生成层级检查所有 1R1W 实例的读写时钟同源，
+不支持的表达式或不同的时钟都会拒绝映射。MDF 只将物理 CLK 绑定到 W0_clk；
+这项检查是保持 R0_clk 语义的必要条件。
+
+当前生成 RTL 的 14 种逻辑 memory 各对应一个宏，全 ChipTop 共 80 个宏实例；
+`FDIPBoomFrontend` 中有 50 个（BPU 17、ICache 33），合计 54.625 KiB 的宏容量。
+这些是生成层级数量；综合后还需核查。FTQ、RAS 和其他未声明为同步 memory 的
+状态不在这 50 个 SRAM 中。
+
+14 种映射模块和生产 RTL 的 5 种 folded 布局均已连接原厂 PDK 模型通过功能验证。
+功能测试使用 `TSMC_CM_UNIT_DELAY/UNIT_DELAY`，不证明 1 GHz timing。
+不要将硬宏生成目录与已有 synflops simulator 混用；更改映射后需重新构建 simulator。
+
+工作台提供独立 `tsmc28_fdip` profile，以及前端独立综合脚本：
+
+```sh
+python3 /data1/GB/ic_workbench/2-SYN/scripts/run_fdip_frontend.py \
+  --generated soc-generator/sims/verilator/generated-src/chipyard.harness.TestHarness.FDIPMegaBoomV3Config \
+  --output /path/to/new-run --period 1.0
+```
+
+脚本冻结前端 RTL 和运行约束，使用真实 SS `.db`，保留 hierarchy，输出 netlist、DDC、
+SDC、SDF、面积、时序和 vectorless power 报告。目标是 pre-layout；没有 extracted RC、
+CTS 或 workload activity。SS/FF STA 脚本为工作台的
+`4-Pre_PR_STA_POWER/scripts/pt_fdip_frontend.tcl`。生产映射和回归证据保存在
+`analysis/fdip-tsmc28-mapping-20261014/`。
 
 ## SMIC180
 

@@ -17,11 +17,19 @@ override USE_SMIC180_SRAM := 1
 override USE_SMIC180_ROM := 1
 endif
 
+TSMC28_FDIP_CONFIGS := FDIPMegaBoomV3Config FDIPMegaBoomV3PerfConfig FDIPMegaBoomV3CosimConfig FDIPMegaBoomV3CosimPerfConfig FDIPMegaBoomV3CosimPerfDBConfig
+TSMC28_SRAM_PROFILE ?= $(if $(filter $(CONFIG),$(TSMC28_FDIP_CONFIGS)),fdip,legacy)
+ifeq ($(TSMC28_SRAM_PROFILE),fdip)
+TSMC28_SRAM_ROOT ?= /data2/TSMC28/Memory/SRAM/fdip-20261014
+TSMC28_SRAM_MDF ?= $(base_dir)/generator/chipyard/vlsi/fdip_tsmc28_sram_library.mdf.json
+TSMC28_SRAM_SIM_SOURCES ?= $(base_dir)/generator/chipyard/vlsi/fdip_tsmc28_sram_sim.sources
+else
 TSMC28_SRAM_ROOT ?= /data2/TSMC28/Memory/SRAM
 TSMC28_SRAM_MDF ?= $(base_dir)/generator/chipyard/vlsi/tsmc28_sram_library.mdf.json
 TSMC28_SRAM_SIM_SOURCES ?= $(base_dir)/generator/chipyard/vlsi/tsmc28_sram_sim.sources
+endif
 TSMC28_SRAM_SIM_FILELIST ?= $(build_dir)/tsmc28_sram_sim.f
-TSMC28_SRAM_SIM_PREPROC_DEFINES ?= +define+UNIT_DELAY +define+no_warning
+TSMC28_SRAM_SIM_PREPROC_DEFINES ?= +define+TSMC_CM_UNIT_DELAY +define+UNIT_DELAY +define+no_warning
 TSMC28_SRAM_CONFIG_STAMP ?= $(build_dir)/.tsmc28-sram-config.stamp
 
 SMIC180_SRAM_ROOT ?= /data2/smic180/SRAM/S018SP_v0p1pc_CDK/SMIC180_S018SP_v0p1c_20260722
@@ -85,6 +93,7 @@ $(TSMC28_SRAM_CONFIG_STAMP): tsmc28-sram-config-force
 	mkdir -p $(dir $@)
 	@{ \
 		printf '%s\\n' 'USE_TSMC28_SRAM=$(USE_TSMC28_SRAM)'; \
+		printf '%s\\n' 'TSMC28_SRAM_PROFILE=$(TSMC28_SRAM_PROFILE)'; \
 		printf '%s\\n' 'TOP_MACROCOMPILER_MODE=$(TOP_MACROCOMPILER_MODE)'; \
 		printf '%s\\n' 'TSMC28_SRAM_MDF=$(TSMC28_SRAM_MDF)'; \
 		printf '%s\\n' 'TSMC28_SRAM_ROOT=$(TSMC28_SRAM_ROOT)'; \
@@ -140,9 +149,24 @@ endif
 endif
 
 ifeq ($(USE_TSMC28_SRAM),1)
+ifeq ($(filter $(TSMC28_SRAM_PROFILE),fdip legacy),)
+$(error Unsupported TSMC28_SRAM_PROFILE '$(TSMC28_SRAM_PROFILE)'; use fdip or legacy)
+endif
 TOP_MACROCOMPILER_MODE := --library $(TSMC28_SRAM_MDF) --mode strict
+TOP_MACRO_STAMP_DEPS += $(TSMC28_SRAM_MDF)
 EXT_FILELISTS += $(TSMC28_SRAM_SIM_FILELIST)
 EXTRA_SIM_PREPROC_DEFINES += $(TSMC28_SRAM_SIM_PREPROC_DEFINES)
+ifeq ($(TSMC28_SRAM_PROFILE),fdip)
+# UHDDPSRAM has one physical CLK. Refuse mappings whose logical ports use
+# different clocks, instead of silently discarding the reader's clock.
+FDIP_TSMC28_CLOCK_STAMP := $(build_dir)/.fdip-tsmc28-clocks.stamp
+TOP_MACRO_STAMP_DEPS += $(FDIP_TSMC28_CLOCK_STAMP)
+$(FDIP_TSMC28_CLOCK_STAMP): $(ALL_MODS_FILELIST) $(MFC_TOP_SMEMS_JSON) $(base_dir)/scripts/check-fdip-tsmc28-clocks.py
+	python3 $(base_dir)/scripts/check-fdip-tsmc28-clocks.py \
+		--metadata $(MFC_TOP_SMEMS_JSON) --hierarchy $(MFC_TOP_HRCHY_JSON) \
+		--rtl-dir $(GEN_COLLATERAL_DIR) --report $(build_dir)/fdip-tsmc28-clocks.json
+	touch $@
+endif
 endif
 
 $(TSMC28_SRAM_SIM_FILELIST): $(TSMC28_SRAM_SIM_SOURCES) $(TSMC28_SRAM_CONFIG_STAMP)
