@@ -2,6 +2,9 @@
 #include <string>
 #include <vpi_user.h>
 #include <svdpi.h>
+#ifdef VERILATOR
+#include <verilated.h>
+#endif
 
 #include "cospike_impl.h"
 
@@ -19,6 +22,11 @@ extern "C" void cospike_set_sysinfo_wrapper(char* isa, char* priv, int pmpregion
   std::vector<std::string> args;
   for (int i = 1; i < vinfo.argc; i++) {
     std::string arg(vinfo.argv[i]);
+    // These are simulator/TestDriver controls, not Spike HTIF arguments.
+    // cospike receives the complete Verilator argv through VPI and would
+    // otherwise try to interpret them as ELF/HTIF arguments.
+    if (arg == "+cycle-count" || arg == "+xsperf" || arg.rfind("+max-cycles=", 0) == 0)
+      continue;
     args.push_back(arg);
   }
 
@@ -64,7 +72,19 @@ extern "C" void cospike_cosim_wrapper(long long int cycle,
     wdata,
     priv
   );
-  if (rval) exit(rval);
+  if (rval) {
+    if (cospike_clean_exit_requested()) {
+#ifdef VERILATOR
+      // Let Verilator run final() so tracing buffers are flushed.
+      Verilated::gotFinish(true);
+#else
+      // VCS has no Verilator runtime; request a normal VPI shutdown instead.
+      vpi_control(vpiFinish, 0);
+#endif
+      return;
+    }
+    exit(rval);
+  }
 }
 
 extern "C" void cospike_register_memory_wrapper(long long int base,
