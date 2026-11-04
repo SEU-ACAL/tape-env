@@ -6,22 +6,24 @@
 
 std::map<int, testchip_tsi_t*> tsis;
 
-// Remove VCS simv option from argv if it match pattern -X???=
-void remove_vcs_simv_opt(int & argc, char **& argv){
-    int idx = 0;
-    while(idx < argc){
-        std::string str = std::string(argv[idx]);
-        if(str.length() > 1 && str[0] == '-' && str[1] != '-' && str.find('=') != std::string::npos){
-            // Found -????=???? as VCS simv option
-            for(int i = idx; i < argc - 1; i++){
-                // Remove the current option
-                argv[i] = argv[i + 1];
-            }
-            argc--;
-        }else{
-            idx++;
+// Copy simulator arguments while leaving VPI's argv untouched.  Verilog
+// endpoints use the original plusargs (for example +xsperf) at simulation
+// shutdown, so mutating vpi_get_vlog_info().argv breaks those checks.
+void filter_simulator_opts(int argc, char **argv,
+                           std::vector<std::string>& storage,
+                           std::vector<char*>& filtered){
+    storage.reserve(argc);
+    filtered.reserve(argc);
+    for (int idx = 0; idx < argc; ++idx) {
+        std::string str(argv[idx]);
+        bool is_vcs_simv_opt = str.length() > 1 && str[0] == '-' && str[1] != '-' && str.find('=') != std::string::npos;
+        bool is_testdriver_opt = str == "+cycle-count" || str == "+xsperf" || str.rfind("+max-cycles=", 0) == 0;
+        if (!is_vcs_simv_opt && !is_testdriver_opt) {
+            storage.push_back(str);
         }
     }
+    for (auto& arg : storage)
+        filtered.push_back(arg.data());
 }
 
 extern "C" int tsi_tick(
@@ -45,11 +47,14 @@ extern "C" int tsi_tick(
         if (!vpi_get_vlog_info(&info))
           abort();
 
-        // Prevent simv option enter htif
-        remove_vcs_simv_opt(info.argc, info.argv);
+        // Prevent simulator controls from being interpreted as HTIF arguments
+        // without changing the argv used by Verilog plusarg handlers.
+        std::vector<std::string> filtered_storage;
+        std::vector<char*> filtered_argv;
+        filter_simulator_opts(info.argc, info.argv, filtered_storage, filtered_argv);
 
         // TODO: We should somehow inspect whether or not our backing memory supports loadmem, instead of unconditionally setting it to true
-        tsis[chip_id] = new testchip_tsi_t(info.argc, info.argv, true);
+        tsis[chip_id] = new testchip_tsi_t(static_cast<int>(filtered_argv.size()), filtered_argv.data(), true);
     }
 
     testchip_tsi_t* tsi = tsis[chip_id];

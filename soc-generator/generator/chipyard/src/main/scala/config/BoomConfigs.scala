@@ -7,6 +7,77 @@ class SmallBoomV3Config extends Config(
   new boom.v3.common.WithNSmallBooms(1) ++
   new chipyard.config.AbstractConfig)
 
+/** BOOMv3 FDIP configuration, including the FDIP frontend, ICache prefetch
+  * pipeline, and FDIP-specific branch prediction path.
+  */
+class FDIPMegaBoomV3Config extends Config(
+  new boom.fdip.common.WithNMegaBooms(1) ++
+  new chipyard.config.WithSystemBusWidth(128) ++
+  new chipyard.config.AbstractConfig)
+
+/** FDIP Mega BOOM configuration with Spike commit cosimulation enabled. */
+class FDIPMegaBoomV3CosimConfig extends Config(
+  new chipyard.harness.WithCospike ++
+  new chipyard.config.WithTraceIO ++
+  new boom.fdip.common.WithFDIPBoomTrace ++
+  new boom.fdip.common.WithNMegaBooms(1) ++
+  new chipyard.config.WithSystemBusWidth(128) ++
+  new chipyard.config.AbstractConfig)
+
+/** FDIP Mega BOOM with counters enabled for frontend performance diagnosis. */
+class FDIPMegaBoomV3CosimPerfConfig extends Config(
+  new boom.perf.WithBoomXSPerf ++
+  new chipyard.harness.WithCospike ++
+  new chipyard.config.WithTraceIO ++
+  new boom.fdip.common.WithFDIPBoomTrace ++
+  new boom.fdip.common.WithNBoomPerfCounters(10) ++
+  new boom.fdip.common.WithNMegaBooms(1) ++
+  new chipyard.config.WithSystemBusWidth(128) ++
+  new chipyard.config.AbstractConfig)
+
+/** FDIP frontend database traces; build with ENABLE_BOOM_CHISELDB=1. */
+class FDIPMegaBoomV3CosimPerfDBConfig extends Config(
+  new boom.perf.WithBoomChiselDB ++
+  new FDIPMegaBoomV3CosimPerfConfig)
+
+/** Same FDIP RTL as the cosim performance config, without host cosimulation. */
+class FDIPMegaBoomV3PerfConfig extends Config(
+  new boom.perf.WithBoomXSPerf ++
+  new boom.fdip.common.WithNBoomPerfCounters(10) ++
+  new boom.fdip.common.WithNMegaBooms(1) ++
+  new chipyard.config.WithSystemBusWidth(128) ++
+  new chipyard.config.AbstractConfig)
+
+/** BOOMv3 Mega baseline for FDIP performance comparisons. */
+class MegaBoomV3Config extends Config(
+  new boom.v3.common.WithNMegaBooms(1) ++
+  new chipyard.config.WithSystemBusWidth(128) ++
+  new chipyard.config.AbstractConfig)
+
+/** Coupled Mega BOOM baseline with counters enabled for FDIP comparisons. */
+class MegaBoomV3PerfConfig extends Config(
+  new boom.perf.WithBoomXSPerf ++
+  new boom.v3.common.WithNBoomPerfCounters(10) ++
+  new boom.v3.common.WithNMegaBooms(1) ++
+  new chipyard.config.WithSystemBusWidth(128) ++
+  new chipyard.config.AbstractConfig)
+
+/** BOOMv3 performance configuration with simulator-only ChiselDB traces. */
+class MegaBoomV3PerfDBConfig extends Config(
+  new boom.perf.WithBoomChiselDB ++
+  new MegaBoomV3PerfConfig)
+
+/** BOOMv3 PerfDB variant with short forward branch folding enabled. */
+class MegaBoomV3SFBPerfDBConfig extends Config(
+  new boom.v3.common.WithBoomSFBOpt(true) ++
+  new MegaBoomV3PerfDBConfig)
+
+/** BOOMv3 PerfDB variant with folding and its frontend wait disabled. */
+class MegaBoomV3NoSFBPerfDBConfig extends Config(
+  new boom.v3.common.WithBoomSFBOpt(false) ++
+  new MegaBoomV3PerfDBConfig)
+
+
 /** BOOMv3 configuration used by the upstream Verilator regression suite. */
 class MediumBoomV3CosimConfig extends Config(
   new chipyard.harness.WithCospike ++

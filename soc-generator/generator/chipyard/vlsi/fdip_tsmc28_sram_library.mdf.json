@@ -1,0 +1,772 @@
+[
+  {
+    "type": "sram",
+    "name": "fdip_sram_1r1w_64x32",
+    "width": 32,
+    "depth": "64",
+    "family": "1r1w",
+    "mux": 4,
+    "mask": true,
+    "ports": [
+      {
+        "address port name": "AA",
+        "address port polarity": "active high",
+        "read enable port name": "CEBA",
+        "read enable port polarity": "active low",
+        "output port name": "QA",
+        "output port polarity": "active high"
+      },
+      {
+        "address port name": "AB",
+        "address port polarity": "active high",
+        "clock port name": "CLK",
+        "clock port polarity": "positive edge",
+        "write enable port name": "CEBB",
+        "write enable port polarity": "active low",
+        "input port name": "DB",
+        "input port polarity": "active high",
+        "mask port name": "BWEBB",
+        "mask port polarity": "active low",
+        "mask granularity": 1
+      }
+    ],
+    "extra ports": [
+      {
+        "name": "RTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "WTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "PTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "WEBA",
+        "width": 1,
+        "type": "constant",
+        "value": 1
+      },
+      {
+        "name": "WEBB",
+        "width": 1,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "DA",
+        "width": 32,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "BWEBA",
+        "width": 32,
+        "type": "constant",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "type": "sram",
+    "name": "fdip_sram_1r1w_128x32",
+    "width": 32,
+    "depth": "128",
+    "family": "1r1w",
+    "mux": 4,
+    "mask": true,
+    "ports": [
+      {
+        "address port name": "AA",
+        "address port polarity": "active high",
+        "read enable port name": "CEBA",
+        "read enable port polarity": "active low",
+        "output port name": "QA",
+        "output port polarity": "active high"
+      },
+      {
+        "address port name": "AB",
+        "address port polarity": "active high",
+        "clock port name": "CLK",
+        "clock port polarity": "positive edge",
+        "write enable port name": "CEBB",
+        "write enable port polarity": "active low",
+        "input port name": "DB",
+        "input port polarity": "active high",
+        "mask port name": "BWEBB",
+        "mask port polarity": "active low",
+        "mask granularity": 1
+      }
+    ],
+    "extra ports": [
+      {
+        "name": "RTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "WTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "PTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "WEBA",
+        "width": 1,
+        "type": "constant",
+        "value": 1
+      },
+      {
+        "name": "WEBB",
+        "width": 1,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "DA",
+        "width": 32,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "BWEBA",
+        "width": 32,
+        "type": "constant",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "type": "sram",
+    "name": "fdip_sram_1r1w_256x57",
+    "width": 57,
+    "depth": "256",
+    "family": "1r1w",
+    "mux": 4,
+    "mask": true,
+    "ports": [
+      {
+        "address port name": "AA",
+        "address port polarity": "active high",
+        "read enable port name": "CEBA",
+        "read enable port polarity": "active low",
+        "output port name": "QA",
+        "output port polarity": "active high"
+      },
+      {
+        "address port name": "AB",
+        "address port polarity": "active high",
+        "clock port name": "CLK",
+        "clock port polarity": "positive edge",
+        "write enable port name": "CEBB",
+        "write enable port polarity": "active low",
+        "input port name": "DB",
+        "input port polarity": "active high",
+        "mask port name": "BWEBB",
+        "mask port polarity": "active low",
+        "mask granularity": 1
+      }
+    ],
+    "extra ports": [
+      {
+        "name": "RTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "WTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "PTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "WEBA",
+        "width": 1,
+        "type": "constant",
+        "value": 1
+      },
+      {
+        "name": "WEBB",
+        "width": 1,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "DA",
+        "width": 57,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "BWEBA",
+        "width": 57,
+        "type": "constant",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "type": "sram",
+    "name": "fdip_sram_1r1w_512x28",
+    "width": 28,
+    "depth": "512",
+    "family": "1r1w",
+    "mux": 4,
+    "mask": true,
+    "ports": [
+      {
+        "address port name": "AA",
+        "address port polarity": "active high",
+        "read enable port name": "CEBA",
+        "read enable port polarity": "active low",
+        "output port name": "QA",
+        "output port polarity": "active high"
+      },
+      {
+        "address port name": "AB",
+        "address port polarity": "active high",
+        "clock port name": "CLK",
+        "clock port polarity": "positive edge",
+        "write enable port name": "CEBB",
+        "write enable port polarity": "active low",
+        "input port name": "DB",
+        "input port polarity": "active high",
+        "mask port name": "BWEBB",
+        "mask port polarity": "active low",
+        "mask granularity": 1
+      }
+    ],
+    "extra ports": [
+      {
+        "name": "RTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "WTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "PTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "WEBA",
+        "width": 1,
+        "type": "constant",
+        "value": 1
+      },
+      {
+        "name": "WEBB",
+        "width": 1,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "DA",
+        "width": 28,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "BWEBA",
+        "width": 28,
+        "type": "constant",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "type": "sram",
+    "name": "fdip_sram_1r1w_1024x28",
+    "width": 28,
+    "depth": "1024",
+    "family": "1r1w",
+    "mux": 4,
+    "mask": true,
+    "ports": [
+      {
+        "address port name": "AA",
+        "address port polarity": "active high",
+        "read enable port name": "CEBA",
+        "read enable port polarity": "active low",
+        "output port name": "QA",
+        "output port polarity": "active high"
+      },
+      {
+        "address port name": "AB",
+        "address port polarity": "active high",
+        "clock port name": "CLK",
+        "clock port polarity": "positive edge",
+        "write enable port name": "CEBB",
+        "write enable port polarity": "active low",
+        "input port name": "DB",
+        "input port polarity": "active high",
+        "mask port name": "BWEBB",
+        "mask port polarity": "active low",
+        "mask granularity": 1
+      }
+    ],
+    "extra ports": [
+      {
+        "name": "RTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "WTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "PTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "WEBA",
+        "width": 1,
+        "type": "constant",
+        "value": 1
+      },
+      {
+        "name": "WEBB",
+        "width": 1,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "DA",
+        "width": 28,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "BWEBA",
+        "width": 28,
+        "type": "constant",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "type": "sram",
+    "name": "fdip_sram_1r1w_256x128",
+    "width": 128,
+    "depth": "256",
+    "family": "1r1w",
+    "mux": 4,
+    "mask": true,
+    "ports": [
+      {
+        "address port name": "AA",
+        "address port polarity": "active high",
+        "read enable port name": "CEBA",
+        "read enable port polarity": "active low",
+        "output port name": "QA",
+        "output port polarity": "active high"
+      },
+      {
+        "address port name": "AB",
+        "address port polarity": "active high",
+        "clock port name": "CLK",
+        "clock port polarity": "positive edge",
+        "write enable port name": "CEBB",
+        "write enable port polarity": "active low",
+        "input port name": "DB",
+        "input port polarity": "active high",
+        "mask port name": "BWEBB",
+        "mask port polarity": "active low",
+        "mask granularity": 1
+      }
+    ],
+    "extra ports": [
+      {
+        "name": "RTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "WTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "PTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "WEBA",
+        "width": 1,
+        "type": "constant",
+        "value": 1
+      },
+      {
+        "name": "WEBB",
+        "width": 1,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "DA",
+        "width": 128,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "BWEBA",
+        "width": 128,
+        "type": "constant",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "type": "sram",
+    "name": "fdip_sram_1r1w_32x128",
+    "width": 128,
+    "depth": "32",
+    "family": "1r1w",
+    "mux": 4,
+    "mask": true,
+    "ports": [
+      {
+        "address port name": "AA",
+        "address port polarity": "active high",
+        "read enable port name": "CEBA",
+        "read enable port polarity": "active low",
+        "output port name": "QA",
+        "output port polarity": "active high"
+      },
+      {
+        "address port name": "AB",
+        "address port polarity": "active high",
+        "clock port name": "CLK",
+        "clock port polarity": "positive edge",
+        "write enable port name": "CEBB",
+        "write enable port polarity": "active low",
+        "input port name": "DB",
+        "input port polarity": "active high",
+        "mask port name": "BWEBB",
+        "mask port polarity": "active low",
+        "mask granularity": 1
+      }
+    ],
+    "extra ports": [
+      {
+        "name": "RTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "WTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "PTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "WEBA",
+        "width": 1,
+        "type": "constant",
+        "value": 1
+      },
+      {
+        "name": "WEBB",
+        "width": 1,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "DA",
+        "width": 128,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "BWEBA",
+        "width": 128,
+        "type": "constant",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "type": "sram",
+    "name": "fdip_sram_1rw_1024x136",
+    "width": 136,
+    "depth": "1024",
+    "family": "1rw",
+    "mux": 4,
+    "mask": true,
+    "ports": [
+      {
+        "address port name": "A",
+        "address port polarity": "active high",
+        "clock port name": "CLK",
+        "clock port polarity": "positive edge",
+        "chip enable port name": "CEB",
+        "chip enable port polarity": "active low",
+        "write enable port name": "WEB",
+        "write enable port polarity": "active low",
+        "input port name": "D",
+        "input port polarity": "active high",
+        "output port name": "Q",
+        "output port polarity": "active high",
+        "mask port name": "BWEB",
+        "mask port polarity": "active low",
+        "mask granularity": 1
+      }
+    ],
+    "extra ports": [
+      {
+        "name": "RTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "WTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "type": "sram",
+    "name": "fdip_sram_1rw_8192x64",
+    "width": 64,
+    "depth": "8192",
+    "family": "1rw",
+    "mux": 4,
+    "mask": true,
+    "ports": [
+      {
+        "address port name": "A",
+        "address port polarity": "active high",
+        "clock port name": "CLK",
+        "clock port polarity": "positive edge",
+        "chip enable port name": "CEB",
+        "chip enable port polarity": "active low",
+        "write enable port name": "WEB",
+        "write enable port polarity": "active low",
+        "input port name": "D",
+        "input port polarity": "active high",
+        "output port name": "Q",
+        "output port polarity": "active high",
+        "mask port name": "BWEB",
+        "mask port polarity": "active low",
+        "mask granularity": 1
+      }
+    ]
+  },
+  {
+    "type": "sram",
+    "name": "fdip_sram_1rw_64x176",
+    "width": 176,
+    "depth": "64",
+    "family": "1rw",
+    "mux": 1,
+    "mask": true,
+    "ports": [
+      {
+        "address port name": "A",
+        "address port polarity": "active high",
+        "clock port name": "CLK",
+        "clock port polarity": "positive edge",
+        "chip enable port name": "CEB",
+        "chip enable port polarity": "active low",
+        "write enable port name": "WEB",
+        "write enable port polarity": "active low",
+        "input port name": "D",
+        "input port polarity": "active high",
+        "output port name": "Q",
+        "output port polarity": "active high",
+        "mask port name": "BWEB",
+        "mask port polarity": "active low",
+        "mask granularity": 1
+      }
+    ],
+    "extra ports": [
+      {
+        "name": "RTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 2
+      },
+      {
+        "name": "WTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "type": "sram",
+    "name": "fdip_sram_1rw_64x128",
+    "width": 128,
+    "depth": "64",
+    "family": "1rw",
+    "mux": 2,
+    "mask": true,
+    "ports": [
+      {
+        "address port name": "A",
+        "address port polarity": "active high",
+        "clock port name": "CLK",
+        "clock port polarity": "positive edge",
+        "chip enable port name": "CEB",
+        "chip enable port polarity": "active low",
+        "write enable port name": "WEB",
+        "write enable port polarity": "active low",
+        "input port name": "D",
+        "input port polarity": "active high",
+        "output port name": "Q",
+        "output port polarity": "active high",
+        "mask port name": "BWEB",
+        "mask port polarity": "active low",
+        "mask granularity": 1
+      }
+    ],
+    "extra ports": [
+      {
+        "name": "RTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 2
+      },
+      {
+        "name": "WTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "type": "sram",
+    "name": "fdip_sram_1rw_64x160",
+    "width": 160,
+    "depth": "64",
+    "family": "1rw",
+    "mux": 1,
+    "mask": true,
+    "ports": [
+      {
+        "address port name": "A",
+        "address port polarity": "active high",
+        "clock port name": "CLK",
+        "clock port polarity": "positive edge",
+        "chip enable port name": "CEB",
+        "chip enable port polarity": "active low",
+        "write enable port name": "WEB",
+        "write enable port polarity": "active low",
+        "input port name": "D",
+        "input port polarity": "active high",
+        "output port name": "Q",
+        "output port polarity": "active high",
+        "mask port name": "BWEB",
+        "mask port polarity": "active low",
+        "mask granularity": 1
+      }
+    ],
+    "extra ports": [
+      {
+        "name": "RTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 2
+      },
+      {
+        "name": "WTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "type": "sram",
+    "name": "fdip_sram_1rw_512x45",
+    "width": 45,
+    "depth": "512",
+    "family": "1rw",
+    "mux": 4,
+    "mask": true,
+    "ports": [
+      {
+        "address port name": "A",
+        "address port polarity": "active high",
+        "clock port name": "CLK",
+        "clock port polarity": "positive edge",
+        "chip enable port name": "CEB",
+        "chip enable port polarity": "active low",
+        "write enable port name": "WEB",
+        "write enable port polarity": "active low",
+        "input port name": "D",
+        "input port polarity": "active high",
+        "output port name": "Q",
+        "output port polarity": "active high",
+        "mask port name": "BWEB",
+        "mask port polarity": "active low",
+        "mask granularity": 1
+      }
+    ],
+    "extra ports": [
+      {
+        "name": "RTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      },
+      {
+        "name": "WTSEL",
+        "width": 2,
+        "type": "constant",
+        "value": 0
+      }
+    ]
+  }
+]
