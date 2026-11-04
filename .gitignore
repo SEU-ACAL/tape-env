@@ -34,4 +34,5 @@ tests/build/
 applications/tests/jtag/build/
 applications/tests/jtag/__pycache__/
 applications/linux/build/
+/applications/freertos-workloads/build/
 /applications/linux-riscv-benchmarks/
