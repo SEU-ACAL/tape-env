@@ -59,6 +59,22 @@ nix develop .#default --command env \
 python3 -m unittest discover -s applications/tests/trace -p 'test_check_spi_trace.py'
 ```
 
+Decoder 使用已跟踪的 Cargo.lock，缓存可通过 `CARGO_HOME` 指定。缓存完整时直接离线
+构建；首次运行先下载锁定的依赖。`TRACE_INSTRUCTION` 仅记录退休指令，Context 和
+Trap 使用 `TRACE_EVENT` 单独记录。范围匹配必须按顺序出现四条指令，不能用重复起点
+或异常事件补足指令数。
+
+可使用 Verilator 单独验证输入背压：
+
+```bash
+bash applications/tests/trace/run_pulp_backpressure.sh
+```
+
+该测试在 serializer 忙时继续送入五拍在途退休事件，逐项校验 PC、指令类型和异常
+sideband，比较持续 ready 与停顿两种情形的 packet 序列。覆盖 4 条和 128 条连续
+指令，并检查末尾地址包包含最后一条指令。它验证 wrapper 输入缓冲；完整 SPI 路径
+仍由上述 VCS CI 验证。
+
 ## Tapeout 全量回归
 
 `run_trace_regression.sh` 从任意当前目录定位仓库根目录，依次运行 18 个

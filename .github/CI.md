@@ -15,6 +15,13 @@ SPI tracer 测试独立构建 ELF 和 `pulp_chipyard` decoder，采集 SPI nibbl
 预期的 code `2`。仿真超时、截断包、解码错误和语义不符均使 CI 失败。
 测试失败时会上传各测试日志、原始 SPI 流、解帧结果、重建结果和保留的 VCS 运行目录，
 SPI 诊断保存在 `peripheral-results/spi/trace/`。
+Decoder 使用仓库中的 `dependencies/riscv-etrace/Cargo.lock` 固定依赖版本，
+并在每个 runner 的 `/data1/ci-runner/cache/nightly-peripherals/cargo/` 下保留 Cargo 缓存。
+缓存完整时不访问 crates.io；首次运行或依赖更新时先执行 `cargo fetch --locked`，
+随后使用 `cargo build --frozen` 离线编译。构建失败可查 `decoder-fetch.log` 和
+`decoder-build.log`，两个阶段都在 SPI 仿真启动前执行。
+每项测试的状态和失败日志尾部也会打印到 Actions step 日志，便于在 artifact 上传
+因网络中断失败时直接定位错误。
 
 手动运行该工作流时，可以在 Actions 界面通过 `config` 选择配置（默认
 `TapeoutConfig`，也支持 `TapeoutRocketConfig`），并通过 `SPI tracer timeout per workload in seconds`

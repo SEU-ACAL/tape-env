@@ -82,17 +82,21 @@ jobs:
 
       - name: Run SPI tracer, I2C, and JTAG peripheral regressions in parallel
         env:
+          CARGO_HOME: /data1/ci-runner/cache/nightly-peripherals/cargo/${{ runner.name }}
           SPI_TRACE_CI_TIMEOUT: ${{ inputs.spi_timeout || '1000' }}
           JTAG_CI_TIMEOUT: ${{ inputs.jtag_timeout || '1000' }}
           JTAG_STRESS_TIMEOUT: ${{ inputs.jtag_stress_timeout || '1000' }}
           JTAG_FULL_STRESS: ${{ github.event_name == 'workflow_dispatch' && inputs.jtag_full_stress && '1' || '0' }}
         run: |
+          status=0
           env \
             CI_ARTIFACT_ROOT="${CI_RUN_DIR}/vcs-artifacts" \
             CI_RESULT_ROOT="${CI_RUN_DIR}/peripheral-results" \
             CI_CONFIG="${CI_CONFIG}" \
             .github/scripts/ci/run-peripheral-regressions-vcs.sh \
-            > "${CI_RUN_DIR}/peripheral-regression.log" 2>&1
+            > "${CI_RUN_DIR}/peripheral-regression.log" 2>&1 || status=$?
+          cat "${CI_RUN_DIR}/peripheral-regression.log"
+          exit "$status"
 
       - name: Write peripheral regression summary
         if: always()

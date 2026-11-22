@@ -50,6 +50,12 @@ run_test() {
   printf '{\n  "testcase": "%s",\n  "config": "%s",\n  "status": "%s",\n  "duration_seconds": %s\n}\n' \
     "$testcase" "$config" "$status" "$((finished_at - started_at))" >"${result_dir}/result.json"
 
+  printf 'Peripheral regression: %s %s (%ss)\n' "$testcase" "$status" "$((finished_at - started_at))"
+  if [[ "$status" == failed ]]; then
+    # Keep the first useful diagnostic visible even if artifact upload fails.
+    tail -n 120 "${result_dir}/workflow.log" >&2
+  fi
+
   [[ "$status" == passed ]]
 }
 

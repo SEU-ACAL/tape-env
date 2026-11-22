@@ -176,6 +176,13 @@ fn main() {
                 tracer.by_ref().for_each(|item| match item {
                     Ok(item) => {
                         let pc = item.pc();
+                        // The tracer also yields context and trap events at a
+                        // PC. They are not retired instructions and must not
+                        // inflate the instruction count or duplicate that PC.
+                        if item.instruction().is_none() {
+                            eprintln!("TRACE_EVENT pc=0x{pc:016x} kind={:?}", item.kind());
+                            return;
+                        }
                         if let Some((encoding, mnemonic)) = disassembly.get(&pc) {
                             let width = if *encoding <= 0xffff { 4 } else { 8 };
                             println!("TRACE_INSTRUCTION pc=0x{pc:016x} encoding=0x{encoding:0width$x} {mnemonic}");
