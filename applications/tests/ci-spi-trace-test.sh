@@ -33,7 +33,7 @@ cleanup() {
   trap - EXIT
   if [[ "$exit_code" -ne 0 ]]; then
     printf 'CI SPI trace diagnostics: %s\n' "$work_dir" >&2
-    tail -80 "$work_dir"/*.log 2>/dev/null || true
+    tail -n 80 "$work_dir"/*.log 2>/dev/null || true
   elif [[ -z "${SPI_TRACE_RESULT_DIR:-}" ]]; then
     rm -rf "$work_dir"
   else
@@ -56,9 +56,7 @@ cmake -S "$script_dir" -B "$build_dir" -DCMAKE_BUILD_TYPE=Release \
   >"$work_dir/build.log" 2>&1
 cmake --build "$build_dir" --target "${cases[@]}" -j2 \
   >>"$work_dir/build.log" 2>&1
-cargo build --manifest-path "$repo_root/dependencies/riscv-etrace/Cargo.toml" \
-  --target-dir "$decoder_target" --release --example pulp_chipyard --features elf,alloc \
-  >"$work_dir/decoder-build.log" 2>&1
+bash "$script_dir/trace/build_spi_decoder.sh" "$decoder_target" "$work_dir"
 decoder="$decoder_target/release/examples/pulp_chipyard"
 
 status=0

@@ -15,7 +15,7 @@ class CheckSPITraceTests(unittest.TestCase):
     def check(self, testcase="test_iaddr_equal_match", pcs=(0x8000032C,),
               decode_rc=0, extra="", skipped=0, nibbles="a5\n",
               deframe="SPI_DEFRAME_PASS packets=1\n", monitor=True,
-              privilege="Machine", cause=8):
+              privilege="Machine", cause=8, trap_pcs=()):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             decoded = f"privilege: {privilege}\n"
@@ -23,6 +23,10 @@ class CheckSPITraceTests(unittest.TestCase):
             decoded += "".join(
                 f"TRACE_INSTRUCTION pc=0x{pc:016x} encoding=0x0013 addi zero, zero, 0\n"
                 for pc in pcs
+            )
+            decoded += "".join(
+                f"TRACE_EVENT pc=0x{pc:016x} kind=Trap(Info {{ ecause: {cause} }})\n"
+                for pc in trap_pcs
             )
             decoded += (
                 f"PULP_ETRACE_RECONSTRUCT packets={int(bool(pcs))} "
@@ -50,7 +54,18 @@ class CheckSPITraceTests(unittest.TestCase):
 
     def test_user_exception(self):
         self.check("test_privilege_exception_trace", privilege="User",
-                   pcs=(0x8000032C, 0x80000330, 0x80000334, 0x80000338))
+                   pcs=(0x8000032C, 0x80000330, 0x80000334), trap_pcs=(0x80000338,))
+
+    def test_exception_requires_trap_event(self):
+        with self.assertRaisesRegex(SystemExit, "unexpected U-mode instruction addresses"):
+            self.check("test_privilege_exception_trace", privilege="User",
+                       pcs=(0x8000032C, 0x80000330, 0x80000334, 0x80000338))
+
+    def test_duplicate_and_reordered_instructions_fail(self):
+        for pcs in ((0x8000032C, 0x8000032C),
+                    (0x8000032C, 0x80000334, 0x80000330, 0x80000338)):
+            with self.subTest(pcs=pcs), self.assertRaisesRegex(SystemExit, "unexpected PCs"):
+                self.check("test_iaddr_range_match", pcs=pcs)
 
     def test_wrong_exception_cause_and_privilege_fail(self):
         with self.assertRaisesRegex(SystemExit, "cause 8 is missing"):

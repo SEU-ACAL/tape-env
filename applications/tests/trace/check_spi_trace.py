@@ -69,18 +69,25 @@ def main() -> None:
             )
             require("user_block" in symbols, "user_block ELF symbol is missing")
             start = symbols["user_block"]
+            # ECALL is a precise exception event, not a retired instruction.
+            # The decoder prints it separately from TRACE_INSTRUCTION.
+            trap_pcs = {
+                int(pc, 16) for pc in re.findall(
+                    r"^TRACE_EVENT pc=0x([0-9a-f]+) kind=Trap\(", decoded, re.MULTILINE,
+                )
+            }
             require(
-                set(pcs) == {start, start + 4, start + 8, start + 12},
+                set(pcs) == {start, start + 4, start + 8} and trap_pcs == {start + 12},
                 "unexpected U-mode instruction addresses",
             )
         else:
             require("traced_block" in symbols, "traced_block ELF symbol is missing")
             start = symbols["traced_block"]
             expected = (
-                {start + offset for offset in (0, 4, 8, 12)}
-                if args.testcase == "test_iaddr_range_match" else {start}
+                [start + offset for offset in (0, 4, 8, 12)]
+                if args.testcase == "test_iaddr_range_match" else [start]
             )
-            require(set(pcs) == expected, f"IADDR filter returned unexpected PCs: {pcs}")
+            require(pcs == expected, f"IADDR filter returned unexpected PCs: {pcs}")
             require(privileges == {"Machine"}, f"unexpected matching trace privileges: {privileges}")
 
     print(f"CI SPI trace workload PASS: {args.testcase} packets={packets} instructions={instructions}")
